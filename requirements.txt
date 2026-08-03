@@ -1,0 +1,20 @@
+# Parchís Game Requirements
+
+# Core dependencies
+numpy>=1.21.0
+scipy>=1.10.0  # confidence intervals (parchis/evaluation/stats.py)
+
+# Optional: for visualization features only
+matplotlib>=3.0.0
+
+# Optional: for RL environment (gymnasium and stable-baselines3)
+gymnasium>=0.29.0
+
+# Optional: for RL training with PPO
+stable-baselines3>=2.0.0
+
+# Optional: for action masking with MaskablePPO
+sb3-contrib>=2.0.0
+
+# Optional: for TensorBoard logging during training
+tensorboard>=2.0.0

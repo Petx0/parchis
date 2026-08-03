@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /Users/nachorodriguezsolis/Library/Mobile\\\\ Documents/com~apple~CloudDocs/Academia/Reinforcement && python main.py:*)",
+      "Bash(ls:*)",
+      "Bash(python:*)",
+      "Bash(cd:*)"
+    ]
+  }
+}

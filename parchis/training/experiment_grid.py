@@ -24,10 +24,10 @@ from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional, Tuple
 
 import numpy as np
-import torch.nn as nn
 from sb3_contrib import MaskablePPO
 
 from parchis.training.common import make_env, evaluate_model, ProgressLoggingCallback
+from parchis.training.cli import ARCHITECTURES
 from parchis.evaluation import stats as eval_stats
 
 
@@ -36,12 +36,6 @@ from parchis.evaluation import stats as eval_stats
 # ──────────────────────────────────────────────────────────────────────
 
 REWARD_TYPES = ["progress_delta", "win_loss", "win_loss_shaped"]
-
-ARCHITECTURES = {
-    "small":  {"net_arch": [64, 64],       "activation_fn": nn.Tanh},
-    "medium": {"net_arch": [256, 256],      "activation_fn": nn.ReLU},
-    "large":  {"net_arch": [512, 256, 128], "activation_fn": nn.ReLU},
-}
 
 # Fixed hyperparameters (identical across all 9 experiments)
 FIXED_HYPERPARAMS = {

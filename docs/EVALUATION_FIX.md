@@ -9,7 +9,7 @@ The standard `EvalCallback` from stable-baselines3 has compatibility issues with
 ## Solutions Implemented
 
 ### 1. Disabled Mid-Training Evaluation by Default
-**File**: `parchis/train_ppo.py`
+**File**: `parchis/training/train_ppo.py`
 
 - Changed default `eval_freq` from `50_000` to `None`
 - Added conditional logic to only create `EvalCallback` when `eval_freq` is not None
@@ -22,7 +22,7 @@ The standard `EvalCallback` from stable-baselines3 has compatibility issues with
 - Final evaluation still runs with safety timeouts
 
 ### 2. Added Safety Timeout to Evaluation
-**File**: `parchis/train_ppo.py` - `evaluate_model()` function
+**File**: `parchis/training/common.py` - `evaluate_model()` function
 
 - Added `max_steps_per_episode=2000` parameter (default)
 - Episode loop checks `episode_length < max_steps_per_episode`
@@ -35,7 +35,7 @@ The standard `EvalCallback` from stable-baselines3 has compatibility issues with
 - Still allows games to complete naturally if they finish quickly
 
 ### 3. Fixed Numpy Array Type Issue
-**File**: `parchis/train_ppo.py` line 234
+**File**: `parchis/training/common.py` (in `evaluate_model()`)
 
 - Convert action from numpy array to int: `action = int(action)`
 
@@ -48,19 +48,19 @@ The standard `EvalCallback` from stable-baselines3 has compatibility issues with
 ### Default Behavior (Recommended)
 ```python
 # Evaluation only at the end
-python -m parchis.train_ppo --timesteps 100000
+python -m parchis.training.train_ppo --timesteps 100000
 ```
 
 ### Enable Mid-Training Evaluation (Optional)
 ```python
 # Evaluate every 50k timesteps (may have compatibility issues)
-python -m parchis.train_ppo --timesteps 100000 --eval-freq 50000
+python -m parchis.training.train_ppo --timesteps 100000 --eval-freq 50000
 ```
 
 ### Quick Testing
 ```python
-# Uses safe defaults
-python -m parchis.train_quick
+# Small timestep count, same safe defaults
+python -m parchis.training.train_ppo --timesteps 10000 --players 4
 ```
 
 ## Configuration Options

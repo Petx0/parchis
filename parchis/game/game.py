@@ -138,6 +138,10 @@ class Game:
         """See RuleEngine.get_legal_moves."""
         return self.rules.get_legal_moves(player, dice_roll)
 
+    def would_capture(self, move):
+        """See RuleEngine.would_capture."""
+        return self.rules.would_capture(move)
+
     def _calculate_new_position(self, player, current_pos, dice_roll):
         """See RuleEngine.calculate_new_position."""
         return self.rules.calculate_new_position(player, current_pos, dice_roll)

@@ -71,9 +71,9 @@ In practice, use `parchis.training.train_ppo.make_env()` rather than constructin
 
 ## Environment Details
 
-### Observation Space (dynamic size: `79 * num_players + 36`)
+### Observation Space (dynamic size: `79 * num_players + 31`)
 
-For 4 players this is 352 values; for 2 players, 194. The observation is a flat `float32` array in `[0.0, 1.0]`:
+For 4 players this is 347 values; for 3 players, 268; for 2 players, 189. The observation is a flat `float32` array in `[0.0, 1.0]`:
 
 1. **Board state (`num_players × 76` values)**: one 76-value channel per player, ordered by turn with the *current* player first. Each channel covers positions 1-76 (1-68 main track, 69-76 home column); a position's value is `0.0` (no piece there), `0.5` (one piece), or `1.0` (two pieces, a stack/blockade).
 
@@ -83,15 +83,17 @@ For 4 players this is 352 values; for 2 players, 194. The observation is a flat 
 
 4. **Dice roll, one-hot (7 values)**: `is_dice_1` .. `is_dice_5`, `is_dice_6_normal` (rolled 6, still have pieces in base), `is_dice_6_no_base` (rolled 6, all pieces already out — moves 7 squares).
 
-5. **Bonus indicator (1 value)**: `bonus_squares / 20.0` when a capture/finish bonus move is pending for the current player, `0.0` otherwise.
+5. **Bonus indicator (2 values)**: `has_finish_bonus` and `has_capture_bonus`, mutually-exclusive binary flags reflecting whether a finish (10-square) or capture (20-square) bonus move is pending for the current player. Both `0.0` when no bonus is pending. (Previously a single continuum-encoded `bonus_squares / 20.0` scalar — replaced because finish-bonus and capture-bonus are qualitatively different situations, not degrees of the same quantity; see `docs/observation_space_changes.md` Decision 1.)
 
-6. **Own-piece features (24 values = 4 pieces × 6 features)**: unlike the board-state block above (which is reordered by turn), this block is indexed *strictly by `piece.piece_id`* so it lines up with the `Discrete(4)` action space — the network can otherwise never distinguish "choose action 0" from "choose action 3" beyond legality. Per piece: `in_base`, `finished`, `normalized_position` (`0.0` in base, `1.0` finished, else `position/76.0`), `on_safe_square` (main-track safe square or home column), `capture_threatened` (an opponent piece is 1-6 squares behind, on a square it could capture from), `capture_opportunity` (an opponent piece is 1-6 squares ahead, on a non-safe square). The threat/opportunity checks are a deliberately cheap approximation: capped at distance 6 (misses the rare 7-square move) and don't account for intervening blockades.
+6. **Own-piece features (21 values = 4 pieces × 5 per-piece features, + 1 shared value)**: unlike the board-state block above (which is reordered by turn), the per-piece features are indexed *strictly by `piece.piece_id`* so they line up with the `Discrete(4)` action space — the network can otherwise never distinguish "choose action 0" from "choose action 3" beyond legality.
+   - Per piece (stride 5): `in_base`, `finished`, `normalized_position` (`0.0` in base, `1.0` finished, else `position/76.0`), `on_safe_square` (main-track safe square or home column), `capture_threat_score` — a roll-based `[0.0, 1.0]` score: the fraction of the 6 dice faces (summed across *all* opponents, not deduplicated — two opponents each threatening with the same roll value counts twice) that would let some opponent capture this piece this turn, either directly or via the capture/finish bonus move that roll unlocks. Computed by querying `RuleEngine.get_legal_moves`/the new `RuleEngine.would_capture` helper for each candidate roll, never by hand-rolled distance math — this makes it exact with respect to every rule edge case (mandatory-5-entry, the 6-with-0-base 7-move, the 6-with-blockade must-open restriction, entry captures on an opponent's "safe" starting square), unlike the old binary `capture_threatened` bit it replaces (which was capped at distance 6, ignored mandatory-5-entry, and ignored bonus chains). One accepted, deliberate approximation remains: the bonus-chain check doesn't simulate the *same* piece that triggered a capture/finish continuing its own chain from its new position — only other already-on-board opponent pieces are considered.
+   - Shared (1 value, `own_piece_offset + 20`, **not** indexed by piece_id): `capture_opportunity` — a roll-based `[0.0, 1.0]` score covering all 4 of the agent's own pieces at once: the fraction of the 6 dice faces for which the agent has at least one legal capturing move via *any* of its 4 pieces (OR'd across pieces, so a roll value that lets two different own pieces each capture only counts once). Explicitly single-roll only — unlike `capture_threat_score`, it does not extend through bonus chains. Replaces the old per-piece binary `capture_opportunity` bit.
 
-7. **Blockade indicator (2 values)**: `own_blockades / 12.0` and `opponent_blockades / 12.0` (both clipped to `1.0`; 12 = the total number of safe squares, the hard cap on simultaneous blockades). Both directions matter — blockades restrict *everyone's* movement, including the agent's own pieces being blocked by an opponent's blockade.
+   See `docs/observation_space_changes.md` (Decisions 2 and 5) for the full design rationale and the pure, non-mutating `RuleEngine.would_capture` helper these scores are built on.
 
-8. **Six-streak (1 value)**: `consecutive_sixes / 3` for whoever's turn is currently being resolved (agent or, mid-auto-play, an opponent).
+7. **Six-streak (1 value)**: `consecutive_sixes / 3` for whoever's turn is currently being resolved (agent or, mid-auto-play, an opponent). This is now the final block in the observation.
 
-9. **Bonus chain count (1 value)**: `bonus_chain_count / 4.0`, clipped to `1.0`.
+The blockade indicator (own/opponent blockade counts) and the bonus-chain-count block have both been **removed entirely** from the observation (not zeroed — the observation is simply shorter), per `docs/observation_space_changes.md` Decisions 3 and 4: the blockade count wasn't tied to any specific actionable decision (illegal moves from blockades are already fully captured by `action_masks`), and the bonus-chain-length counter didn't add information beyond what the board-state/piece-count blocks already encode. `bonus_chain_count` is still tracked internally and exposed via `info['bonus_chain_count']` (used for KPI logging in `parchis/training/common.py` and `parchis/evaluation/evaluate.py`) — it's just no longer part of the observation array.
 
 ### Action Space
 
@@ -138,7 +140,7 @@ python -m pytest parchis/tests/test_new_rewards.py -v
 python -m pytest parchis/tests/test_selfplay.py -v
 
 # Quick training smoke test (10K timesteps)
-python -m parchis.training.train_quick
+python -m parchis.training.train_ppo --timesteps 10000 --players 4
 ```
 
 ## Game Rules
@@ -158,4 +160,4 @@ The game engine (`parchis/game/`) implements the full rule set in `docs/RULES.md
 - Monitor with TensorBoard (see `docs/TRAINING_GUIDE.md` for the exact flags each training script logs).
 
 ### Old saved models won't load / observation shape mismatch
-If you have a model checkpoint from before the domain-A/observation fixes in `docs/CODE_REVIEW.md`, or from before the piece-indexed observation redesign in `docs/RL_DESIGN_REVIEW.md` (observation size `79*num_players+8` → `79*num_players+36`), it was trained against a different observation space and will fail to load against the current `ParchisEnv` with a shape-mismatch error. It needs to be retrained.
+If you have a model checkpoint from before the domain-A/observation fixes in `docs/CODE_REVIEW.md`, from before the piece-indexed observation redesign in `docs/RL_DESIGN_REVIEW.md` (observation size `79*num_players+8` → `79*num_players+36`), or from before the Decision 1-5 observation-space changes in `docs/observation_space_changes.md` (`79*num_players+36` → `79*num_players+31`), it was trained against a different observation space and will fail to load against the current `ParchisEnv` with a shape-mismatch error. It needs to be retrained.

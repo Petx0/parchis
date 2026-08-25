@@ -10,7 +10,9 @@ from gymnasium import spaces
 
 from parchis.game.game import Game
 from parchis.game.board import Board
-from parchis.game.constants import BONUS_TURN_ROLL, THREE_SIXES_LIMIT
+from parchis.game.constants import (
+    BONUS_TURN_ROLL, THREE_SIXES_LIMIT, CAPTURE_BONUS_SQUARES, FINISH_BONUS_SQUARES,
+)
 from parchis.rl import rewards
 
 
@@ -24,14 +26,14 @@ class ParchisEnv(gym.Env):
     Custom Gymnasium Environment for Parchís game.
 
     Observation Space (dynamic size based on num_players, all normalized to [0, 1]):
-        Total size = 79 * num_players + 36 (e.g., 194 for 2 players, 352 for 4 players)
+        Total size = 79 * num_players + 31 (e.g., 189 for 2 players, 347 for 4 players)
 
         Board State (num_players × 76 positions):
             - One channel per player (current player first, then opponents by turn order)
             - Each channel has 76 positions (1-76: main track 1-68, home column 69-76)
             - Values: 0, 0.5, or 1.0 (representing 0, 1, or 2 pieces at that position)
 
-        Global State (3 * num_players + 8 + 24 + 4 features):
+        Global State (3 * num_players + 7 + 2 + 21 + 1 features):
             - Piece counts (2 × num_players values):
                 * For each player: pieces_in_base / 4.0, pieces_finished / 4.0
 
@@ -46,27 +48,32 @@ class ParchisEnv(gym.Env):
                 * is_dice_6_normal (has pieces in base, effective_roll=6)
                 * is_dice_6_no_base (no pieces in base, effective_roll=7)
 
-            - Bonus indicator (1 value):
-                * bonus_squares / 20.0 (0.0 for none, 0.5 for 10, 1.0 for 20)
+            - Bonus indicator (2 values, mutually exclusive binary flags):
+                * has_finish_bonus, has_capture_bonus
 
-            - Own-piece features (24 values = 4 pieces × 6 features, fixed
-              slot by piece_id so they line up with the Discrete(4) action
-              space - unlike the board-state block, this block is never
-              reordered by turn):
-                * in_base, finished, normalized_position, on_safe_square,
-                  capture_threatened, capture_opportunity (see
-                  _get_observation for exact definitions)
-
-            - Blockade indicator (2 values):
-                * own_blockades / 12.0, opponent_blockades / 12.0 (clipped
-                  to 1.0; 12 = total number of safe squares, the hard cap
-                  on simultaneous blockades)
+            - Own-piece features (21 values = 4 pieces × 5 per-piece features,
+              fixed slot by piece_id so they line up with the Discrete(4)
+              action space - unlike the board-state block, this block is
+              never reordered by turn - plus 1 shared value):
+                * Per piece (stride 5): in_base, finished, normalized_position,
+                  on_safe_square, capture_threat_score (roll-based [0,1] score:
+                  fraction of the 6 dice faces that would let some opponent
+                  capture this piece this turn, directly or via a bonus
+                  chain - see _capture_threat_scores)
+                * Shared (1 value, not per-piece): capture_opportunity (roll-
+                  based [0,1] score: fraction of the 6 dice faces that would
+                  let the agent capture something with any of its own pieces
+                  this turn, single-roll only - see _capture_opportunity_score)
 
             - Six-streak (1 value):
                 * consecutive_sixes / THREE_SIXES_LIMIT
 
-            - Bonus chain count (1 value):
-                * bonus_chain_count / 4.0 (clipped to 1.0)
+        bonus_chain_count is still tracked on the instance and exposed via
+        _get_info() (for KPI logging in parchis/training/common.py and
+        parchis/evaluation/evaluate.py) but is no longer part of the
+        observation array, and the blockade indicator (own/opponent
+        blockade counts) has been removed entirely - see
+        docs/observation_space_changes.md for the rationale.
 
     Action Space:
         - Discrete(4): Choose which piece (0-3) to move
@@ -135,15 +142,16 @@ class ParchisEnv(gym.Env):
     VALID_REWARD_TYPES = rewards.VALID_REWARD_TYPES
     VALID_OPPONENT_WEIGHTING_SCHEMES = rewards.VALID_OPPONENT_WEIGHTING_SCHEMES
 
-    # Own-piece feature block: 4 pieces (fixed slot by piece_id) x 6 features.
-    PIECE_FEATURES_PER_PIECE = 6
-    OWN_PIECE_FEATURES_SIZE = 4 * PIECE_FEATURES_PER_PIECE  # 24
-    # 2 blockade (own/opponent) + 1 six-streak + 1 bonus-chain-count.
-    STRATEGIC_FEATURES_SIZE = 4
-    # Hard cap on simultaneous blockades: one per safe square.
-    MAX_BLOCKADES = len(Board.SAFE_SQUARES)
-    # Soft, saturating cap used to normalize bonus_chain_count.
-    BONUS_CHAIN_NORMALIZATION_CAP = 4.0
+    # Own-piece feature block: 4 pieces (fixed slot by piece_id) x 5
+    # per-piece features, plus 1 shared capture_opportunity slot covering
+    # all 4 pieces at once (not indexed by piece_id).
+    PIECE_FEATURES_PER_PIECE = 5
+    OWN_PIECE_FEATURES_SIZE = 4 * PIECE_FEATURES_PER_PIECE + 1  # 21
+    # 2 mutually-exclusive bonus flags (has_finish_bonus/has_capture_bonus).
+    BONUS_FEATURES_SIZE = 2
+    # Six-streak only. Blockade indicator and bonus-chain count were cut
+    # from the observation entirely (docs/observation_space_changes.md).
+    STRATEGIC_FEATURES_SIZE = 1
 
     def __init__(self, num_players=4, render_mode=None, reward_type="progress_delta",
                  opponent_policy_fn=None, opponent_weight=rewards.DEFAULT_OPPONENT_WEIGHT,
@@ -205,13 +213,15 @@ class ParchisEnv(gym.Env):
         #   * Piece counts: 2 × num_players (in_base, finished for each)
         #   * Progress scores: num_players
         #   * Dice roll: 7 (one-hot)
-        #   * Bonus indicator: 1
-        #   * Own-piece features: 24 (4 pieces × 6, fixed slot by piece_id)
-        #   * Strategic features: 4 (blockade ×2, six-streak, bonus-chain-count)
-        # Total: 76*N + 3*N + 8 + 24 + 4 = 79 * num_players + 36
+        #   * Bonus indicator: 2 (has_finish_bonus, has_capture_bonus)
+        #   * Own-piece features: 21 (4 pieces × 5, fixed slot by piece_id,
+        #     + 1 shared capture_opportunity score)
+        #   * Strategic features: 1 (six-streak)
+        # Total: 76*N + 3*N + 7 + 2 + 21 + 1 = 79 * num_players + 31
         self.board_state_size = num_players * Board.FINAL_POSITION
         self.global_state_size = (
-            3 * num_players + 8 + self.OWN_PIECE_FEATURES_SIZE + self.STRATEGIC_FEATURES_SIZE
+            3 * num_players + 7 + self.BONUS_FEATURES_SIZE
+            + self.OWN_PIECE_FEATURES_SIZE + self.STRATEGIC_FEATURES_SIZE
         )
         obs_size = self.board_state_size + self.global_state_size
         self.observation_space = spaces.Box(
@@ -721,6 +731,113 @@ class ParchisEnv(gym.Env):
             elif move_info.new_position == Board.FINAL_POSITION:
                 self._auto_play_bonus(player, 10)
 
+    def _capture_threat_scores(self, agent_player):
+        """
+        Roll-based capture_threat_score per own piece. For every opponent
+        and every face value 1-6, count a "hit" against a given own piece
+        if rolling that value this turn would let the opponent capture it,
+        either directly or via the bonus move (10/20 squares) that roll
+        unlocks. Legality and capture outcomes come entirely from
+        Game.get_legal_moves / Game.would_capture -- never hand-rolled
+        distance math -- so every rule edge case (mandatory-5-entry, the
+        6-with-0-base 7-move, the 6-with-blockade must-open restriction,
+        entry captures on an opponent's "safe" starting square) is
+        automatically correct.
+
+        Known, deferred perf note: this (and _capture_opportunity_score)
+        run O(num_players * 6) extra get_legal_moves calls, and
+        ParchisSelfPlayEnv._choose_opponent_move now calls
+        _get_observation() for every opponent decision (including bonus-
+        chain moves), not just once per agent step -- so this is on a
+        hotter path than when it was first written. Not fixed here
+        (correctness-only pass); a real fix would cache/reuse legal-move
+        queries across the per-roll loop instead of recomputing them.
+
+        Known, accepted limitation: the bonus-chain check queries
+        get_legal_moves(opponent, 10/20) against the current, unmutated
+        board. This correctly finds a bonus-chain threat delivered by any
+        OTHER already-on-board piece of that opponent. It does not find
+        the rarer case where the SAME piece that captures/finishes
+        continues, via its own bonus move, from its new post-move
+        position -- that would require speculatively mutating and
+        reverting board state for every (opponent, roll) pair, which is
+        not done here.
+
+        Args:
+            agent_player: the learning agent's Player.
+
+        Returns:
+            dict[int, int]: piece_id -> raw hit count, summed across all
+            opponents (0..6 per opponent). Not yet divided by 6 or
+            clipped -- double threats from different opponents are not
+            deduplicated ("double threat = double risk").
+        """
+        hit_counts = {piece.piece_id: 0 for piece in agent_player.pieces}
+
+        for opponent in self.game.players:
+            if opponent is agent_player:
+                continue
+
+            moves_by_roll = {v: self.game.get_legal_moves(opponent, v) for v in range(1, 7)}
+            direct_targets_by_roll = {
+                v: {p for m in moves for p in self.game.would_capture(m)}
+                for v, moves in moves_by_roll.items()
+            }
+            capture_rolls = {v for v, targets in direct_targets_by_roll.items() if targets}
+            finish_rolls = {
+                v for v, moves in moves_by_roll.items()
+                if any(move_type == 'finish' for (_p, _pos, move_type) in moves)
+            }
+
+            # Bonus-move lists don't depend on which face value triggered
+            # them or which own piece is being scored -- compute each at
+            # most once per opponent per _get_observation() call.
+            bonus20_targets = set()
+            if capture_rolls:
+                bonus20_moves = self.game.get_legal_moves(opponent, CAPTURE_BONUS_SQUARES)
+                bonus20_targets = {p for m in bonus20_moves for p in self.game.would_capture(m)}
+            bonus10_targets = set()
+            if finish_rolls:
+                bonus10_moves = self.game.get_legal_moves(opponent, FINISH_BONUS_SQUARES)
+                bonus10_targets = {p for m in bonus10_moves for p in self.game.would_capture(m)}
+
+            for piece in agent_player.pieces:
+                for v in range(1, 7):
+                    hit = (
+                        piece in direct_targets_by_roll[v]
+                        or (v in capture_rolls and piece in bonus20_targets)
+                        or (v in finish_rolls and piece in bonus10_targets)
+                    )
+                    if hit:
+                        hit_counts[piece.piece_id] += 1
+
+        return hit_counts
+
+    def _capture_opportunity_score(self, agent_player):
+        """
+        Shared, single-roll-only capture_opportunity score covering all 4
+        of the agent's own pieces at once. For each face value 1-6: does
+        the agent have >=1 legal move this turn, via ANY of its 4 pieces,
+        that is a capture? OR'd across pieces -- a face value counts once
+        even if multiple own pieces could capture with it. Explicitly
+        scoped to single-roll captures only -- unlike
+        _capture_threat_scores, this does NOT extend through bonus chains
+        (asymmetric on purpose).
+
+        Args:
+            agent_player: the learning agent's Player.
+
+        Returns:
+            float: (# of the 6 face values that produce >=1 capturing
+            move) / 6.
+        """
+        hits = 0
+        for v in range(1, 7):
+            moves = self.game.get_legal_moves(agent_player, v)
+            if any(self.game.would_capture(m) for m in moves):
+                hits += 1
+        return hits / 6.0
+
     def _get_observation(self):
         """
         Construct the observation array (dynamic size based on num_players).
@@ -729,8 +846,7 @@ class ParchisEnv(gym.Env):
             numpy array containing:
             - Board state: num_players × 76 positions
             - Global state: piece counts, progress scores, dice, bonus,
-              own-piece features, blockade indicator, six-streak,
-              bonus-chain count
+              own-piece features, six-streak
         """
         obs = np.zeros(self.board_state_size + self.global_state_size, dtype=np.float32)
 
@@ -787,21 +903,28 @@ class ParchisEnv(gym.Env):
                 else:
                     obs[dice_offset + 6] = 1.0  # is_dice_6_no_base (effective_roll=7)
 
-        # --- Bonus indicator: 1 value ---
+        # --- Bonus indicator: 2 mutually exclusive binary flags ---
         bonus_offset = dice_offset + 7
         if self.pending_bonus is not None:
-            obs[bonus_offset] = self.pending_bonus['squares'] / 20.0
-        # else: already 0.0 from np.zeros
+            if self.pending_bonus['type'] == 'finish_bonus':
+                obs[bonus_offset] = 1.0      # has_finish_bonus
+            elif self.pending_bonus['type'] == 'capture_bonus':
+                obs[bonus_offset + 1] = 1.0  # has_capture_bonus
+        # else: both already 0.0 from np.zeros
 
-        # ===== OWN-PIECE FEATURES: 4 pieces × 6, fixed slot by piece_id =====
-        # Indexed strictly by piece.piece_id (matching how _get_info()'s
-        # action_masks[piece.piece_id] already works) -- never reordered by
-        # turn order, unlike the board-state block above. This is what lets
-        # the network distinguish the consequence of choosing action=0 vs
-        # action=3 when multiple of the agent's own pieces have
-        # simultaneously legal moves.
-        own_piece_offset = bonus_offset + 1
+        # ===== OWN-PIECE FEATURES: 4 pieces × 5, fixed slot by piece_id,
+        # + 1 shared capture_opportunity slot =====
+        # Per-piece features indexed strictly by piece.piece_id (matching
+        # how _get_info()'s action_masks[piece.piece_id] already works) --
+        # never reordered by turn order, unlike the board-state block
+        # above. This is what lets the network distinguish the consequence
+        # of choosing action=0 vs action=3 when multiple of the agent's
+        # own pieces have simultaneously legal moves.
+        own_piece_offset = bonus_offset + self.BONUS_FEATURES_SIZE
         agent_player = self.game.players[self.agent_player_idx]
+
+        threat_hit_counts = self._capture_threat_scores(agent_player)
+
         for piece in agent_player.pieces:
             base = own_piece_offset + piece.piece_id * self.PIECE_FEATURES_PER_PIECE
             in_base = piece.in_base
@@ -824,54 +947,25 @@ class ParchisEnv(gym.Env):
             )
             obs[base + 3] = 1.0 if on_safe else 0.0
 
-            # capture_threatened: any opponent piece 1-6 squares behind this
-            # piece, on a square it could actually be captured from. A
-            # piece already on a safe square (main-track safe square or
-            # home column) can never be threatened.
-            threatened = 0.0
-            if not in_base and not finished and not on_safe:
-                for d in range(1, 7):
-                    behind = ((pos - d - 1) % Board.MAIN_TRACK_SIZE) + 1
-                    if any(p.color != agent_player.color for p in self.game.board.get_pieces_at(behind)):
-                        threatened = 1.0
-                        break
-            obs[base + 4] = threatened
+            # capture_threat_score: roll-based, see _capture_threat_scores.
+            # Deliberately NOT gated on `on_safe` -- a piece on an
+            # opponent's starting square can still be captured via that
+            # opponent's `enter` move (docs/RULES.md "Entering the Board"
+            # rules 5-6), even though the square is "safe" in the general
+            # sense.
+            obs[base + 4] = min(threat_hit_counts[piece.piece_id] / 6.0, 1.0)
 
-            # capture_opportunity: any opponent piece 1-6 squares ahead of
-            # this piece on a non-safe square. Own safety doesn't matter
-            # here -- a piece on a safe square can still threaten others.
-            opportunity = 0.0
-            if not in_base and not finished and pos < Board.HOME_COLUMN_START:
-                for d in range(1, 7):
-                    ahead = ((pos + d - 1) % Board.MAIN_TRACK_SIZE) + 1
-                    if ahead in Board.SAFE_SQUARES:
-                        continue
-                    if any(p.color != agent_player.color for p in self.game.board.get_pieces_at(ahead)):
-                        opportunity = 1.0
-                        break
-            obs[base + 5] = opportunity
-
-        # ===== BLOCKADE INDICATOR: 2 values =====
-        # Both directions matter: blockades restrict *everyone's* movement
-        # (docs/RULES.md), including the agent's own pieces being blocked
-        # by an opponent's blockade.
-        blockade_offset = own_piece_offset + self.OWN_PIECE_FEATURES_SIZE
-        all_blockades = self.game.get_blockades()
-        own_blockades = sum(
-            1 for pos in all_blockades
-            if self.game.board.get_pieces_at(pos)[0].color == agent_player.color
+        # capture_opportunity: single shared slot, not per-piece. Derived
+        # from PIECE_FEATURES_PER_PIECE (not hardcoded) so this stays in
+        # sync if that constant ever changes -- matches how six_streak_offset
+        # derives from OWN_PIECE_FEATURES_SIZE two lines below.
+        obs[own_piece_offset + 4 * self.PIECE_FEATURES_PER_PIECE] = (
+            self._capture_opportunity_score(agent_player)
         )
-        opponent_blockades = len(all_blockades) - own_blockades
-        obs[blockade_offset] = min(own_blockades / self.MAX_BLOCKADES, 1.0)
-        obs[blockade_offset + 1] = min(opponent_blockades / self.MAX_BLOCKADES, 1.0)
 
-        # --- Six-streak: 1 value ---
-        six_streak_offset = blockade_offset + 2
+        # --- Six-streak: 1 value (final block) ---
+        six_streak_offset = own_piece_offset + self.OWN_PIECE_FEATURES_SIZE
         obs[six_streak_offset] = self.consecutive_sixes / THREE_SIXES_LIMIT
-
-        # --- Bonus chain count: 1 value ---
-        bonus_chain_offset = six_streak_offset + 1
-        obs[bonus_chain_offset] = min(self.bonus_chain_count / self.BONUS_CHAIN_NORMALIZATION_CAP, 1.0)
 
         return obs
 

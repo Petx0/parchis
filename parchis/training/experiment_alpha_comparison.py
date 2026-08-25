@@ -118,7 +118,13 @@ def train_agent(
         Path to saved model
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_name = f"alpha_{opponent_weight:.1f}_{opponent_weighting}_{timestamp}"
+    # No raw '.' in the name -- SB3's save() (save_util.open_path_pathlib)
+    # skips appending .zip whenever pathlib.Path(name).suffix is already
+    # non-empty, and a decimal point (e.g. "alpha_0.9_mean_...") makes it
+    # think the name already has an extension, silently saving the
+    # checkpoint without .zip. Use 'p' for the decimal point instead.
+    alpha_str = f"{opponent_weight:.1f}".replace(".", "p")
+    model_name = f"alpha_{alpha_str}_{opponent_weighting}_{timestamp}"
 
     print(f"\n{'='*70}")
     print(f"Training with α = {opponent_weight}, opponent_weighting = {opponent_weighting}")

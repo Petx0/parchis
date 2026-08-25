@@ -1064,6 +1064,232 @@ def test_three_sixes_no_legal_move_on_second_six_scoping():
     print("✓ play_turn() correctly scopes the penalty to the second-six roll only")
 
 
+def test_would_capture_enter_no_capture_cases():
+    """would_capture on an 'enter' move returns [] when the starting
+    square is empty, or holds exactly one piece (own or opponent alone)."""
+    print("\nTesting would_capture: enter move, no-capture cases...")
+
+    game = Game(num_players=2)
+    player = game.players[0]  # Yellow
+    opponent = game.players[1]  # Blue
+
+    # Case 1: empty starting square.
+    initial_piece = player.pieces[0]
+    game.board.remove_piece(initial_piece)
+    initial_piece.send_to_base()
+    entering_piece = player.pieces[1]
+    captured = game.would_capture((entering_piece, player.starting_position, 'enter'))
+    assert captured == [], "Empty starting square should not capture"
+
+    # Case 2: one own piece alone at starting square.
+    initial_piece.move_to(player.starting_position)
+    game.board.add_piece(initial_piece, player.starting_position)
+    captured = game.would_capture((entering_piece, player.starting_position, 'enter'))
+    assert captured == [], "One own piece alone should not capture"
+
+    # Case 3: one opponent piece alone at starting square.
+    game.board.remove_piece(initial_piece)
+    initial_piece.send_to_base()
+    opp_piece = opponent.pieces[0]
+    game.board.remove_piece(opp_piece)
+    opp_piece.move_to(player.starting_position)
+    game.board.add_piece(opp_piece, player.starting_position)
+    captured = game.would_capture((entering_piece, player.starting_position, 'enter'))
+    assert captured == [], "One opponent piece alone should not capture (starting square is safe)"
+    print("✓ Enter move correctly reports no capture for empty/1-own/1-opponent cases")
+
+
+def test_would_capture_enter_one_own_one_opponent():
+    """would_capture on an 'enter' move captures the lone opponent when
+    the starting square holds exactly 1 own + 1 opponent piece."""
+    print("\nTesting would_capture: enter move captures 1 own + 1 opponent...")
+
+    game = Game(num_players=2)
+    player = game.players[0]
+    opponent = game.players[1]
+
+    own_piece = player.pieces[0]  # already at starting_position
+    opp_piece = opponent.pieces[0]
+    game.board.remove_piece(opp_piece)
+    opp_piece.move_to(player.starting_position)
+    game.board.add_piece(opp_piece, player.starting_position)
+
+    entering_piece = player.pieces[1]
+    captured = game.would_capture((entering_piece, player.starting_position, 'enter'))
+    assert captured == [opp_piece], "Should predict capturing the lone opponent piece"
+
+    # Purity: nothing actually moved/captured yet.
+    assert not opp_piece.in_base, "would_capture must not mutate state"
+    assert entering_piece.in_base, "would_capture must not mutate state"
+    print("✓ Enter move correctly predicts capturing 1 own + 1 opponent case")
+
+
+def test_would_capture_enter_two_opponents_captures_most_recent():
+    """would_capture on an 'enter' move against 2 opponent pieces predicts
+    capturing whichever has the higher move_order (most recently placed)."""
+    print("\nTesting would_capture: enter move against 2 opponents...")
+
+    game = Game(num_players=3)
+    player = game.players[0]
+    opponent1 = game.players[1]
+    opponent2 = game.players[2]
+
+    initial_piece = player.pieces[0]
+    game.board.remove_piece(initial_piece)
+    initial_piece.send_to_base()
+
+    opp1_piece = opponent1.pieces[0]
+    opp2_piece = opponent2.pieces[0]
+    game.board.remove_piece(opp1_piece)
+    game.board.remove_piece(opp2_piece)
+    opp1_piece.move_to(player.starting_position)
+    game.board.add_piece(opp1_piece, player.starting_position)
+    opp2_piece.move_to(player.starting_position)
+    game.board.add_piece(opp2_piece, player.starting_position)
+    assert opp2_piece.move_order > opp1_piece.move_order
+
+    entering_piece = player.pieces[1]
+    captured = game.would_capture((entering_piece, player.starting_position, 'enter'))
+    assert captured == [opp2_piece], "Should predict capturing the most recently placed opponent piece"
+    print("✓ Enter move correctly predicts capturing the most recent of 2 opponents")
+
+
+def test_would_capture_move_captures_single_opponent():
+    """would_capture on a 'move' move predicts a capture when landing on a
+    non-safe square occupied by a lone opponent piece."""
+    print("\nTesting would_capture: move captures on non-safe square...")
+
+    game = Game(num_players=2)
+    player = game.players[0]
+    opponent = game.players[1]
+
+    piece = player.pieces[0]
+    game.board.remove_piece(piece)
+    piece.move_to(10)
+    game.board.add_piece(piece, 10)
+
+    opp_piece = opponent.pieces[0]
+    game.board.remove_piece(opp_piece)
+    opp_piece.move_to(15)  # non-safe square
+    game.board.add_piece(opp_piece, 15)
+
+    captured = game.would_capture((piece, 15, 'move'))
+    assert captured == [opp_piece], "Should predict capturing the opponent piece"
+    assert piece.position == 10, "would_capture must not mutate state"
+    assert not opp_piece.in_base, "would_capture must not mutate state"
+    print("✓ Move correctly predicts capture on non-safe square")
+
+
+def test_would_capture_move_no_capture_on_safe_square():
+    """would_capture on a 'move' move never predicts a capture landing on
+    a safe square, even with an opponent piece present."""
+    print("\nTesting would_capture: no capture on safe square...")
+
+    game = Game(num_players=2)
+    player = game.players[0]
+    opponent = game.players[1]
+
+    piece = player.pieces[0]
+    game.board.remove_piece(piece)
+    piece.move_to(7)
+    game.board.add_piece(piece, 7)
+
+    opp_piece = opponent.pieces[0]
+    game.board.remove_piece(opp_piece)
+    opp_piece.move_to(12)  # safe square
+    game.board.add_piece(opp_piece, 12)
+
+    captured = game.would_capture((piece, 12, 'move'))
+    assert captured == [], "Should never predict a capture on a safe square"
+    print("✓ Move correctly predicts no capture on a safe square")
+
+
+def test_would_capture_move_no_capture_in_home_column():
+    """would_capture on a 'move' move never predicts a capture in the home
+    column, regardless of occupant color."""
+    print("\nTesting would_capture: no capture in home column...")
+
+    game = Game(num_players=2)
+    player = game.players[0]
+    opponent = game.players[1]
+
+    piece = player.pieces[0]
+    game.board.remove_piece(piece)
+    piece.move_to(69)
+    game.board.add_piece(piece, 69)
+
+    opp_piece = opponent.pieces[0]
+    game.board.remove_piece(opp_piece)
+    opp_piece.move_to(70)
+    game.board.add_piece(opp_piece, 70)
+
+    captured = game.would_capture((piece, 70, 'move'))
+    assert captured == [], "Should never predict a capture in the home column"
+    print("✓ Move correctly predicts no capture in the home column")
+
+
+def test_would_capture_move_double_capture_same_color_stack():
+    """would_capture on a 'move' move can predict capturing 2 pieces at
+    once: landing on a non-safe square holding a same-color 2-piece stack
+    of a *different* color than the mover."""
+    print("\nTesting would_capture: rare double-capture case...")
+
+    game = Game(num_players=2)
+    player = game.players[0]
+    opponent = game.players[1]
+
+    piece = player.pieces[0]
+    game.board.remove_piece(piece)
+    piece.move_to(10)
+    game.board.add_piece(piece, 10)
+
+    opp_piece1 = opponent.pieces[0]
+    opp_piece2 = opponent.pieces[1]
+    game.board.remove_piece(opp_piece1)
+    game.board.remove_piece(opp_piece2)
+    opp_piece1.move_to(15)
+    game.board.add_piece(opp_piece1, 15)
+    opp_piece2.move_to(15)
+    game.board.add_piece(opp_piece2, 15)
+    assert len(game.board.get_pieces_at(15)) == 2
+
+    captured = game.would_capture((piece, 15, 'move'))
+    assert set(captured) == {opp_piece1, opp_piece2}, "Should predict capturing both stacked opponent pieces"
+    print("✓ Move correctly predicts capturing both pieces of a same-color opponent stack")
+
+
+def test_would_capture_does_not_mutate_board():
+    """would_capture must be a pure query: repeated calls must not change
+    board state, piece positions, or move_order counters."""
+    print("\nTesting would_capture does not mutate board state...")
+
+    game = Game(num_players=2)
+    player = game.players[0]
+    opponent = game.players[1]
+
+    piece = player.pieces[0]
+    game.board.remove_piece(piece)
+    piece.move_to(10)
+    game.board.add_piece(piece, 10)
+
+    opp_piece = opponent.pieces[0]
+    game.board.remove_piece(opp_piece)
+    opp_piece.move_to(15)
+    game.board.add_piece(opp_piece, 15)
+
+    move_counter_before = game.board.move_counter
+    positions_before = {id(p): p.position for pl in game.players for p in pl.pieces}
+
+    for _ in range(3):
+        game.would_capture((piece, 15, 'move'))
+
+    assert game.board.move_counter == move_counter_before, "would_capture must not touch move_counter"
+    positions_after = {id(p): p.position for pl in game.players for p in pl.pieces}
+    assert positions_after == positions_before, "would_capture must not move any piece"
+    assert not opp_piece.in_base, "would_capture must not capture/mutate the opponent piece"
+    print("✓ would_capture is a pure, non-mutating query")
+
+
 def test_logger():
     """Test the logger functionality."""
     print("\nTesting logger...")
@@ -1238,6 +1464,14 @@ if __name__ == "__main__":
         test_three_sixes_exceptions()
         test_apply_three_sixes_penalty_helper()
         test_three_sixes_no_legal_move_on_second_six_scoping()
+        test_would_capture_enter_no_capture_cases()
+        test_would_capture_enter_one_own_one_opponent()
+        test_would_capture_enter_two_opponents_captures_most_recent()
+        test_would_capture_move_captures_single_opponent()
+        test_would_capture_move_no_capture_on_safe_square()
+        test_would_capture_move_no_capture_in_home_column()
+        test_would_capture_move_double_capture_same_color_stack()
+        test_would_capture_does_not_mutate_board()
         test_logger()
         test_basic_game()
 

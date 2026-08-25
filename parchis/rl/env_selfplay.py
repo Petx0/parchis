@@ -7,6 +7,13 @@ resolved by ParchisEnv's opponent_policy_fn hook (see parchis.rl.env), which
 this wrapper points at a frozen policy model instead of the default random
 policy. ParchisEnv itself owns the one and only "resolve opponent turns"
 loop, including chained bonus moves -- this wrapper never re-implements it.
+
+Each opponent seat independently samples its own pool member every episode
+(see reset()) -- at num_players > 2, the opponent seats can genuinely differ
+from each other within one episode, not just across episodes. At
+num_players == 2 there's only one opponent seat, so this is a strict
+generalization with no behavior change from the pre-existing single-model
+design.
 """
 
 import random
@@ -15,6 +22,7 @@ import gymnasium as gym
 
 from parchis.rl.env import ParchisEnv
 from parchis.rl import opponent_pool
+from parchis.rl.rewards import DEFAULT_OPPONENT_WEIGHTING
 
 
 class ParchisSelfPlayEnv(gym.Env):
@@ -29,6 +37,7 @@ class ParchisSelfPlayEnv(gym.Env):
     metadata = {'render_modes': ['human'], 'render_fps': 1}
 
     def __init__(self, opponent_model=None, num_players=2, opponent_weight=0.5,
+                 opponent_weighting=DEFAULT_OPPONENT_WEIGHTING,
                  reward_type="progress_delta", render_mode=None, pool_seed=None):
         """
         Initialize the self-play environment.
@@ -39,6 +48,10 @@ class ParchisSelfPlayEnv(gym.Env):
                 a pool of exactly one member.
             num_players: Number of players (2-4)
             opponent_weight: α value for turn-cycle reward (default 0.5)
+            opponent_weighting: How multiple opponents' deltas combine into
+                that term -- one of ParchisEnv.VALID_OPPONENT_WEIGHTING_SCHEMES
+                (default "mean"). Only distinguishable from "mean" at
+                num_players > 2 -- see parchis/rl/rewards.py.
             reward_type: Reward structure to use, see ParchisEnv.VALID_REWARD_TYPES
                 (default "progress_delta")
             render_mode: Render mode
@@ -53,12 +66,19 @@ class ParchisSelfPlayEnv(gym.Env):
         if num_players < 2 or num_players > 4:
             raise ValueError("Number of players must be between 2 and 4")
 
+        # Back-compat scalar: mirrors *a* currently-sampled opponent model
+        # (see reset()) -- deterministic and meaningful whenever the pool
+        # has exactly one member (every pre-heterogeneous-seat caller's
+        # case, e.g. update_opponent_model()), arbitrary-but-harmless
+        # otherwise. self.opponent_models is the real per-seat source of truth.
         self.opponent_model = opponent_model
+        self.opponent_models = {}  # {seat_idx: model}, repopulated per-seat in reset()
         self.opponent_move_count = 0
 
-        # Opponent pool: sampled once per episode (at reset()), not per
-        # opponent move -- see reset() below. A single-model construction
-        # (the common case: update_opponent_model()) is just a pool of 1.
+        # Opponent pool: one member sampled per opponent SEAT per episode
+        # (at reset()), not per opponent move -- see reset() below. A
+        # single-model construction (the common case: update_opponent_model())
+        # is just a pool of 1, so every seat necessarily gets that one model.
         self.opponent_pool = [opponent_model] if opponent_model is not None else []
         self.opponent_pool_weights = [1.0] if opponent_model is not None else []
         self.opponent_selection_counts = {}
@@ -73,6 +93,7 @@ class ParchisSelfPlayEnv(gym.Env):
             reward_type=reward_type,
             opponent_policy_fn=self._choose_opponent_move,
             opponent_weight=opponent_weight,
+            opponent_weighting=opponent_weighting,
         )
 
         # Copy spaces from base environment
@@ -89,8 +110,9 @@ class ParchisSelfPlayEnv(gym.Env):
                 ordering convention).
             weights: Optional list, same length as models. None means uniform.
 
-        One member is sampled (see reset()) at the start of each episode and
-        used for every opponent seat that whole episode.
+        One member is sampled independently per opponent seat (see reset())
+        at the start of each episode -- each seat's draw is fixed for that
+        whole episode, but different seats can hold different members.
         """
         if not models:
             raise ValueError("models must not be empty")
@@ -112,16 +134,30 @@ class ParchisSelfPlayEnv(gym.Env):
     def reset(self, seed=None, options=None):
         """Reset the environment.
 
-        If the opponent pool is non-empty, samples one member for the whole
-        upcoming episode (every opponent seat shares that identity, matching
-        the existing single-opponent-per-episode structure) before delegating
-        to the base env's reset.
+        Calls the base env's reset() FIRST -- this is what assigns
+        agent_player_idx (parchis/rl/env.py:309), and is safe to do before
+        sampling opponents because ParchisEnv.reset() never itself invokes
+        opponent_policy_fn (that only fires from step()-triggered turn
+        resolution, never during reset()). With agent_player_idx now known,
+        if the opponent pool is non-empty, independently samples one member
+        for EACH opponent seat (every seat but agent_player_idx) -- seats
+        can genuinely differ from each other this episode, not just across
+        episodes.
         """
+        obs, info = self.base_env.reset(seed=seed, options=options)
+
+        self.opponent_models = {}
         if self.opponent_pool:
-            idx = opponent_pool.sample_pool_index(self.opponent_pool_weights, self._pool_rng)
-            self.opponent_model = self.opponent_pool[idx]
-            self.opponent_selection_counts[idx] = self.opponent_selection_counts.get(idx, 0) + 1
-        return self.base_env.reset(seed=seed, options=options)
+            for seat in range(self.base_env.num_players):
+                if seat == self.base_env.agent_player_idx:
+                    continue
+                idx = opponent_pool.sample_pool_index(self.opponent_pool_weights, self._pool_rng)
+                self.opponent_models[seat] = self.opponent_pool[idx]
+                self.opponent_selection_counts[idx] = self.opponent_selection_counts.get(idx, 0) + 1
+            # Back-compat scalar -- see __init__.
+            self.opponent_model = next(iter(self.opponent_models.values()))
+
+        return obs, info
 
     def step(self, action):
         """Execute one step for the learning agent (whichever seat was
@@ -131,8 +167,8 @@ class ParchisSelfPlayEnv(gym.Env):
     def _choose_opponent_move(self, player, legal_moves):
         """
         Opponent-move policy passed into ParchisEnv as opponent_policy_fn:
-        use the frozen opponent model when available, falling back to
-        random selection. Called for every opponent move, including
+        use this seat's frozen opponent model when available, falling back
+        to random selection. Called for every opponent move, including
         chained bonus moves.
 
         Args:
@@ -145,7 +181,18 @@ class ParchisSelfPlayEnv(gym.Env):
         if not legal_moves:
             return None
 
-        if self.opponent_model is None:
+        # Look up by list-position seat, NOT player.player_id: Game.__init__
+        # rotates self.players so the dice-determined starting player lands
+        # at index 0 (parchis/game/game.py:75-76), but player_id is assigned
+        # before that rotation and never updated. self.opponent_models is
+        # keyed by seat (see reset()), so a player_id-based lookup silently
+        # misses whenever the rotation isn't the identity -- most games --
+        # falling back to random opponent play without any error. Identity
+        # comparison against the live game's own player list, matching the
+        # pattern already established in parchis/search/mcts.py.
+        seat = self.base_env.game.players.index(player)
+        model = self.opponent_models.get(seat)
+        if model is None:
             return player.choose_move(legal_moves)
 
         # Observation/action-mask are computed from self.base_env's live
@@ -156,7 +203,7 @@ class ParchisSelfPlayEnv(gym.Env):
         action_masks = self.base_env._get_info()['action_masks']
 
         try:
-            action, _ = self.opponent_model.predict(
+            action, _ = model.predict(
                 obs,
                 action_masks=action_masks,
                 deterministic=False,  # Use stochastic policy for diversity

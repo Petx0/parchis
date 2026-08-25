@@ -207,6 +207,49 @@ class RuleEngine:
 
         return legal_moves
 
+    def would_capture(self, move):
+        """
+        Non-mutating capture check for a single legal move, as returned by
+        get_legal_moves. Mirrors Board.enter_piece / Board.move_piece's
+        capture conditions exactly without mutating board state, so it's
+        safe to call speculatively over many candidate moves (e.g. when
+        scoring capture threats/opportunities for the observation space).
+
+        Deliberately does NOT consult is_safe_square for 'enter' moves --
+        a starting square is generally safe, but entry captures are
+        occupancy-based (docs/RULES.md "Entering the Board" rules 5-6), not
+        safety-based, so a piece can be captured via an opponent's entry
+        even while sitting on a "safe" square.
+
+        Args:
+            move: tuple (piece, new_position, move_type) as returned by
+                get_legal_moves.
+
+        Returns:
+            list: pieces that would be captured if this move were executed
+            right now against the current board state (usually 0 or 1;
+            'enter' captures at most 1, mirroring enter_piece's own
+            most-recent-of-two rule for the two-opponents case).
+        """
+        piece, new_position, move_type = move
+
+        if move_type == 'enter':
+            pieces_at_start = self.board.get_pieces_at(new_position)
+            own = [p for p in pieces_at_start if p.color == piece.color]
+            opponents = [p for p in pieces_at_start if p.color != piece.color]
+            if len(own) == 1 and len(opponents) == 1:
+                return [opponents[0]]
+            if len(opponents) == Board.MAX_PIECES_PER_SQUARE:
+                return [max(opponents, key=lambda p: p.move_order)]
+            return []
+
+        # 'move' or 'finish': captures only on a non-safe main-track
+        # square, never in the home column (mirrors Board.move_piece's own
+        # guard exactly).
+        if self.board.is_safe_square(new_position) or new_position >= Board.HOME_COLUMN_START:
+            return []
+        return [p for p in self.board.get_pieces_at(new_position) if p.color != piece.color]
+
     def calculate_new_position(self, player, current_pos, dice_roll):
         """
         Calculate the new position for a piece on the main track,

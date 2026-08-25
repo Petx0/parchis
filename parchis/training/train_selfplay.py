@@ -23,6 +23,7 @@ from stable_baselines3.common.monitor import Monitor
 
 from parchis.rl.env_selfplay import ParchisSelfPlayEnv
 from parchis.rl import opponent_pool
+from parchis.rl.rewards import DEFAULT_OPPONENT_WEIGHTING, VALID_OPPONENT_WEIGHTING_SCHEMES
 from parchis.training.common import (
     mask_fn, evaluate_model, make_env, ProgressLoggingCallback, FixedOpponentEvalCallback,
 )
@@ -47,6 +48,7 @@ class SelfPlayCallback(BaseCallback):
         pool_eval_episodes=10,
         num_players=2,
         opponent_weight=0.5,
+        opponent_weighting=DEFAULT_OPPONENT_WEIGHTING,
         reward_type="progress_delta",
         seed=None,
         verbose=1
@@ -67,8 +69,8 @@ class SelfPlayCallback(BaseCallback):
                 episodes per update -- a real, recurring cost)
             pool_eval_episodes: Episodes per pool member when scoring for
                 the "win_rate" strategy (unused for "uniform"/"recency")
-            num_players, opponent_weight, reward_type, seed: only used to
-                lazily build a persistent scoring env for "win_rate"
+            num_players, opponent_weight, opponent_weighting, reward_type, seed:
+                only used to lazily build a persistent scoring env for "win_rate"
             verbose: Verbosity level
         """
         super().__init__(verbose)
@@ -84,6 +86,7 @@ class SelfPlayCallback(BaseCallback):
         self.pool_eval_episodes = pool_eval_episodes
         self.num_players = num_players
         self.opponent_weight = opponent_weight
+        self.opponent_weighting = opponent_weighting
         self.reward_type = reward_type
         self.seed = seed
         self.last_update = 0
@@ -122,6 +125,7 @@ class SelfPlayCallback(BaseCallback):
             self._pool_eval_env = make_selfplay_env(
                 num_players=self.num_players,
                 opponent_weight=self.opponent_weight,
+                opponent_weighting=self.opponent_weighting,
                 reward_type=self.reward_type,
             )
             self._pool_eval_selfplay_env = self._unwrap_to_selfplay_env(self._pool_eval_env)
@@ -208,6 +212,7 @@ class SelfPlayCallback(BaseCallback):
 
 
 def make_selfplay_env(opponent_model=None, num_players=2, opponent_weight=0.5,
+                       opponent_weighting=DEFAULT_OPPONENT_WEIGHTING,
                        reward_type="progress_delta", seed=None, pool_seed=None):
     """
     Create and wrap a self-play Parchís environment with action masking.
@@ -216,6 +221,10 @@ def make_selfplay_env(opponent_model=None, num_players=2, opponent_weight=0.5,
         opponent_model: Model to use for opponents (if None, uses random)
         num_players: Number of players (2-4)
         opponent_weight: α value for the reward's opponent-progress term
+        opponent_weighting: How multiple opponents' deltas combine into that
+            term -- one of ParchisEnv.VALID_OPPONENT_WEIGHTING_SCHEMES
+            (default "mean"). Only distinguishable from "mean" at
+            num_players > 2.
         reward_type: One of ParchisEnv.VALID_REWARD_TYPES
         seed: Random seed (drives the game's dice rolls via the global
             `random` module -- see ParchisEnv.reset())
@@ -229,6 +238,7 @@ def make_selfplay_env(opponent_model=None, num_players=2, opponent_weight=0.5,
         opponent_model=opponent_model,
         num_players=num_players,
         opponent_weight=opponent_weight,
+        opponent_weighting=opponent_weighting,
         reward_type=reward_type,
         pool_seed=pool_seed,
     )
@@ -246,6 +256,7 @@ def train_selfplay(
     total_timesteps=2_000_000,
     num_players=2,
     opponent_weight=0.5,
+    opponent_weighting=DEFAULT_OPPONENT_WEIGHTING,
     reward_type="progress_delta",
     learning_rate=3e-4,
     n_steps=2048,
@@ -255,6 +266,7 @@ def train_selfplay(
     gae_lambda=0.95,
     clip_range=0.2,
     ent_coef=0.01,
+    arch="small",
     opponent_update_freq=50_000,
     pool_size=opponent_pool.DEFAULT_POOL_SIZE,
     pool_sampling_strategy=opponent_pool.DEFAULT_POOL_SAMPLING_STRATEGY,
@@ -277,6 +289,10 @@ def train_selfplay(
         total_timesteps: Total training timesteps
         num_players: Number of players in the game
         opponent_weight: α value for the reward's opponent-progress term
+        opponent_weighting: How multiple opponents' deltas combine into
+            that term -- one of ParchisEnv.VALID_OPPONENT_WEIGHTING_SCHEMES
+            (default "mean"). Only distinguishable from "mean" at
+            num_players > 2.
         reward_type: One of ParchisEnv.VALID_REWARD_TYPES
         learning_rate: Learning rate for optimizer
         n_steps: Number of steps per rollout
@@ -286,6 +302,10 @@ def train_selfplay(
         gae_lambda: GAE lambda parameter
         clip_range: PPO clipping parameter
         ent_coef: Entropy coefficient for exploration
+        arch: Network architecture preset, one of cli.ARCHITECTURES' keys
+            ("small", "medium", "large"). Ignored when initial_model_path
+            is given -- the loaded checkpoint's own saved architecture is
+            used instead (see the startup warning for this case).
         opponent_update_freq: Update the opponent pool every N timesteps
         pool_size: Max number of past checkpoints kept live-sampled from
             (default 5 -- this is a default-behavior change from the old
@@ -332,14 +352,20 @@ def train_selfplay(
     print(f"Total timesteps: {total_timesteps:,}")
     print(f"Number of players: {num_players}")
     print(f"Opponent weight (α): {opponent_weight}")
+    print(f"Opponent weighting: {opponent_weighting}")
     print(f"Reward type: {reward_type}")
     print(f"Opponent update frequency: {opponent_update_freq:,}")
     print(f"Opponent pool size: {pool_size} (sampling strategy: {pool_sampling_strategy})")
     print(f"Checkpoint frequency: {checkpoint_freq:,}")
     if initial_model_path:
         print(f"Starting from: {initial_model_path}")
+        if arch != "small":
+            print(f"Warning: --arch {arch} is ignored -- architecture is inherited "
+                  f"from the loaded --initial-model checkpoint, not from --arch.")
     else:
         print("Starting from: Random initialization")
+        print(f"Architecture: {arch} -> {cli.ARCHITECTURES[arch]['net_arch']} "
+              f"{cli.ARCHITECTURES[arch]['activation_fn'].__name__}")
     print("=" * 70)
 
     # Load initial model or create new one
@@ -361,6 +387,7 @@ def train_selfplay(
         opponent_model=opponent_model,
         num_players=num_players,
         opponent_weight=opponent_weight,
+        opponent_weighting=opponent_weighting,
         reward_type=reward_type,
         seed=seed,
         pool_seed=(seed + 3) if seed is not None else None,
@@ -375,6 +402,10 @@ def train_selfplay(
         model.tensorboard_log = log_path
     else:
         print("\nCreating new model...")
+        policy_kwargs = dict(
+            net_arch=cli.ARCHITECTURES[arch]["net_arch"],
+            activation_fn=cli.ARCHITECTURES[arch]["activation_fn"],
+        )
         model = MaskablePPO(
             "MlpPolicy",
             train_env,
@@ -386,6 +417,7 @@ def train_selfplay(
             gae_lambda=gae_lambda,
             clip_range=clip_range,
             ent_coef=ent_coef,
+            policy_kwargs=policy_kwargs,
             verbose=verbose,
             tensorboard_log=log_path,
             seed=seed
@@ -403,6 +435,7 @@ def train_selfplay(
         pool_eval_episodes=pool_eval_episodes,
         num_players=num_players,
         opponent_weight=opponent_weight,
+        opponent_weighting=opponent_weighting,
         reward_type=reward_type,
         seed=seed,
         verbose=verbose
@@ -488,7 +521,17 @@ def main():
         help="Total training timesteps (default: 2,000,000)"
     )
     cli.add_env_args(parser, default_players=2)
+    parser.add_argument(
+        "--opponent-weighting",
+        type=str,
+        default=DEFAULT_OPPONENT_WEIGHTING,
+        choices=list(VALID_OPPONENT_WEIGHTING_SCHEMES),
+        help="How multiple opponents' progress deltas combine into the "
+             "reward's opponent-progress term (default: mean). 'leader' "
+             "only differs from 'mean' at --players 3 or 4."
+    )
     cli.add_ppo_hyperparam_args(parser, default_gamma=0.995)
+    cli.add_network_args(parser, default_arch="small")
     parser.add_argument(
         "--opponent-update-freq",
         type=int,
@@ -549,6 +592,7 @@ def main():
         total_timesteps=args.timesteps,
         num_players=args.players,
         opponent_weight=args.opponent_weight,
+        opponent_weighting=args.opponent_weighting,
         reward_type=args.reward_type,
         learning_rate=args.lr,
         n_steps=args.n_steps,
@@ -558,6 +602,7 @@ def main():
         gae_lambda=args.gae_lambda,
         clip_range=args.clip_range,
         ent_coef=args.ent_coef,
+        arch=args.arch,
         opponent_update_freq=args.opponent_update_freq,
         pool_size=args.pool_size,
         pool_sampling_strategy=args.pool_sampling_strategy,

@@ -155,6 +155,148 @@ def test_pool_sampling_skewed_weights_concentrate_on_dominant_model():
     env.close()
 
 
+def test_opponent_seats_can_hold_different_pool_members_within_one_episode():
+    """At num_players=4 there are 3 opponent seats. With a real (>=2) pool,
+    at least one reset should assign different pool members to different
+    seats within the SAME episode, not just across episodes -- regression
+    guard for the old design, where self.opponent_model was one shared
+    scalar and every non-agent seat necessarily got the same model."""
+    print("\nTesting opponent seats can hold different pool members within one episode...")
+
+    models = [CountingFakeModel() for _ in range(3)]
+    env = ParchisSelfPlayEnv(num_players=4, pool_seed=11)
+    env.update_opponent_pool(models)
+
+    saw_heterogeneous_episode = False
+    for _ in range(30):
+        env.reset(seed=0)
+        seat_models = list(env.opponent_models.values())
+        assert len(seat_models) == 3, (
+            f"Expected exactly 3 opponent seats populated at num_players=4, "
+            f"got {len(seat_models)}"
+        )
+        if len(set(id(m) for m in seat_models)) > 1:
+            saw_heterogeneous_episode = True
+            break
+
+    assert saw_heterogeneous_episode, (
+        "Expected at least one episode (over 30 resets) where different "
+        "opponent seats held different pool members -- got the same model "
+        "in every seat every time, suggesting per-seat sampling isn't wired up"
+    )
+    print("✓ Different opponent seats held different pool members within one episode")
+    env.close()
+
+
+def test_two_player_games_have_exactly_one_opponent_seat():
+    """At num_players=2 there's only one opponent seat -- heterogeneous
+    seat sampling is a strict generalization with no behavior change here."""
+    print("\nTesting num_players=2 still has exactly one opponent seat...")
+
+    models = [CountingFakeModel() for _ in range(3)]
+    env = ParchisSelfPlayEnv(num_players=2, pool_seed=11)
+    env.update_opponent_pool(models)
+
+    env.reset(seed=0)
+    assert len(env.opponent_models) == 1
+    print("✓ num_players=2 has exactly one opponent seat, as before")
+    env.close()
+
+
+def _play_episode(env, seed, max_steps=150):
+    """Like _play_until_opponent_moves, but resets with a caller-chosen seed
+    instead of a fixed seed=0 -- needed to actually vary the dice-determined
+    starting player (and hence Game.__init__'s seat rotation) across
+    episodes, rather than replaying the same rotation every time."""
+    obs, info = env.reset(seed=seed)
+    for _ in range(max_steps):
+        mask = info['action_masks']
+        legal = np.where(mask)[0]
+        action = int(legal[0]) if len(legal) else 0
+        obs, reward, terminated, truncated, info = env.step(action)
+        if terminated or truncated:
+            break
+
+
+def test_opponent_model_used_for_every_decision_across_rotations(monkeypatch):
+    """
+    Regression test for the seat-vs-player_id lookup bug: self.opponent_models
+    is keyed by seat (list position in game.players), but was previously
+    looked up via player.player_id, which Game.__init__ deliberately
+    reorders self.players (rotating it so the dice-determined starting
+    player lands at index 0 -- parchis/game/game.py:75-76) without ever
+    updating player_id to match. Whenever that rotation isn't the identity
+    (most games), the old lookup silently missed and fell back to
+    Player.choose_move's random selection instead of raising -- exactly the
+    kind of bug a weak "model called at least once" assertion can't catch.
+
+    Directly instruments _choose_opponent_move (rather than just counting
+    Player.choose_move calls, which also fires for a separate, pre-existing,
+    documented edge case around bonus-move action masks -- see the "shouldn't
+    happen given action_masks" guard a few lines below the lookup) to record,
+    for every opponent decision: whether player.player_id actually diverged
+    from its live seat this call (proving the test scenario genuinely
+    exercises rotated seating, not just the identity case), and whether the
+    seat-keyed lookup found a model. With a full pool (one distinct model
+    per opponent seat) run across many seeds, divergence must occur at least
+    once, and the lookup must never miss even when it does.
+    """
+    print("\nTesting the opponent model lookup survives non-identity seat rotations...")
+
+    import parchis.rl.env_selfplay as env_selfplay_module
+
+    original_choose = env_selfplay_module.ParchisSelfPlayEnv._choose_opponent_move
+    models = [CountingFakeModel() for _ in range(3)]  # one per opponent seat at num_players=4
+    observations = []  # (player_id, seat, diverged, model_actually_consulted)
+
+    def instrumented_choose(self, player, legal_moves):
+        if not legal_moves:
+            # Nothing to decide -- _choose_opponent_move returns None
+            # immediately without ever reaching the model lookup, so this
+            # isn't a decision the model needed to be consulted for.
+            return original_choose(self, player, legal_moves)
+        # Ground truth, computed independently of whatever lookup the real
+        # method below uses -- this must reflect what SHOULD happen, not
+        # what the (possibly buggy) implementation happens to compute.
+        true_seat = self.base_env.game.players.index(player)
+        diverged = player.player_id != true_seat
+        calls_before = sum(m.predict_calls for m in models)
+        result = original_choose(self, player, legal_moves)
+        model_consulted = sum(m.predict_calls for m in models) > calls_before
+        observations.append((player.player_id, true_seat, diverged, model_consulted))
+        return result
+
+    monkeypatch.setattr(env_selfplay_module.ParchisSelfPlayEnv, "_choose_opponent_move",
+                         instrumented_choose)
+
+    env = ParchisSelfPlayEnv(num_players=4, pool_seed=42)
+    env.update_opponent_pool(models)
+
+    for seed in range(20):  # varied seeds -> varied dice-determined starting players/rotations
+        _play_episode(env, seed=seed)
+
+    assert len(observations) > 50, (
+        f"Expected many opponent decisions across 20 episodes, got only "
+        f"{len(observations)} -- test isn't exercising enough play"
+    )
+    diverged = [o for o in observations if o[2]]
+    assert diverged, (
+        "Expected at least one opponent decision where player_id != seat "
+        "(a non-identity starting-player rotation) across 20 varied seeds -- "
+        "got none, so this test isn't actually exercising the rotation the "
+        "bug depends on"
+    )
+    missed_lookups = [o for o in diverged if not o[3]]
+    assert not missed_lookups, (
+        f"{len(missed_lookups)} opponent decisions had player_id != seat AND "
+        f"no model found at that seat -- the seat-vs-player_id lookup bug is "
+        f"back: {missed_lookups[:5]}"
+    )
+    print(f"✓ {len(observations)} opponent decisions across 20 varied-seed episodes, "
+          f"{len(diverged)} with player_id != seat, all correctly resolved to a model")
+    env.close()
+
+
 def test_update_opponent_model_still_behaves_as_single_model_pool():
     """update_opponent_model() must still behave exactly like the old
     single-opponent API: the pool always has exactly that one model, and
@@ -183,5 +325,7 @@ if __name__ == '__main__':
     test_no_opponent_model_falls_back_to_random()
     test_pool_sampling_uniform_covers_multiple_models()
     test_pool_sampling_skewed_weights_concentrate_on_dominant_model()
+    test_opponent_seats_can_hold_different_pool_members_within_one_episode()
+    test_two_player_games_have_exactly_one_opponent_seat()
     test_update_opponent_model_still_behaves_as_single_model_pool()
     print("\nAll self-play tests passed!")

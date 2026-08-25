@@ -11,7 +11,15 @@ is exactly one default to change.
 Each training script calls only the groups it needs.
 """
 
+import torch.nn as nn
+
 from parchis.rl.env import ParchisEnv
+
+ARCHITECTURES = {
+    "small":  {"net_arch": [64, 64],        "activation_fn": nn.Tanh},
+    "medium": {"net_arch": [256, 256],      "activation_fn": nn.ReLU},
+    "large":  {"net_arch": [512, 256, 128], "activation_fn": nn.ReLU},
+}
 
 
 def add_env_args(parser, default_players=4):
@@ -56,6 +64,21 @@ def add_ppo_hyperparam_args(parser, default_gamma=0.995):
                          help="PPO clipping parameter (default: 0.2)")
 
 
+def add_network_args(parser, default_arch="small"):
+    """--arch: preset (net_arch, activation_fn) for a freshly constructed
+    policy network. 'small' ([64,64] Tanh) matches SB3's own default --
+    every training run so far has used it implicitly. Ignored by
+    train_selfplay.py when --initial-model is supplied: SB3 restores the
+    loaded checkpoint's actual saved architecture instead (see that
+    script's own warning for this case).
+    """
+    parser.add_argument("--arch", type=str, default=default_arch,
+                         choices=list(ARCHITECTURES.keys()),
+                         help=f"Network architecture preset: small ([64,64] Tanh), "
+                              f"medium ([256,256] ReLU), large ([512,256,128] ReLU) "
+                              f"(default: {default_arch})")
+
+
 def add_checkpoint_eval_args(parser, default_checkpoint_freq=50_000, default_n_eval_episodes=10):
     """--checkpoint-freq, --n-eval-episodes."""
     parser.add_argument("--checkpoint-freq", type=int, default=default_checkpoint_freq,
@@ -68,7 +91,7 @@ def add_io_args(parser, default_save_path="./models", default_log_path="./logs")
     """
     --save-path, --log-path, --model-name. Pass default_save_path=None for
     scripts that auto-generate a per-model-name save directory instead of
-    using a fixed default (e.g. train_continue.py).
+    using a fixed default.
     """
     save_path_help = (f"Path to save models (default: {default_save_path})" if default_save_path
                        else "Path to save the continued model (default: auto-generated from the model name)")

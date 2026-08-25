@@ -111,11 +111,11 @@ def test_bonus_move_handling():
 def test_observation_structure():
     """
     Test that observation structure matches the current dynamic layout:
-    total size = 79 * num_players + 36, split into a num_players x 76
-    board-state block and a (3 * num_players + 8 + 24 + 4) global-state
+    total size = 79 * num_players + 31, split into a num_players x 76
+    board-state block and a (3 * num_players + 7 + 2 + 21 + 1) global-state
     block (piece counts, progress scores, one-hot dice, bonus indicator,
-    own-piece features, blockade indicator, six-streak, bonus-chain count).
-    See docs/README_ENVIRONMENT.md for the full layout description.
+    own-piece features, six-streak). See docs/README_ENVIRONMENT.md for the
+    full layout description.
     """
     print("\nTesting observation structure...")
 
@@ -123,7 +123,7 @@ def test_observation_structure():
         env = ParchisEnv(num_players=num_players)
         obs, info = env.reset(seed=42)
 
-        expected_size = 79 * num_players + 36
+        expected_size = 79 * num_players + 31
         assert len(obs) == expected_size, (
             f"num_players={num_players}: expected observation size "
             f"{expected_size}, got {len(obs)}"
@@ -148,30 +148,25 @@ def test_observation_structure():
         dice_block = obs[dice_offset:dice_offset + 7]
         assert dice_block.sum() == 1.0, f"Dice one-hot block should sum to 1, got {dice_block}"
 
-        # Bonus indicator: 1 value, in [0, 1]
+        # Bonus indicator: 2 mutually-exclusive values, both in [0, 1]
         bonus_offset = dice_offset + 7
         assert dice_offset + 7 == bonus_offset  # sanity on the offset arithmetic
         assert 0.0 <= obs[bonus_offset] <= 1.0
+        assert 0.0 <= obs[bonus_offset + 1] <= 1.0
+        assert obs[bonus_offset] + obs[bonus_offset + 1] <= 1.0, (
+            "has_finish_bonus and has_capture_bonus should be mutually exclusive"
+        )
 
-        # Own-piece features: 24 values (4 pieces x 6), all in [0, 1]
-        own_piece_offset = bonus_offset + 1
+        # Own-piece features: 21 values (4 pieces x 5, + 1 shared), all in [0, 1]
+        own_piece_offset = bonus_offset + env.BONUS_FEATURES_SIZE
         own_piece_block = obs[own_piece_offset:own_piece_offset + env.OWN_PIECE_FEATURES_SIZE]
-        assert len(own_piece_block) == 24
+        assert len(own_piece_block) == 21
         assert np.all((own_piece_block >= 0) & (own_piece_block <= 1))
 
-        # Blockade indicator: 2 values, in [0, 1]
-        blockade_offset = own_piece_offset + env.OWN_PIECE_FEATURES_SIZE
-        assert 0.0 <= obs[blockade_offset] <= 1.0
-        assert 0.0 <= obs[blockade_offset + 1] <= 1.0
-
         # Six-streak: 1 value, in [0, 1)
-        six_streak_offset = blockade_offset + 2
+        six_streak_offset = own_piece_offset + env.OWN_PIECE_FEATURES_SIZE
         assert 0.0 <= obs[six_streak_offset] < 1.0
-
-        # Bonus chain count: 1 value, in [0, 1]
-        bonus_chain_offset = six_streak_offset + 1
-        assert 0.0 <= obs[bonus_chain_offset] <= 1.0
-        assert bonus_chain_offset == expected_size - 1, "Should be the last index"
+        assert six_streak_offset == expected_size - 1, "Should be the last index"
 
         assert env.observation_space.contains(obs), (
             f"num_players={num_players}: observation violates the declared observation_space"

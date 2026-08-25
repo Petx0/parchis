@@ -8,16 +8,15 @@ action masking, progress logging, evaluation loop) and `cli.py` (shared
 argparse argument groups). See `docs/CODE_REVIEW.md` for why this split
 exists.
 
-## The Six Training Entry Points
+## The Training Entry Points
 
 | Script | Purpose |
 |--------|---------|
-| `train_quick` | Quick smoke test (10K timesteps, ~1-2 minutes) |
-| `train_ppo` | Main training script against random opponents |
-| `train_continue` | Resume training from a saved checkpoint |
+| `train_ppo` | Main training script against random opponents (`--initial-model` to resume a saved checkpoint instead of starting fresh) |
 | `train_selfplay` | Self-play with a periodically-updated opponent model |
 | `experiment_alpha_comparison` | Sweep `opponent_weight` (α) values |
 | `experiment_grid` | Sweep `reward_type` × network architecture (3×3 grid) |
+| `experiment_hyperparam_search` | Broader hyperparameter grid search (multiple architectures/reward types/seeds in one sweep) |
 
 ## Quick Start
 
@@ -26,7 +25,7 @@ exists.
 Perfect for testing and development:
 
 ```bash
-python -m parchis.training.train_quick
+python -m parchis.training.train_ppo --timesteps 10000 --players 4 --model-name parchis_quick_test
 ```
 
 This trains for 10,000 timesteps, checkpoints every 10,000 steps, skips
@@ -59,10 +58,15 @@ python -m parchis.training.train_ppo \
 ### 4. Continue Training from a Checkpoint
 
 ```bash
-python -m parchis.training.train_continue \
-    --model-path ./models/parchis_quick_test/final_model \
+python -m parchis.training.train_ppo \
+    --initial-model ./models/parchis_quick_test/final_model \
     --timesteps 1000000
 ```
+
+The loaded checkpoint's own architecture is used (`--arch` is ignored, with
+a warning, when `--initial-model` is given), and the timestep counter picks
+up where the checkpoint left off (so TensorBoard/checkpoint-frequency
+counting stays continuous rather than restarting from 0).
 
 ### 5. Self-Play Training
 
@@ -190,7 +194,7 @@ Then open your browser to `http://localhost:6006`
 2. **metrics/win_rate**, **metrics/final_progress**, **metrics/pieces_finished**, **metrics/pieces_out_of_base**
    - Logged every episode by `ProgressLoggingCallback` (`parchis/training/common.py`), as a rolling mean over the last 100 episodes
    - `final_progress` is the primary metric to watch — it moves smoothly even when win/loss is noisy
-   - All 6 training scripts now attach this callback (previously `train_selfplay`/`train_continue` didn't, so self-play/continued runs had no progress curve at all)
+   - Every training script attaches this callback (previously `train_selfplay` and the now-folded-in checkpoint-resume path didn't, so self-play/continued runs had no progress curve at all)
 
 3. **metrics/win_rate_vs_baseline**, **metrics/final_progress_vs_baseline** (`train_selfplay` only)
    - Logged periodically by `FixedOpponentEvalCallback` against a fixed random-opponent baseline held constant for the whole run — see "Self-Play Training" above for why this is a different (and more trustworthy) signal than `metrics/win_rate` during self-play
@@ -250,8 +254,9 @@ env = make_env(num_players=4)
 evaluate_model(model, env, n_eval_episodes=20)
 ```
 
-(Prefer `python -m parchis.training.train_continue` over calling `.learn()`
-directly — it also handles checkpointing and TensorBoard logging for you.)
+(Prefer `python -m parchis.training.train_ppo --initial-model ...` over
+calling `.learn()` directly — it also handles checkpointing and TensorBoard
+logging for you.)
 
 ## Evaluation
 
@@ -331,7 +336,14 @@ python -m parchis.evaluation.group_comparison \
     --group-b redesigned_42 redesigned_43 redesigned_44
 ```
 
-See `docs/RL_DESIGN_REVIEW.md`'s Phase 5 section for the full baseline-vs-redesigned validation runbook (`scripts/run_phase5.sh`) this was built for — real training runs are involved (~15-25 hours total), so it's a deliberate, staged process, not a single command.
+See `docs/RL_DESIGN_REVIEW.md`'s Phase 5 section for the design context this
+was built for (baseline-vs-redesigned reward/α validation) — real training
+runs are involved (~15-25 hours total), so run each stage (`experiment_grid`/
+`experiment_alpha_comparison` screening, then `train_ppo`/`train_selfplay`,
+then `elo_ladder`/`group_comparison`) as a deliberate, staged process, not a
+single command. (The one-shot `scripts/run_phase5.sh` runbook that
+originally encoded this sequence has since been retired — it was never run
+end-to-end as written; run each stage's script directly instead.)
 
 ## Training Strategies
 
@@ -365,6 +377,15 @@ python -m parchis.training.train_ppo \
     --ent-coef 0.005 \
     --batch-size 128
 ```
+
+**Broader grid search** (multiple architectures × reward types × seeds in
+one sweep, rather than hand-picking one combination at a time):
+```bash
+python -m parchis.training.experiment_hyperparam_search --players 2
+```
+Writes a `results.json` per run (win rate, mean reward per combination) so
+the winning configuration can be identified without re-reading every
+checkpoint's own training log.
 
 ### 3. Comparing Reward Structures
 
@@ -445,10 +466,35 @@ training indefinitely. See `docs/EVALUATION_FIX.md` for the history and
 the safety-timeout fix (`max_steps_per_episode`) that makes evaluation safe
 to run — final evaluation at the end of training always uses it.
 
-## Custom Network Architecture
+## Network Architecture
 
-`experiment_grid.py` already sweeps three architectures (`small`, `medium`,
-`large`); to try your own outside that sweep:
+`train_ppo.py` and `train_selfplay.py` both expose `--arch {small,medium,large}`
+(default `small`, matching SB3's own unconfigured default — every run before this
+flag existed was implicitly `small`), sourced from the single shared
+`parchis.training.cli.ARCHITECTURES` dict:
+
+| Preset | `net_arch` | Activation |
+|---|---|---|
+| `small` (default) | `[64, 64]` | Tanh |
+| `medium` | `[256, 256]` | ReLU |
+| `large` | `[512, 256, 128]` | ReLU |
+
+```bash
+python -m parchis.training.train_ppo --arch medium --timesteps 1000000
+```
+
+`--arch` only affects a **freshly constructed** model. On `train_selfplay.py`, it's
+silently ignored whenever `--initial-model` is also given — the loaded checkpoint's
+own saved architecture is used instead (SB3 restores it automatically from the
+`.zip`), and the script prints a warning if you pass both together with a non-default
+`--arch`.
+
+`experiment_grid.py` sweeps all three architectures × all three reward types (9 runs);
+use `--filter-arch {small,medium,large}` to run just one architecture across the
+reward-type sweep (mirrors `--filter-reward`, e.g.
+`experiment_grid.py --filter-reward win_loss --filter-arch medium`).
+
+To try an architecture outside the three presets (not exposed on any CLI):
 
 ```python
 from sb3_contrib import MaskablePPO
@@ -466,7 +512,7 @@ model.learn(total_timesteps=1_000_000)
 
 ## Next Steps
 
-1. **Start small**: Run `python -m parchis.training.train_quick`
+1. **Start small**: Run `python -m parchis.training.train_ppo --timesteps 10000 --players 4`
 2. **Monitor**: Watch TensorBoard to understand learning
 3. **Evaluate**: Test your model with `--evaluate` or `parchis.evaluation.evaluate`
 4. **Iterate**: Adjust hyperparameters or `--reward-type`/`--opponent-weight` based on results

@@ -27,18 +27,28 @@ Reinforcement/
 │   ├── training/                # Training scripts
 │   │   ├── common.py           # Shared env factory, callbacks, evaluation loop
 │   │   ├── cli.py               # Shared CLI argument groups
-│   │   ├── train_ppo.py        # Main PPO training
-│   │   ├── train_quick.py      # Quick testing (10K timesteps)
-│   │   ├── train_continue.py   # Continue from checkpoint
+│   │   ├── train_ppo.py        # Main PPO training (--initial-model to resume a checkpoint)
 │   │   ├── train_selfplay.py   # Self-play training (opponent pool)
 │   │   ├── experiment_alpha_comparison.py  # Sweep opponent_weight (α), multi-seed
-│   │   └── experiment_grid.py  # Sweep reward_type x network architecture, multi-seed
+│   │   ├── experiment_grid.py  # Sweep reward_type x network architecture, multi-seed
+│   │   └── experiment_hyperparam_search.py # Broader hyperparameter grid search
+│   │
+│   ├── search/                  # AlphaZero-style MCTS search on top of a trained checkpoint
+│   │   ├── mcts.py             # PUCT search engine (depth-limited, chance-node aware)
+│   │   ├── agents.py           # Player.choose_move-compatible search/plain agent factories
+│   │   ├── network_eval.py     # MaskablePPO-backed evaluate_fn (priors + value)
+│   │   ├── heuristic_eval.py   # Uniform-prior/progress-heuristic evaluate_fn (no trained model needed)
+│   │   ├── state_view.py       # Reuses ParchisEnv._get_observation() for simulated states
+│   │   ├── isolated_random.py  # Save/restore global RNG state around chance-node sampling
+│   │   └── benchmark_mcts.py   # Deepcopy/search cost benchmark
 │   │
 │   ├── evaluation/              # Evaluation, statistics, and cross-checkpoint comparison
 │   │   ├── evaluate.py         # Agent evaluation script (vs. random or another model)
 │   │   ├── stats.py            # Wilson/t-distribution confidence intervals
 │   │   ├── elo.py              # Elo rating math
-│   │   ├── elo_ladder.py       # Round-robin checkpoint Elo ladder
+│   │   ├── elo_ladder.py       # Round-robin checkpoint Elo ladder (2-player)
+│   │   ├── multiplayer_matrix.py # Win-rate matrix for 3-4 player checkpoints (Elo doesn't apply)
+│   │   ├── arena.py            # Game-level match harness for search-capable agents
 │   │   └── group_comparison.py # Pool a group of checkpoints vs. another group
 │   │
 │   ├── visualization/           # GUI and rendering
@@ -51,9 +61,6 @@ Reinforcement/
 │   └── utils/                   # Utility modules
 │       └── logger.py           # Game logging utility (non-RL simulator only)
 │
-├── scripts/
-│   └── run_phase5.sh            # Baseline-vs-redesigned validation runbook (see docs/RL_DESIGN_REVIEW.md)
-│
 ├── models/                      # Trained models
 ├── logs/                        # TensorBoard logs
 ├── docs/                        # Documentation
@@ -62,10 +69,10 @@ Reinforcement/
 │   ├── README_ENVIRONMENT.md   # Environment/observation-space details
 │   ├── REWARD_STRUCTURE.md     # Reward formulas, narrative description
 │   ├── RL_DESIGN_REVIEW.md     # RL design initiative: phases, decisions, rationale
+│   ├── SEARCH_MCTS.md          # MCTS search: what's live, what was tried and archived
 │   ├── CODE_REVIEW.md          # Prior code-correctness review pass
 │   ├── EVALUATION_FIX.md       # Why mid-training eval is disabled by default
 │   ├── VISUALIZATION.md        # Visualization guide
-│   ├── archive/                # Historical changelogs
 │   └── images/                 # Images and screenshots
 └── requirements.txt            # Python dependencies
 ```
@@ -76,10 +83,13 @@ Reinforcement/
 
 ```bash
 # Quick test (10K timesteps, ~1-2 minutes)
-python -m parchis.training.train_quick
+python -m parchis.training.train_ppo --timesteps 10000 --players 4
 
 # Full training (1M timesteps, ~1-2 hours)
 python -m parchis.training.train_ppo --timesteps 1000000
+
+# Resume a previous checkpoint instead of starting from scratch
+python -m parchis.training.train_ppo --initial-model ./models/my_model/final_model --timesteps 500000
 
 # Self-play training (recommended for best results; opponent pool of past
 # checkpoints, not just the single most recent one)
@@ -99,9 +109,23 @@ python -m parchis.evaluation.evaluate \
 
 # Round-robin a set of saved checkpoints (+ a random baseline) into an Elo
 # ranking, so "is checkpoint N+1 actually stronger" is answerable directly
+# (2-player only -- Elo has no valid interpretation at 3-4 players)
 python -m parchis.evaluation.elo_ladder \
     --checkpoints ./models/my_run/checkpoint_100000_steps ./models/my_run/checkpoint_500000_steps
+
+# 3-4 player checkpoints: use the win-rate matrix instead of Elo
+python -m parchis.evaluation.multiplayer_matrix \
+    --checkpoints ./models/my_run_4p/checkpoint_a ./models/my_run_4p/checkpoint_b
 ```
+
+### Search-augmented play (MCTS)
+
+Any trained MaskablePPO checkpoint can be played with Monte Carlo Tree
+Search on top for stronger inference-time decisions, no retraining needed
+-- see `docs/SEARCH_MCTS.md` for what this is and the confirmed win-rate
+result. `parchis/search/agents.py::make_mcts_ppo_agent_factory` plugs a
+checkpoint + search into `parchis/evaluation/arena.py` for a head-to-head
+comparison against the same checkpoint's plain (unsearched) inference.
 
 ## Documentation
 
@@ -110,6 +134,7 @@ python -m parchis.evaluation.elo_ladder \
 - `docs/README_ENVIRONMENT.md` — observation/action space details
 - `docs/REWARD_STRUCTURE.md` — reward formulas
 - `docs/RL_DESIGN_REVIEW.md` — the RL design initiative: what was wrong, what changed and why, phase by phase
+- `docs/SEARCH_MCTS.md` — MCTS search: the confirmed-useful engine that's kept live, and what was tried and archived
 
 ## License
 

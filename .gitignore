@@ -34,8 +34,12 @@ wheels/
 .DS_Store
 Thumbs.db
 
-# Logs (optional - comment out if you want to track logs in git)
-logs/*.json
+# Logs (regenerable training/eval output -- large and constantly changing,
+# same rationale as models/ below)
+logs/
 
 # Trained model checkpoints
 models/
+
+# Generated training data (e.g. self-play datasets)
+data/

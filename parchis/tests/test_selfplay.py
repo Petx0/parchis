@@ -31,6 +31,41 @@ class CountingFakeModel:
         return action, None
 
 
+class ObservationCapturingFakeModel:
+    """Like CountingFakeModel, but on every predict() call also checks the
+    observation's own-piece block against the ACTUAL current player's own
+    pieces, read live from the env at that exact moment -- catches the bug
+    where the observation instead always described the learning agent's
+    pieces, whoever was actually deciding (docs/AGENT_REBUILD_PLAN.md
+    §1.3)."""
+
+    def __init__(self, env):
+        self.env = env
+        self.predict_calls = 0
+        self.mismatches = []
+
+    def predict(self, obs, action_masks=None, deterministic=False):
+        self.predict_calls += 1
+        base_env = self.env.base_env
+        acting_player = base_env.game.get_current_player()
+        offset = (
+            base_env.board_state_size + base_env.global_state_size
+            - base_env.OWN_PIECE_FEATURES_SIZE - base_env.STRATEGIC_FEATURES_SIZE
+        )
+        stride = base_env.PIECE_FEATURES_PER_PIECE
+        for piece in acting_player.pieces:
+            slot = offset + piece.piece_id * stride
+            expected_in_base = 1.0 if piece.in_base else 0.0
+            if obs[slot] != expected_in_base:
+                self.mismatches.append(
+                    (self.predict_calls, piece.piece_id, expected_in_base, float(obs[slot]))
+                )
+
+        legal = np.where(action_masks)[0]
+        action = int(legal[0]) if len(legal) else 0
+        return action, None
+
+
 def _play_until_opponent_moves(env, max_steps=200):
     """Drive the learning agent (whichever seat was randomly assigned this
     episode) with legal moves for up to max_steps, giving opponents plenty
@@ -43,6 +78,36 @@ def _play_until_opponent_moves(env, max_steps=200):
         obs, reward, terminated, truncated, info = env.step(action)
         if terminated or truncated:
             obs, info = env.reset(seed=0)
+
+
+def test_opponent_model_observation_reflects_acting_players_own_pieces():
+    """Regression test for docs/AGENT_REBUILD_PLAN.md §1.3: every
+    observation handed to an opponent's model must describe the ACTING
+    player's own pieces, not the learning agent's -- checked across every
+    decision (including bonus-chain moves) over a full episode. Before
+    _get_observation(perspective_seat=...) existed, _choose_opponent_move
+    had no way to ask for anything but agent_player_idx's perspective, so
+    this would have failed as soon as any opponent's in_base pieces
+    differed from the agent's own (virtually always, within a few turns)."""
+    print("\nTesting opponent model observations reflect the acting player's own pieces...")
+
+    env = ParchisSelfPlayEnv(num_players=4)
+    model = ObservationCapturingFakeModel(env)
+    env.update_opponent_model(model)
+
+    _play_until_opponent_moves(env, max_steps=400)
+
+    assert model.predict_calls > 20, (
+        f"Expected many opponent decisions, got only {model.predict_calls}"
+    )
+    assert not model.mismatches, (
+        f"{len(model.mismatches)} opponent observation(s) did not reflect "
+        f"the acting player's own pieces (call#, piece_id, expected, got): "
+        f"{model.mismatches[:5]}"
+    )
+    print(f"✓ All {model.predict_calls} opponent-model observations correctly "
+          f"reflected the acting player's own pieces")
+    env.close()
 
 
 def test_opponent_model_is_actually_invoked():
@@ -320,6 +385,7 @@ def test_update_opponent_model_still_behaves_as_single_model_pool():
 
 
 if __name__ == '__main__':
+    test_opponent_model_observation_reflects_acting_players_own_pieces()
     test_opponent_model_is_actually_invoked()
     test_opponent_model_used_for_bonus_moves_too()
     test_no_opponent_model_falls_back_to_random()

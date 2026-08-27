@@ -43,3 +43,7 @@ models/
 
 # Generated training data (e.g. self-play datasets)
 data/
+
+# Per-run config/checkpoint/metrics (docs/AGENT_REBUILD_PLAN.md's
+# runs/<name>/ convention) -- same rationale as logs/models/data above
+runs/

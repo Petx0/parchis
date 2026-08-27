@@ -1,6 +1,20 @@
 # Building the strongest Parchís agent — research findings and build plan
 
-**Status**: approved, not yet started. This is the execution document.
+**Status**: Phase 0, Phase 1, and Phase 2 all complete (2026-08-25 / 2026-08-26), all gates passed.
+Phase 2 was first completed at reduced data scale (20k games), where item 13 came back marginal;
+re-running item 11 at the full ~200k-game target on a new sharded generation/training pipeline
+turned that into a decisive pass (61.4% vs. tuned heuristic, Wilson 95% CI [58.96%, 63.73%]) --
+confirming the reduced-scale run's own hypothesis that dataset size, not epochs or loss weighting,
+was the binding constraint. See Part 3 and `docs/AZ_DESIGN.md` for the full numbers.
+
+Phase 3 (2026-08-26): the continuous self-play round loop (`parchis/az/round_loop.py` and
+supporting modules -- `targets.py`, `champion_pool.py`, `selfplay.generate_round_games`) is built,
+tested, and launched, seeded from the Phase 2 checkpoint above. Found and fixed a real latent bug
+in the shared `TurnContextTracker` along the way (a bonus with zero legal moves left stale state
+for the next decision -- see `docs/AZ_DESIGN.md`). Round size scaled down from the plan's ~50k
+games to 6,000/round based on measured throughput (searching against a real net during generation
+is ~4.5x slower than Phase 2's heuristic-only generation). The loop is running continuously in the
+background (target: 40 rounds); see `docs/AZ_DESIGN.md` for the running log of results.
 
 ## How to use this document
 
@@ -308,19 +322,30 @@ parchis/evaluation/puzzles/     tactical suite (positions JSON + runner)
 
 ### Phase 0 — Foundations and feasibility gate (~2 days)
 
-- [ ] **1. `Game.snapshot()/restore()`.** Property test: 10,000 random positions,
+- [x] **1. `Game.snapshot()/restore()`.** Property test: 10,000 random positions,
   `snapshot → mutate → restore` produces a state byte-identical to `deepcopy` on every field
   (`board.positions`, every piece's `position/in_base/finished/move_order`, `board.move_counter`,
   `current_player_idx`, `turn_number`, `game_over`, `winner`). This is the single highest-risk
   piece of new code — prove equivalence, do not assume it.
-- [ ] **2. Fix §1.3**: `ParchisEnv._get_observation(perspective_seat=None)` defaulting to
+  *Done 2026-08-25: `parchis/tests/test_snapshot.py`, 6 tests (10k-sample property test +
+  identity/capture/finish/game-over anchors). See `docs/AZ_DESIGN.md`.*
+- [x] **2. Fix §1.3**: `ParchisEnv._get_observation(perspective_seat=None)` defaulting to
   `agent_player_idx`; `env_selfplay._choose_opponent_move` passes the opponent's seat. Regression
   test: a scripted position where the two perspectives provably differ, asserting the opponent
   sees its own pieces. Keep this even though the SB3 stack is being retired — it makes the frozen
   PPO baselines honest.
-- [ ] **3. `parchis/evaluation/duplicate.py` and `ratings.py`** (see Part 5) — built *before* any
+  *Done 2026-08-25: `parchis/tests/test_observation.py` (unit-level) +
+  `parchis/tests/test_selfplay.py` (wiring-level, 1135 mismatches confirmed on the pre-fix code).
+  See `docs/AZ_DESIGN.md`.*
+- [x] **3. `parchis/evaluation/duplicate.py` and `ratings.py`** (see Part 5) — built *before* any
   training, because every later gate depends on them.
-- [ ] **4. `parchis/agents/heuristic.py`** untuned v1 + ladder entry.
+  *`duplicate.py` done 2026-08-25 (built as a Phase 1 item-10 prerequisite, retroactively checked
+  off here) — see `docs/AZ_DESIGN.md`. `ratings.py` (Bradley-Terry) still deferred: no gate through
+  Phase 1 has needed cross-agent ratings, only a single A-vs-B Wilson CI.*
+- [x] **4. `parchis/agents/heuristic.py`** untuned v1 + ladder entry.
+  *Done 2026-08-25 (also built as a Phase 1 prerequisite, retroactively checked off here): shipped
+  with CEM tuning too (`TUNED_WEIGHTS`), not just an untuned v1 — see `docs/AZ_DESIGN.md`. No
+  separate `ladder.py` entry (that file is still deferred).*
 - [ ] **5. GATE**: measured throughput of `search.py` at depth 1/2/3 with a randomly-initialised
   net, and games/sec for 1-ply self-play across all M4 performance cores. Target **≥ 200 games/sec
   at depth 1**. If it lands below ~50, stop and revisit — fallbacks, in order: NumPy-only
@@ -329,32 +354,91 @@ parchis/evaluation/puzzles/     tactical suite (positions JSON + runner)
 
 ### Phase 1 — Encoding, net, search (~4 days)
 
-- [ ] **6.** `encoding.py` + colour-invariance test (§2.1) + bounds test over 100k states.
-- [ ] **7.** `net.py` with both forward paths; assert numpy and torch outputs agree to 1e-5.
-- [ ] **8.** `search.py`. Correctness tests:
+- [x] **6.** `encoding.py` + colour-invariance test (§2.1) + bounds test over 100k states.
+  *Done 2026-08-25: `parchis/tests/test_encoding.py`, 7 tests. Actual sizes: 216 (2p), 298 (3p),
+  380 (4p) — smaller than §2.1's ~220/~430 estimate at 4p since none of the 10 own-piece features
+  scale with N; see docs/AZ_DESIGN.md. Colour-invariance caught a real bug during development:
+  `_per_seat_scalars` initially reused `parchis.rl.rewards.calculate_normalized_progress`, which
+  divides raw ABSOLUTE position by 76 — not colour-invariant, since Blue/Red/Green's own paths
+  wrap the 1-68 boundary before reaching home. Fixed with a relative (per-owner-start) formula.*
+- [x] **7.** `net.py` with both forward paths; assert numpy and torch outputs agree to 1e-5.
+  *Done 2026-08-25: `parchis/tests/test_net.py`, 4 tests, agreement confirmed to 1e-5 across
+  num_players 2/4 and batch sizes 1/8/64.*
+- [x] **8.** `search.py`. Correctness tests:
   - `depth=1` with a value function equal to normalised progress reproduces a greedy-progress
     agent exactly;
   - chance node values equal a brute-force `mean` over the 6 faces computed independently;
   - `depth=d` result is invariant to move ordering;
   - a hand-built position where a 2-ply-only win exists is found at depth 2 and missed at depth 1;
   - search never mutates the real `Game` (snapshot hash before/after).
-- [ ] **9.** `agent.py` + wire into `parchis/evaluation/arena.py` (its factory interface already
+  *Done 2026-08-25: `parchis/tests/test_search.py`, all 5 required properties + 1 more. Found and
+  fixed a real bug while sizing item 10's gate: a "no legal move" decision (and a three-sixes
+  penalty transition) consumed zero depth, so exact expectimax exploring "what if a player never
+  rolls the 5 they need" could recurse without bound — confirmed via RecursionError, fixed by
+  making an empty decision cost a depth unit like any other, regression-tested. See
+  docs/AZ_DESIGN.md.*
+- [x] **9.** `agent.py` + wire into `parchis/evaluation/arena.py` (its factory interface already
   fits) and into the ladder.
-- [ ] **10. GATE**: `heuristic + depth 2` must beat `heuristic + depth 0` on ≥ 400 duplicate pairs
+  *Done 2026-08-25: `parchis/tests/test_agent.py`, 3 tests, including a regression test that
+  bonus decisions are never confused with a fresh roll (§1.4's mcts.py bug) across real games.
+  Arena wiring needed no arena.py changes (same factory interface, confirmed via
+  `arena.play_one_game` in tests). The full `ladder.py` (fixed rungs, leaderboard.json) is
+  deferred — not needed for item 10's gate, which only needs duplicate.py's Wilson CI.*
+- [x] **10. GATE**: `heuristic + depth 2` must beat `heuristic + depth 0` on ≥ 400 duplicate pairs
   with a Wilson lower bound clear of 50%. This validates the search independent of any learned
   value — if search doesn't help a hand-built evaluator, it will not help a learned one.
+  ***PASSED 2026-08-25**: 400/400 duplicate pairs (800 games), win_rate 65.4% (523/800), Wilson
+  95% CI [62.0%, 68.6%] — lower bound clearly clear of 50%. Pair record: 172 pairs where search
+  did strictly better, 179 splits, only 49 where the no-search baseline did better. See
+  docs/AZ_DESIGN.md for the full run.*
 
 ### Phase 2 — Bootstrap the value net (~3 days)
 
-- [ ] **11.** Generate ~200k games from a mixed pool (tuned heuristic, ε-noisy heuristic, random)
+- [x] **11.** Generate ~200k games from a mixed pool (tuned heuristic, ε-noisy heuristic, random)
   and train the value head to predict the seat-win distribution; train the policy head on the
   moves played.
-- [ ] **12. GATE**: value calibration — bucket predictions into deciles, compare predicted vs.
+  *Done 2026-08-26, at reduced scale: 20,000 games / 3.14M decisions (not 200k -- a single-session,
+  single-machine time/memory budget; see docs/AZ_DESIGN.md for the exact reasoning and measured
+  numbers) via `parchis/az/selfplay.py`, trained via `parchis/az/train.py`
+  (AdamW/cosine/weight-decay, early stopping, game-level train/val/test split so correlated
+  same-game decisions never leak across the split). `parchis/az/config.py` and
+  `parchis/az/turn_context.py` (shared bonus-vs-fresh-roll tracker, refactored out of
+  `agent.py`) also built. Found and fixed a real, serious bug along the way: the value target was
+  stored in ABSOLUTE seat order while the encoding it trains against is mover-relative order --
+  training the net on a consistent-looking but meaningless mapping. See docs/AZ_DESIGN.md.
+  **Follow-up, same session**: full ~200k-game target subsequently reached -- 200,000 games /
+  31.4M decisions across 20 resumable shards (70 min, 26GB, 0 truncated) via a new sharded
+  generation script, trained via `train.py`'s new `split_shards`/`bootstrap_train_sharded`
+  shard-streaming path (holds one training shard in memory at a time; needed once the corpus
+  exceeds RAM). See docs/AZ_DESIGN.md follow-up section.*
+- [x] **12. GATE**: value calibration — bucket predictions into deciles, compare predicted vs.
   actual win frequency on held-out games; **expected calibration error < 0.05**. A miscalibrated
   value makes expectimax actively harmful, so this is checked before any self-play.
-- [ ] **13. GATE**: `net@depth1` ≥ tuned heuristic on duplicate pairs.
+  *PASSED 2026-08-26: ECE = 0.0145 (< 0.05), on 314,487 held-out decisions from 2,000
+  entirely-held-out games, predictions spanning the full [0,1] range with roughly even bucket
+  counts (real discrimination, not collapse to the base rate). See docs/AZ_DESIGN.md.*
+- [x] **13. GATE**: `net@depth1` ≥ tuned heuristic on duplicate pairs.
+  *PASSED 2026-08-26 at full scale: 800 duplicate pairs (1,600 games), win rate 61.4% (982/1,600),
+  Wilson 95% CI [58.96%, 63.73%] -- lower bound decisively clear of 50%. Pair record: 314 pairs
+  net@depth1 did strictly better, 354 splits, 132 heuristic did strictly better. Supersedes the
+  reduced-scale (20k games) run's MARGINAL result (52.0%, CI lower bound a hair under 50%),
+  confirming that hypothesis's own prediction that dataset size -- not epochs or value-loss
+  weighting, both already tried at 20k -- was the binding constraint: at 10x the data, calibration
+  (ECE) also improved ~7x (0.0145 -> 0.0021) alongside the win-rate jump. Checkpoint:
+  `runs/bootstrap_2p_v4_large/`, now the project's current-best checkpoint. See docs/AZ_DESIGN.md
+  for the full numbers.*
 
 ### Phase 3 — Self-play loop (the main event, continuous)
+
+*Status 2026-08-27: built (`parchis/az/round_loop.py`, `targets.py`, `champion_pool.py`,
+`selfplay.generate_round_games`), tested (43 new tests across 6 new/extended test files), and the
+initial 40-round target **completed** (~27.5 hours, seeded from the Phase 2 checkpoint). 3
+promotions (rounds 4, 6, 23) -- current champion copied to `runs/selfplay_2p_v1_champion/`,
+superseding the Phase 2 bootstrap checkpoint. All 9 depth-2 escalations failed to promote while
+consuming ~79% of total wall-clock time -- a real finding, not noise, that needs a decision (fix,
+reconfigure, or drop the escalation mechanism) before any continuation. See docs/AZ_DESIGN.md for
+the concrete design choices the plan left unspecified, the full round-by-round log, and the
+escalation analysis.*
 
 Each round:
 

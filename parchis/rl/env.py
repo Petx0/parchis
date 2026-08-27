@@ -838,9 +838,26 @@ class ParchisEnv(gym.Env):
                 hits += 1
         return hits / 6.0
 
-    def _get_observation(self):
+    def _get_observation(self, perspective_seat=None):
         """
         Construct the observation array (dynamic size based on num_players).
+
+        Args:
+            perspective_seat: index into self.game.players whose own-piece
+                features (and capture_opportunity, which is derived from
+                them) this observation should reflect. Defaults to
+                self.agent_player_idx, preserving the observation the
+                learning agent has always received via reset()/step().
+                Pass the ACTING player's seat when building an observation
+                for someone other than the learning agent (e.g. an
+                opponent-model policy) -- see
+                docs/AGENT_REBUILD_PLAN.md §1.3: without this, the own-piece
+                block and capture_opportunity silently described the
+                learning agent's pieces no matter whose decision the
+                observation was built for, while the board-state/piece-
+                count/progress/dice blocks below already correctly rotate
+                by self.game.current_player_idx, independent of this
+                parameter.
 
         Returns:
             numpy array containing:
@@ -921,7 +938,8 @@ class ParchisEnv(gym.Env):
         # of choosing action=0 vs action=3 when multiple of the agent's
         # own pieces have simultaneously legal moves.
         own_piece_offset = bonus_offset + self.BONUS_FEATURES_SIZE
-        agent_player = self.game.players[self.agent_player_idx]
+        seat = self.agent_player_idx if perspective_seat is None else perspective_seat
+        agent_player = self.game.players[seat]
 
         threat_hit_counts = self._capture_threat_scores(agent_player)
 

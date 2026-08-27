@@ -198,8 +198,14 @@ class ParchisSelfPlayEnv(gym.Env):
         # Observation/action-mask are computed from self.base_env's live
         # game state; this is called synchronously from inside
         # self.base_env.step(), so current_player_idx already reflects
-        # this opponent's turn.
-        obs = self.base_env._get_observation()
+        # this opponent's turn. perspective_seat=seat is required here
+        # (docs/AGENT_REBUILD_PLAN.md §1.3): without it, _get_observation()
+        # defaults to self.base_env.agent_player_idx, so the own-piece
+        # block and capture_opportunity would describe the LEARNING
+        # AGENT's pieces regardless of which opponent seat is actually
+        # deciding -- a hybrid observation that trained every opponent
+        # model to date against a partly-mismatched view of its own pieces.
+        obs = self.base_env._get_observation(perspective_seat=seat)
         action_masks = self.base_env._get_info()['action_masks']
 
         try:

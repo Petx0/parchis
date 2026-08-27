@@ -149,6 +149,78 @@ def test_own_piece_features_are_fixed_slot_by_piece_id():
     env.close()
 
 
+def test_get_observation_perspective_seat_overrides_default():
+    """_get_observation(perspective_seat=...) must build the own-piece
+    block (and, transitively, capture_opportunity) from the REQUESTED
+    seat's pieces, not always from self.agent_player_idx.
+
+    Regression test for docs/AGENT_REBUILD_PLAN.md §1.3: before this
+    parameter existed, ParchisSelfPlayEnv._choose_opponent_move called
+    _get_observation() with no way to ask for anyone but the learning
+    agent's perspective, so every opponent model was fed a hybrid
+    observation (an opponent-relative board, but the learning agent's own
+    pieces). Scripts two seats into provably different piece layouts (one
+    fully in base, the other fully on board at known positions) and checks
+    each perspective's own-piece block reflects ONLY that seat."""
+    print("\nTesting _get_observation(perspective_seat=...) overrides the default agent perspective...")
+
+    env = ParchisEnv(num_players=3)
+    obs, info = env.reset(seed=42)
+    env.agent_player_idx = 0
+    agent = env.game.players[0]
+    other_seat = 1
+    other = env.game.players[other_seat]
+
+    # Agent: all 4 pieces in base.
+    for piece in agent.pieces:
+        if not piece.in_base:
+            env.game.board.remove_piece(piece)
+            piece.send_to_base()
+
+    # Other seat: all 4 pieces on board at distinct, known positions.
+    other_positions = [10, 20, 30, 40]
+    for piece, pos in zip(other.pieces, other_positions):
+        env.game.board.remove_piece(piece)
+        piece.move_to(pos)
+        env.game.board.add_piece(piece, pos)
+
+    base = _own_piece_offset(env)
+
+    obs_default = env._get_observation()
+    obs_agent = env._get_observation(perspective_seat=0)
+    obs_other = env._get_observation(perspective_seat=other_seat)
+
+    assert np.array_equal(obs_default, obs_agent), (
+        "perspective_seat=None must behave exactly like "
+        "perspective_seat=self.agent_player_idx"
+    )
+
+    # Agent perspective: every own-piece slot shows in_base=1.0.
+    for piece in agent.pieces:
+        slot = base + piece.piece_id * env.PIECE_FEATURES_PER_PIECE
+        assert obs_agent[slot + 0] == 1.0, (
+            "Agent-perspective observation should show the agent's own pieces in base"
+        )
+
+    # Other-seat perspective: every own-piece slot shows in_base=0.0 and the
+    # scripted position -- i.e. it reflects `other`, never `agent`.
+    for piece, pos in zip(other.pieces, other_positions):
+        slot = base + piece.piece_id * env.PIECE_FEATURES_PER_PIECE
+        assert obs_other[slot + 0] == 0.0, (
+            "perspective_seat=other_seat must show THAT seat's pieces, not the agent's"
+        )
+        assert abs(obs_other[slot + 2] - pos / Board.FINAL_POSITION) < 1e-6, (
+            f"perspective_seat=other_seat own-piece position feature should reflect pos={pos}"
+        )
+
+    own_piece_block = slice(base, base + env.OWN_PIECE_FEATURES_SIZE)
+    assert not np.array_equal(obs_agent[own_piece_block], obs_other[own_piece_block]), (
+        "Own-piece feature block must differ between two provably-different perspectives"
+    )
+    print("✓ _get_observation(perspective_seat=...) correctly isolates each seat's own pieces")
+    env.close()
+
+
 def test_bonus_indicator_flags():
     """has_finish_bonus/has_capture_bonus are mutually-exclusive binary
     flags reflecting self.pending_bonus (Decision 1: replaces the old
@@ -629,6 +701,7 @@ if __name__ == '__main__':
     test_observation_stays_within_declared_bounds()
     test_progress_score_matches_calculate_normalized_progress()
     test_own_piece_features_are_fixed_slot_by_piece_id()
+    test_get_observation_perspective_seat_overrides_default()
     test_bonus_indicator_flags()
     test_capture_threat_score_direct_hit()
     test_capture_threat_score_mandatory_five_entry()

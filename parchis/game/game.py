@@ -118,6 +118,102 @@ class Game:
         """Move to the next player's turn."""
         self.current_player_idx = (self.current_player_idx + 1) % self.num_players
 
+    # --- Snapshot / restore ---
+    # A cheap alternative to copy.deepcopy(game) for search algorithms that
+    # need to try a move, look ahead, and undo it: deepcopy pays to clone
+    # the entire object graph (board, dice, rules, every Piece/Player, ...)
+    # on every node; snapshot()/restore() instead capture just the fields
+    # that actually change during play as a plain tuple of primitives and
+    # existing object references, and undo a mutation by writing those
+    # values back in place. Measured ~100x cheaper than deepcopy on this
+    # class (docs/AGENT_REBUILD_PLAN.md Part 3 item 1 / §1.1).
+
+    def snapshot(self):
+        """
+        Capture the full mutable game state as a plain, opaque tuple.
+
+        Covers every field play can change: board occupancy
+        (board.positions) and board.move_counter; every piece's
+        position/in_base/finished/move_order; and
+        current_player_idx/turn_number/game_over/winner. Everything else on
+        Game (self.dice, self.rules, self.logger, self.starting_player,
+        self.initial_dice_rolls, self.num_players, self.players itself) is
+        fixed at construction and never reassigned by play, so it needs no
+        snapshotting.
+
+        The returned tuple holds direct references to this Game's own
+        Piece/Player objects, not copies of them -- restore() mutates those
+        same objects back to their captured attribute values in place,
+        rather than replacing them. That makes a snapshot only meaningful
+        for undoing a later mutation on THIS SAME Game instance (never for
+        reconstructing an independent copy elsewhere), but it also means
+        any other code still holding a reference to one of this game's
+        Piece/Player objects across a restore() call sees it revert
+        correctly, with no stale copies left behind.
+
+        Returns:
+            tuple: an opaque token; pass it to restore() to undo any
+            mutation made after this call.
+        """
+        board = self.board
+        # tuple(pieces), not the list object itself: Board.add_piece/
+        # remove_piece mutate that list in place (append/remove), so
+        # capturing a reference to it (instead of a copy of its current
+        # contents) would let later mutation silently corrupt this snapshot.
+        positions = tuple(
+            (position, tuple(pieces))
+            for position, pieces in board.positions.items()
+        )
+        piece_states = tuple(
+            (piece, piece.position, piece.in_base, piece.finished, piece.move_order)
+            for player in self.players
+            for piece in player.pieces
+        )
+        return (
+            positions,
+            board.move_counter,
+            piece_states,
+            self.current_player_idx,
+            self.turn_number,
+            self.game_over,
+            self.winner,
+        )
+
+    def restore(self, snapshot):
+        """
+        Undo every mutation made since `snapshot` was taken, restoring
+        exactly the fields snapshot() captured. Mutates this Game's
+        existing Board/Piece objects in place rather than replacing them,
+        so this is only valid to call on the same Game instance `snapshot`
+        was taken from.
+
+        Args:
+            snapshot: a tuple previously returned by this instance's
+                snapshot().
+        """
+        (positions, move_counter, piece_states, current_player_idx,
+         turn_number, game_over, winner) = snapshot
+
+        for piece, position, in_base, finished, move_order in piece_states:
+            piece.position = position
+            piece.in_base = in_base
+            piece.finished = finished
+            piece.move_order = move_order
+
+        board = self.board
+        # Rebuilt fresh (not patched) so any position that gained/lost
+        # occupants since the snapshot -- including ones not present in
+        # `positions` at all -- ends up exactly as captured, with plain
+        # mutable lists (Board.add_piece/remove_piece expect to append/
+        # remove on them).
+        board.positions = {position: list(pieces) for position, pieces in positions}
+        board.move_counter = move_counter
+
+        self.current_player_idx = current_player_idx
+        self.turn_number = turn_number
+        self.game_over = game_over
+        self.winner = winner
+
     # --- Rule-engine delegation ---
     # These wrap self.rules so existing callers can keep calling them on
     # Game directly; the actual legality logic lives in RuleEngine.

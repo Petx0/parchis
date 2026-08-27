@@ -19,6 +19,13 @@ class GameLogger:
         """
         self.log_dir = log_dir
         self.log_data = {
+            # Bumped whenever this dict's shape changes in a way a consumer
+            # (parchis/visualization/visualizer.py, agentinfo_io.py) needs
+            # to branch on -- see docs/CODE_REVIEW.md's note that this
+            # contract previously had no version field at all. Consumers
+            # should read it via .get('schema_version', 0) so pre-existing
+            # logs on disk (which predate this field) still load.
+            'schema_version': 1,
             'metadata': {},
             'turns': [],
             'result': {}

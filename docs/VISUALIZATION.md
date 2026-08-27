@@ -59,10 +59,70 @@ python -m parchis.visualization.demo_visualization
 Plays a short 2-player game, saves the log, then replays it — useful when
 you don't already have a log file handy.
 
+## AI Agent Value Visualization
+
+Beyond replaying a game, you can play one with real trained agents
+(search-driven checkpoints, the tuned/default heuristic, or random) and see
+the network/search's own valuation of the position and of each candidate
+move at every decision point, alongside the board:
+
+```bash
+python -m parchis.visualization.play_instrumented_game \
+    --agent 0=checkpoint:runs/selfplay_2p_v1_champion:depth=1 \
+    --agent 1=heuristic:tuned
+```
+
+This plays the game, saves the usual move log plus a sidecar
+`<log>.agentinfo.json` of per-decision agent data, then immediately
+replays it with an added value panel next to the board:
+- **Position value** (top-right): the current position's win probability
+  per seat, from the search agent's own root value estimate.
+- **Candidate moves** (bottom-right): one bar per legal move available at
+  the decision being replayed — for a search agent, the mover's own
+  win probability if that move is chosen; for the heuristic agent, its raw
+  (non-probability) score. The move actually chosen is highlighted.
+
+A seat with no `--agent` keeps the default random player, and a random
+seat's own turns show a "no agent value data" placeholder rather than
+guessing — the panel degrades gracefully per-roll, not per-game, so e.g.
+seat 0 = a checkpoint and seat 1 = random shows real bars only on seat 0's
+decisions.
+
+`SPEC` grammar for `--agent SEAT=SPEC` (repeatable, one per seat):
+- `checkpoint:<run_dir>[:depth=N]` — loads `<run_dir>/model.pt` (or
+  `champion.pt`, for an in-progress Phase 3 run directory) using that run's
+  own `config.json` for shape; `depth` defaults to the run's own
+  `base_depth` if recorded, else `parchis.az.search.DEFAULT_DEPTH`.
+- `heuristic:tuned` or `heuristic:default` — `heuristic.TUNED_WEIGHTS` or
+  `heuristic.DEFAULT_WEIGHTS`.
+- `random` — the default random player, named explicitly.
+
+Useful flags: `--num-players`, `--seed`, `--max-turns`, `--log-dir`,
+`--auto` (skip the ENTER prompts), `--save-frames`, `--no-value-panel`
+(suppress the panel even for an instrumented log), `--no-replay` (play +
+log only, useful for generating a batch of logs to look at later via the
+plain `visualize_game` CLI).
+
+You can also add the value panel to an existing instrumented log without
+re-playing the game:
+
+```python
+from parchis.visualization.visualizer import replay_game_from_log
+replay_game_from_log('logs/game_....json')  # auto-detects the sidecar if present
+```
+
+See `parchis/visualization/agentinfo_io.py` for the sidecar's JSON schema
+and `parchis/visualization/instrumented_play.py::play_and_record` for the
+underlying library function.
+
 ## Interactive Controls
 
 When running in interactive mode (default):
-- Press **ENTER** to advance to the next turn
+- Press **ENTER** to see the move made in response to the roll/decision
+  just shown (the pause sits between seeing the roll — and, if this is an
+  instrumented replay, its value panel — and seeing the move actually
+  played, giving you time to read the roll and the candidate-move
+  probabilities before the outcome is revealed)
 - Type **q** and press ENTER to quit the replay
 
 ## Board Layout
@@ -206,7 +266,6 @@ Potential improvements for future versions:
 - Animation between moves (smooth transitions)
 - Highlight captured pieces
 - Show dice roll results on screen
-- Display game statistics during replay
 - Support for custom board themes
 - Interactive piece selection (click to see piece history)
 

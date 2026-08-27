@@ -8,11 +8,14 @@ import math
 from functools import lru_cache
 from pathlib import Path
 
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.patheffects as patheffects
 from matplotlib.patches import Circle
 
 from parchis.game.board import Board
+from parchis.visualization import agentinfo_io
 
 # The real board photo used as the board's background. All coordinates in
 # this module are pixel coordinates within this specific image (measured
@@ -93,6 +96,13 @@ class ParchisVisualizer:
         self.piece_artists = {}  # Store piece circle objects for animation
         self.highlight_artist = None  # Track the current move-highlight arrow
         self.status_artist = None  # Track the current turn/roll status text
+
+        # Agent-value side panel (see create_board(show_value_panel=...)):
+        # None/None whenever the panel wasn't requested, so draw_value_panel
+        # can no-op cheaply rather than every caller having to check a
+        # separate flag.
+        self.value_ax_root = None
+        self.value_ax_moves = None
 
         # Main-track coordinates (1-68), shared by all colors, and each
         # color's private home-lane coordinates (69-76), kept separate
@@ -220,10 +230,31 @@ class ParchisVisualizer:
     # outside the imshow extent so it never overlaps board art.
     STATUS_STRIP_HEIGHT = 55
 
-    def create_board(self):
+    def create_board(self, show_value_panel=False):
         """Create and return a figure with the Parchís board, using the
-        real board photo as the background."""
-        self.fig, self.ax = plt.subplots(figsize=(12, 12.5))
+        real board photo as the background.
+
+        show_value_panel=False (the default) is byte-for-byte the same
+        figure/axes layout as before this option existed -- no behavior
+        change for any existing caller. When True, the board shares the
+        figure with a second panel (see draw_value_panel) showing an
+        instrumented agent's decision-time value data: value_ax_root (the
+        current position's win-probability per seat) and value_ax_moves
+        (one bar per candidate move at the decision being replayed).
+        """
+        if show_value_panel:
+            self.fig = plt.figure(figsize=(18, 12.5))
+            gs = self.fig.add_gridspec(2, 2, width_ratios=[3, 2], height_ratios=[1, 2])
+            self.ax = self.fig.add_subplot(gs[:, 0])
+            self.value_ax_root = self.fig.add_subplot(gs[0, 1])
+            self.value_ax_moves = self.fig.add_subplot(gs[1, 1])
+            self.value_ax_root.axis('off')
+            self.value_ax_moves.axis('off')
+        else:
+            self.fig, self.ax = plt.subplots(figsize=(12, 12.5))
+            self.value_ax_root = None
+            self.value_ax_moves = None
+
         self.ax.set_xlim(0, self.IMAGE_WIDTH)
         self.ax.set_ylim(-self.STATUS_STRIP_HEIGHT, self.IMAGE_HEIGHT)
         self.ax.set_aspect('equal')
@@ -259,9 +290,11 @@ class ParchisVisualizer:
             game_state: Dict with player colors as keys, values are lists of
                        piece positions (None for in base, 1-76 for on board)
         """
-        # Clear existing pieces
-        for artist in self.piece_artists.values():
-            artist.remove()
+        # Clear existing pieces (each entry is (circle, number_label) --
+        # see _draw_piece_in_base/_draw_piece_on_board).
+        for circle, label in self.piece_artists.values():
+            circle.remove()
+            label.remove()
         self.piece_artists.clear()
 
         # A square can hold up to Board.MAX_PIECES_PER_SQUARE (2) pieces at
@@ -305,6 +338,26 @@ class ParchisVisualizer:
     BASE_PIECE_OFFSET = 28.0
     BASE_PIECE_RADIUS = 17.0
 
+    # Font size for the piece-index label (0-3) drawn inside every piece
+    # circle -- one fixed size for base pieces (always full BASE_PIECE_RADIUS),
+    # and PIECE_LABEL_FONTSIZE/PIECE_LABEL_FONTSIZE_SHARED for on-board
+    # pieces (see _draw_piece_on_board -- shared squares draw smaller
+    # circles, so their label needs to shrink to match).
+    PIECE_LABEL_FONTSIZE = 8
+    PIECE_LABEL_FONTSIZE_SHARED = 6
+
+    def _draw_piece_label(self, x, y, piece_idx, fontsize):
+        """The small 0-3 index drawn inside a piece's circle so identical-
+        color pieces can be told apart and followed across a replay. White
+        with a black outline stroke -- rather than a single fixed color --
+        so it stays legible against all 4 piece colors (including light
+        ones like YELLOW's gold) without needing a per-color text color."""
+        return self.ax.text(
+            x, y, str(piece_idx), ha='center', va='center',
+            fontsize=fontsize, fontweight='bold', color='white', zorder=11,
+            path_effects=[patheffects.withStroke(linewidth=2, foreground='black')],
+        )
+
     def _draw_piece_in_base(self, color, piece_idx):
         """Draw a piece in its home base."""
         base_x, base_y = self.base_positions[color]
@@ -312,14 +365,16 @@ class ParchisVisualizer:
         offsets = [(-1, 1), (1, 1), (-1, -1), (1, -1)]
         ox, oy = offsets[piece_idx]
         dx, dy = ox * self.BASE_PIECE_OFFSET, oy * self.BASE_PIECE_OFFSET
+        x, y = base_x + dx, base_y + dy
 
-        piece = Circle((base_x + dx, base_y + dy), self.BASE_PIECE_RADIUS,
+        piece = Circle((x, y), self.BASE_PIECE_RADIUS,
                       facecolor=self.COLORS[color],
                       edgecolor='black', linewidth=2, zorder=10)
         self.ax.add_patch(piece)
+        label = self._draw_piece_label(x, y, piece_idx, self.PIECE_LABEL_FONTSIZE)
 
         piece_id = f"{color}_{piece_idx}"
-        self.piece_artists[piece_id] = piece
+        self.piece_artists[piece_id] = (piece, label)
 
     def _lookup_coords(self, color, position):
         """
@@ -364,19 +419,23 @@ class ParchisVisualizer:
 
         if total_at_square <= 1:
             radius = self.PIECE_RADIUS
+            label_fontsize = self.PIECE_LABEL_FONTSIZE
             dx, dy = 0.0, 0.0
         else:
             radius = self.SHARED_PIECE_RADIUS
+            label_fontsize = self.PIECE_LABEL_FONTSIZE_SHARED
             sign = -1 if slot == 0 else 1
             dx = dy = sign * self.SHARED_PIECE_OFFSET
 
-        piece = Circle((x + dx, y + dy), radius,
+        px, py = x + dx, y + dy
+        piece = Circle((px, py), radius,
                       facecolor=self.COLORS[color],
                       edgecolor='black', linewidth=2, zorder=10)
         self.ax.add_patch(piece)
+        label = self._draw_piece_label(px, py, piece_idx, label_fontsize)
 
         piece_id = f"{color}_{piece_idx}"
-        self.piece_artists[piece_id] = piece
+        self.piece_artists[piece_id] = (piece, label)
 
     def highlight_move(self, color, piece_idx, old_pos, new_pos):
         """
@@ -409,6 +468,112 @@ class ParchisVisualizer:
             self.ax.add_patch(arrow)
             self.highlight_artist = arrow
 
+    NO_DATA_TEXT = "No agent value data\nfor this decision"
+
+    def _draw_no_data_placeholder(self, ax, text=None):
+        ax.clear()
+        ax.axis('off')
+        ax.text(0.5, 0.5, text or self.NO_DATA_TEXT, ha='center', va='center',
+                 fontsize=11, color='gray', transform=ax.transAxes, wrap=True)
+
+    def clear_value_panel(self):
+        """Blank both value-panel axes (a no-op if show_value_panel was
+        False, i.e. the axes are None)."""
+        if self.value_ax_root is None:
+            return
+        self._draw_no_data_placeholder(self.value_ax_root)
+        self._draw_no_data_placeholder(self.value_ax_moves)
+
+    def draw_value_panel(self, decision, player_colors_by_seat):
+        """Render one decision's agent-value data into the two side-panel
+        axes created by create_board(show_value_panel=True) -- a no-op if
+        that panel wasn't requested (axes are None). `decision` is one
+        entry from agentinfo_io.decision_for_roll (or None, meaning no
+        agent data exists for the roll currently being replayed: no
+        sidecar at all, an uninstrumented seat, or a roll with no real
+        decision -- see agentinfo_io's module docstring). `decision['kind']`
+        is "search" (root_value/move_values, per-seat win-probability
+        vectors) or "heuristic" (move_scores, a raw per-move scalar that is
+        NOT a probability -- labeled differently so it isn't mistaken for
+        one).
+
+        player_colors_by_seat: {seat: color_str}, built once from the log's
+        metadata, used to color/label the root-value bars.
+        """
+        if self.value_ax_root is None:
+            return  # show_value_panel was False for this replay
+
+        if decision is None:
+            self.clear_value_panel()
+            return
+
+        self._draw_root_value_bars(decision, player_colors_by_seat)
+        self._draw_move_value_bars(decision)
+
+    def _draw_root_value_bars(self, decision, player_colors_by_seat):
+        ax = self.value_ax_root
+        root_value = decision.get('root_value')
+        if root_value is None:
+            # A heuristic decision has no position-level value estimate --
+            # only per-move scores (see _draw_move_value_bars).
+            self._draw_no_data_placeholder(ax, "No position-value estimate\n(heuristic agent)")
+            return
+
+        ax.clear()
+        seats = list(range(len(root_value)))
+        colors = [self.COLORS.get(player_colors_by_seat.get(s), '#888888') for s in seats]
+        labels = [f"P{s} {player_colors_by_seat.get(s, '?')}" for s in seats]
+        y_pos = np.arange(len(seats))
+
+        ax.barh(y_pos, root_value, color=colors, edgecolor='black')
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(labels, fontsize=9)
+        ax.set_xlim(0, 1)
+        ax.set_title('Position value (win probability)', fontsize=10)
+        for i, v in enumerate(root_value):
+            ax.text(min(v + 0.02, 0.92), i, f"{v:.2f}", va='center', fontsize=8)
+
+    def _draw_move_value_bars(self, decision):
+        ax = self.value_ax_moves
+        chosen_piece_id = decision.get('chosen_piece_id')
+
+        if decision['kind'] == 'search' and decision.get('move_values'):
+            seat = decision['seat']
+            items = sorted(decision['move_values'].items(), key=lambda kv: int(kv[0]))
+            piece_ids = [int(pid) for pid, _v in items]
+            values = [v[seat] for _pid, v in items]
+            title = "Candidate moves: win probability if chosen"
+            xlim = (0, 1)
+        elif decision['kind'] == 'heuristic' and decision.get('move_scores'):
+            items = sorted(decision['move_scores'].items(), key=lambda kv: int(kv[0]))
+            piece_ids = [int(pid) for pid, _v in items]
+            values = [v for _pid, v in items]
+            title = "Candidate moves: heuristic score (not a probability)"
+            xlim = None
+        else:
+            self._draw_no_data_placeholder(ax)
+            return
+
+        ax.clear()
+        y_pos = np.arange(len(piece_ids))
+        bar_colors = ['#333333' if pid == chosen_piece_id else '#bbbbbb' for pid in piece_ids]
+        bars = ax.barh(y_pos, values, color=bar_colors)
+        for bar, pid in zip(bars, piece_ids):
+            if pid == chosen_piece_id:
+                bar.set_edgecolor('red')
+                bar.set_linewidth(2.5)
+
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels([
+            f"piece {pid}" + ("  ← chosen" if pid == chosen_piece_id else "")
+            for pid in piece_ids
+        ], fontsize=9)
+        if xlim is not None:
+            ax.set_xlim(*xlim)
+        ax.set_title(title, fontsize=10)
+        for i, v in enumerate(values):
+            ax.text(v, i, f" {v:.2f}", va='center', fontsize=8)
+
     def show(self):
         """Display the board."""
         plt.tight_layout()
@@ -421,7 +586,8 @@ class ParchisVisualizer:
         print(f"Board saved to {filepath}")
 
 
-def replay_game_from_log(log_filepath, step_by_step=True, save_frames=False):
+def replay_game_from_log(log_filepath, step_by_step=True, save_frames=False,
+                          agentinfo_filepath=None, show_value_panel=None):
     """
     Replay a game from a log file with visualization.
 
@@ -429,6 +595,15 @@ def replay_game_from_log(log_filepath, step_by_step=True, save_frames=False):
         log_filepath: Path to the game log JSON file
         step_by_step: If True, wait for user input between turns
         save_frames: If True, save each frame as an image
+        agentinfo_filepath: Path to a sidecar agent-value JSON (see
+            parchis.visualization.agentinfo_io), or None to auto-detect one
+            next to log_filepath via agentinfo_io.agentinfo_path_for.
+        show_value_panel: Whether to render the agent-value side panel.
+            None (default) auto-enables it iff an agentinfo sidecar was
+            found/loaded, so old calls/logs are visually unaffected; pass
+            True/False to force it on/off (e.g. True to show the "no data"
+            placeholder for an all-random game, or False to suppress the
+            panel even for an instrumented log).
     """
     # Load game log
     with open(log_filepath, 'r') as f:
@@ -442,9 +617,29 @@ def replay_game_from_log(log_filepath, step_by_step=True, save_frames=False):
     print(f"Winner: {log_data['result']['winner_color']}")
     print("=" * 60)
 
+    if agentinfo_filepath is not None:
+        with open(agentinfo_filepath) as f:
+            agentinfo_data = json.load(f)
+    else:
+        agentinfo_data = agentinfo_io.load_agentinfo(log_filepath)
+
+    if show_value_panel is None:
+        show_value_panel = agentinfo_data is not None
+
+    # seat (arena/turn-order position, what agent_specs/DecisionRecord use)
+    # and player_id (GameLogger's own, pre-rotation color-slot identity) are
+    # DIFFERENT numberings -- see agentinfo_io's module docstring. Derive
+    # the real mapping from the log's own turn order once, up front, rather
+    # than ever comparing the two directly.
+    seat_by_player_id = agentinfo_io.build_seat_by_player_id(log_data['turns'])
+    player_colors_by_seat = {
+        seat_by_player_id[p['id']]: p['color']
+        for p in log_data['metadata']['players'] if p['id'] in seat_by_player_id
+    }
+
     # Initialize visualizer
     viz = ParchisVisualizer()
-    viz.create_board()
+    viz.create_board(show_value_panel=show_value_panel)
 
     # Initialize game state (all pieces in base)
     game_state = {}
@@ -454,13 +649,21 @@ def replay_game_from_log(log_filepath, step_by_step=True, save_frames=False):
 
     # Draw initial state
     viz.draw_pieces(game_state)
+    viz.clear_value_panel()
     plt.pause(0.1)
 
     if step_by_step:
         input("\nPress ENTER to start replay...")
 
-    # Replay each turn
+    # Replay each turn. The step_by_step pause sits BETWEEN showing a roll
+    # (+ its value panel, when available) and applying the move it led to --
+    # not at the end of the turn -- so a reader sees the dice result and the
+    # candidate-move probabilities first, and has time to read them, before
+    # finding out what was actually played.
+    quit_requested = False
     for turn_idx, turn_data in enumerate(log_data['turns']):
+        if quit_requested:
+            break
         turn_number = turn_data['turn_number']
         player_color = turn_data['player_color']
 
@@ -485,6 +688,21 @@ def replay_game_from_log(log_filepath, step_by_step=True, save_frames=False):
                 f"Turn {turn_number} — {player_color}: {roll_desc}",
                 color=viz.COLORS[player_color],
             )
+
+            # Show this decision's value data (if any) at the SAME beat as
+            # the roll -- before the move below is applied -- so the pause
+            # right after this is a genuine "roll's in, move's not yet
+            # played" moment: the reader can see the dice result and the
+            # candidate-move probabilities before the outcome is revealed.
+            decision = agentinfo_io.decision_for_roll(turn_data, roll_idx, agentinfo_data, seat_by_player_id)
+            viz.draw_value_panel(decision, player_colors_by_seat)
+
+            plt.pause(0.1)  # flush the roll+panel render before blocking on input
+            if step_by_step:
+                user_input = input("Press ENTER to see the move (or 'q' to quit): ")
+                if user_input.lower() == 'q':
+                    quit_requested = True
+                    break
 
             if roll_data['move']:
                 move = roll_data['move']
@@ -528,12 +746,11 @@ def replay_game_from_log(log_filepath, step_by_step=True, save_frames=False):
                 frame_path = f"replay_frame_{turn_number:04d}_{roll_idx:02d}.png"
                 viz.save(frame_path)
 
-            plt.pause(0.5)
-
-        if step_by_step:
-            user_input = input("\nPress ENTER for next turn (or 'q' to quit): ")
-            if user_input.lower() == 'q':
-                break
+            # Flush the just-applied move immediately (rather than relying
+            # on the next roll's own pre-input pause to do it) so it's
+            # visible even when this was the very last roll of the replay.
+            # In --auto mode this doubles as the original pacing delay.
+            plt.pause(0.1 if step_by_step else 0.5)
 
     print("\n" + "=" * 60)
     print("REPLAY COMPLETE")

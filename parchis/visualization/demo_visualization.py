@@ -54,7 +54,7 @@ def main():
     print("\n[3/3] Starting visualization...")
     print("=" * 60)
     print("CONTROLS:")
-    print("- Press ENTER to advance to the next turn")
+    print("- Press ENTER to see the move made in response to each roll")
     print("- Type 'q' and press ENTER to quit")
     print("=" * 60)
 

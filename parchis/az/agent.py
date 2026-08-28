@@ -34,17 +34,48 @@ class NetEvaluator:
     the value head's RELATIVE-to-observer channel order back to the
     ABSOLUTE seat order search.py's evaluator contract requires (the
     encoding/net only ever see/produce relative channel order -- see
-    parchis/az/search.py's module docstring)."""
+    parchis/az/search.py's module docstring).
+
+    Also exposes encode()/evaluate_batch() -- search.py's _Collector
+    duck-types on this pair to switch from evaluating every leaf eagerly
+    (one Python call, one net.forward() each) to collecting every leaf's
+    row across a WHOLE search and running exactly one batched
+    net.forward() at the end (see search.py's BATCHED LEAF EVALUATION
+    module docstring section). __call__ above is unchanged and still used
+    directly wherever a single one-off evaluation is wanted (e.g.
+    parchis.evaluation.puzzles.runner); it's now just a batch-of-one call
+    through the same two methods, not a separate code path -- see
+    test_search.py::test_net_evaluator_batched_matches_eager_call_path for
+    the cross-check that the two stay in agreement."""
 
     def __init__(self, numpy_net):
         self.numpy_net = numpy_net
 
     def __call__(self, game, observer_seat, roll=None, pending_bonus=None, consecutive_sixes=0):
-        obs = encoding.encode(game, observer_seat, roll=roll, pending_bonus=pending_bonus,
-                               consecutive_sixes=consecutive_sixes)
-        _policy_logits, value_logits = self.numpy_net.forward(obs[None, :])
-        relative_probs = value_probs(value_logits)[0]
-        return np.roll(relative_probs, observer_seat)
+        row = self.encode(game, observer_seat, roll=roll, pending_bonus=pending_bonus,
+                           consecutive_sixes=consecutive_sixes)
+        return self.evaluate_batch(row[None, :], [observer_seat])[0]
+
+    def encode(self, game, observer_seat, roll=None, pending_bonus=None, consecutive_sixes=0):
+        """The cheap, pure part of evaluation: a fixed-size row, safe to
+        compute now and batch for later even though `game` itself will be
+        mutated/restored by search.py before the batch is ever run."""
+        return encoding.encode(game, observer_seat, roll=roll, pending_bonus=pending_bonus,
+                                consecutive_sixes=consecutive_sixes)
+
+    def evaluate_batch(self, rows, observer_seats):
+        """rows: (batch, input_size) array of encode() outputs.
+        observer_seats: the observer_seat each row was encoded from
+        (needed per-row since np.roll's shift differs by observer).
+        Returns an (batch, num_players) array, one absolute-seat-order
+        value vector per row -- ONE net.forward() call for the whole
+        batch, which is the entire point of this method existing."""
+        _policy_logits, value_logits = self.numpy_net.forward(rows)
+        relative_probs = value_probs(value_logits)
+        return np.stack([
+            np.roll(relative_probs[i], observer_seats[i])
+            for i in range(len(observer_seats))
+        ])
 
 
 def heuristic_position_evaluator(game, observer_seat=None, roll=None, pending_bonus=None,

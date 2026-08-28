@@ -39,6 +39,31 @@ State transitions use Game.snapshot()/restore() exclusively, never
 copy.deepcopy -- see docs/AGENT_REBUILD_PLAN.md Part 3 item 1 / §1.1 for
 why (~20x cheaper per round trip on this class, measured).
 
+BATCHED LEAF EVALUATION (§2.3/Part 3 item 8's "one batched forward pass
+per search, not one at a time"): the recursive functions below never call
+`evaluator` directly. Instead every leaf goes through a `_Collector`,
+which either evaluates it immediately (any plain callable evaluator --
+heuristic_position_evaluator, test oracles, anything without an
+encode()/evaluate_batch() pair -- byte-identical to a direct call, same
+order, same count) or, for an evaluator exposing that pair (NetEvaluator),
+defers it: encode() is still called immediately at the leaf (a pure,
+cheap function of the CURRENTLY-live game state, safe against the
+upcoming game.restore()), but the resulting row is only appended to a
+shared batch; the actual net forward pass (evaluate_batch) happens exactly
+ONCE per search() call, after the *entire* tree has been built, covering
+every leaf the search needed (~3 to ~940 of them per the paragraph above)
+in one matmul instead of one per leaf. This is why the functions below
+build and return `_Node` objects (_Leaf/_Pending/_Max/_Mean) rather than
+plain np.ndarray vectors: a _Node's value may not be known yet at the
+point it's constructed (a _Pending leaf under a batched evaluator isn't
+until collector.flush() runs), so combining values (max^n, chance-node
+averaging) has to be deferred too, via resolve(), until after the one
+flush(). For a non-batched evaluator every leaf is already a _Leaf holding
+a concrete vector by the time it's created, so resolve() just unwinds the
+tree immediately -- same work, same order, same result as before this
+was introduced (see test_search.py::test_batched_and_eager_search_agree
+and ::test_net_evaluator_batched_matches_eager_call_path).
+
 `evaluator` contract: a callable
     evaluator(game, observer_seat, roll=None, pending_bonus=None, consecutive_sixes=0)
         -> np.ndarray[num_players]
@@ -72,7 +97,117 @@ def _draw_vector(num_players):
     return np.full(num_players, 1.0 / num_players, dtype=np.float64)
 
 
-def _evaluate_immediately(game, evaluator, move_info, roll, pending_bonus, consecutive_sixes):
+class _Node:
+    """A value in the search tree that may not be resolved yet -- see the
+    module docstring's BATCHED LEAF EVALUATION section. resolve() must
+    only be called after every _Pending node reachable from it has had its
+    collector's flush() run."""
+    __slots__ = ()
+
+    def resolve(self):
+        raise NotImplementedError
+
+
+class _Leaf(_Node):
+    """An already-known value -- a terminal one-hot/draw vector, or (for a
+    non-batched evaluator) the direct result of calling it right away."""
+    __slots__ = ("value",)
+
+    def __init__(self, value):
+        self.value = value
+
+    def resolve(self):
+        return self.value
+
+
+class _Pending(_Node):
+    """A leaf awaiting one shared batched evaluation. `index` is this
+    leaf's row position in `collector`'s eventual results array."""
+    __slots__ = ("collector", "index")
+
+    def __init__(self, collector, index):
+        self.collector = collector
+        self.index = index
+
+    def resolve(self):
+        return self.collector.result(self.index)
+
+
+class _Mean(_Node):
+    """Uniform average over child nodes -- a chance node's 1/6-per-face
+    mix (weight=1/6.0), or the three-sixes-limit branch's single-child
+    "average" (weight=1.0, i.e. just that child's own value)."""
+    __slots__ = ("children", "weight")
+
+    def __init__(self, children, weight):
+        self.children = children  # list[_Node]
+        self.weight = weight
+
+    def resolve(self):
+        return sum(child.resolve() for child in self.children) * self.weight
+
+
+class _Max(_Node):
+    """A decision node's max^n aggregate: resolves EVERY child (full-width
+    expectimax computes every legal move's value, not just the eventual
+    best one -- search()'s root needs the whole dict anyway) and returns
+    the one maximizing `mover_seat`'s own component."""
+    __slots__ = ("children", "mover_seat")
+
+    def __init__(self, children, mover_seat):
+        self.children = children  # dict[piece_id, _Node]
+        self.mover_seat = mover_seat
+
+    def resolve(self):
+        resolved = {pid: node.resolve() for pid, node in self.children.items()}
+        best_pid = max(resolved, key=lambda pid: resolved[pid][self.mover_seat])
+        return resolved[best_pid]
+
+
+class _Collector:
+    """Bridges search.py's leaf-evaluation requests to either eager
+    per-call evaluation (any plain callable evaluator) or true batched
+    evaluation (an evaluator exposing encode()/evaluate_batch() --
+    NetEvaluator). One _Collector is created per top-level search() call
+    and threaded through the whole recursion, so its one flush() covers
+    every leaf in that entire search, not just one node's children."""
+
+    def __init__(self, evaluator):
+        self.evaluator = evaluator
+        self._batched = hasattr(evaluator, "encode") and hasattr(evaluator, "evaluate_batch")
+        self._rows = []
+        self._observer_seats = []
+        self._results = None
+
+    def request(self, game, observer_seat, roll, pending_bonus, consecutive_sixes):
+        """Called exactly where the old code called `evaluator(...)`
+        directly -- same call site, same moment relative to the caller's
+        upcoming game.restore(). Returns a _Node, not a value."""
+        if not self._batched:
+            value = self.evaluator(game, observer_seat, roll=roll,
+                                    pending_bonus=pending_bonus, consecutive_sixes=consecutive_sixes)
+            return _Leaf(value)
+        row = self.evaluator.encode(game, observer_seat, roll=roll,
+                                     pending_bonus=pending_bonus, consecutive_sixes=consecutive_sixes)
+        index = len(self._rows)
+        self._rows.append(row)
+        self._observer_seats.append(observer_seat)
+        return _Pending(self, index)
+
+    def flush(self):
+        """Run the one batched evaluation. A no-op for a non-batched
+        evaluator (every leaf was already a resolved _Leaf) or if this
+        search happened to need zero batched leaves."""
+        if self._batched and self._rows:
+            self._results = self.evaluator.evaluate_batch(
+                np.stack(self._rows), self._observer_seats,
+            )
+
+    def result(self, index):
+        return self._results[index]
+
+
+def _evaluate_immediately(game, collector, move_info, roll, pending_bonus, consecutive_sixes):
     """Depth has run out right after a move: hand the evaluator the
     IMMEDIATE post-move state without resolving whatever would normally
     come next (a chance node's 6-way roll, or a bonus decision) -- this is
@@ -97,26 +232,24 @@ def _evaluate_immediately(game, evaluator, move_info, roll, pending_bonus, conse
         signals a reroll is more likely here than the base rate.
     """
     if move_info.captured:
-        return evaluator(game, game.current_player_idx, roll=None,
-                          pending_bonus={'type': 'capture_bonus', 'squares': CAPTURE_BONUS_SQUARES},
-                          consecutive_sixes=consecutive_sixes)
+        return collector.request(game, game.current_player_idx, None,
+                                  {'type': 'capture_bonus', 'squares': CAPTURE_BONUS_SQUARES},
+                                  consecutive_sixes)
     if move_info.new_position == Board.FINAL_POSITION:
-        return evaluator(game, game.current_player_idx, roll=None,
-                          pending_bonus={'type': 'finish_bonus', 'squares': FINISH_BONUS_SQUARES},
-                          consecutive_sixes=consecutive_sixes)
+        return collector.request(game, game.current_player_idx, None,
+                                  {'type': 'finish_bonus', 'squares': FINISH_BONUS_SQUARES},
+                                  consecutive_sixes)
 
     six_again = (pending_bonus is None and roll == BONUS_TURN_ROLL)
     if not six_again:
         game.next_player()
-        return evaluator(game, game.current_player_idx, roll=None, pending_bonus=None,
-                          consecutive_sixes=0)
-    return evaluator(game, game.current_player_idx, roll=None, pending_bonus=None,
-                      consecutive_sixes=consecutive_sixes)
+        return collector.request(game, game.current_player_idx, None, None, 0)
+    return collector.request(game, game.current_player_idx, None, None, consecutive_sixes)
 
 
 def _resolve_turn_continuation(game, roll, pending_bonus, consecutive_sixes,
                                 second_six_piece, second_six_entered_home,
-                                depth, evaluator, num_players):
+                                depth, collector, num_players):
     """A roll's decision (and any bonus chain it triggered) has fully
     bottomed out with depth still remaining: resolve whatever comes next
     -- the SAME player rerolls (six-again, only when the ORIGINAL roll of
@@ -128,14 +261,14 @@ def _resolve_turn_continuation(game, roll, pending_bonus, consecutive_sixes,
     six_again = (pending_bonus is None and roll == BONUS_TURN_ROLL)
     if six_again:
         return _chance_node(game, consecutive_sixes, second_six_piece,
-                             second_six_entered_home, depth, evaluator, num_players)
+                             second_six_entered_home, depth, collector, num_players)
 
     game.next_player()
-    return _chance_node(game, 0, None, False, depth, evaluator, num_players)
+    return _chance_node(game, 0, None, False, depth, collector, num_players)
 
 
 def _chance_node(game, consecutive_sixes, second_six_piece, second_six_entered_home,
-                  depth, evaluator, num_players):
+                  depth, collector, num_players):
     """Exactly enumerate game.get_current_player()'s next roll over all 6
     faces, weighted 1/6 each (§1.4/§2.3: fixes mcts.py's open-loop chance
     sampling -- with only 6 outcomes, enumerating them exactly is cheaper
@@ -143,7 +276,7 @@ def _chance_node(game, consecutive_sixes, second_six_piece, second_six_entered_h
     penalty (Game.apply_three_sixes_penalty) instead of a decision -- the
     third six is never offered as a move, and does NOT itself grant a
     further reroll (docs/RULES.md: "they do not get to use the third 6")."""
-    total = np.zeros(num_players, dtype=np.float64)
+    children = []
     for face in range(1, 7):
         new_streak = consecutive_sixes + 1 if face == BONUS_TURN_ROLL else 0
         if new_streak == THREE_SIXES_LIMIT:
@@ -158,52 +291,52 @@ def _chance_node(game, consecutive_sixes, second_six_piece, second_six_entered_h
             Game.apply_three_sixes_penalty(game.board, second_six_piece, second_six_entered_home)
             game.next_player()
             if depth <= 0:
-                total += evaluator(game, game.current_player_idx, roll=None,
-                                    pending_bonus=None, consecutive_sixes=0)
+                node = collector.request(game, game.current_player_idx, None, None, 0)
             else:
-                total += _chance_node(game, 0, None, False, depth - 1, evaluator, num_players)
+                node = _chance_node(game, 0, None, False, depth - 1, collector, num_players)
             game.restore(snap)
+            children.append(node)
         else:
-            total += _decision_value(game, face, None, new_streak, depth, evaluator, num_players)
-    return total / 6.0
+            children.append(_decision_value(game, face, None, new_streak, depth, collector, num_players))
+    return _Mean(children, 1.0 / 6.0)
 
 
-def _expand_decision(game, roll, pending_bonus, consecutive_sixes, depth, evaluator, num_players):
+def _expand_decision(game, roll, pending_bonus, consecutive_sixes, depth, collector, num_players):
     """Shared core for both search() (the real root, which also wants the
     full per-move breakdown) and _decision_value (recursive nodes, which
     only need the aggregated max^n value). Assumes legal_moves is
     non-empty and depth > 0 -- callers handle both edge cases first.
 
     Returns:
-        dict {piece_id: np.ndarray[num_players]} -- one entry per legal
-        move at THIS decision, each the value of choosing it.
+        dict {piece_id: _Node} -- one entry per legal move at THIS
+        decision, each a (possibly still-pending) node for choosing it.
     """
     player = game.get_current_player()
     mover_seat = game.current_player_idx
     effective_value = roll if pending_bonus is None else pending_bonus['squares']
     legal_moves = game.get_legal_moves(player, effective_value)
 
-    move_values = {}
+    move_nodes = {}
     for piece, new_position, move_type in legal_moves:
         old_position = piece.position
         snap = game.snapshot()
         move_info = game.execute_move(piece, new_position, move_type)
 
         if player.has_won():
-            child_value = _one_hot(mover_seat, num_players)
+            node = _Leaf(_one_hot(mover_seat, num_players))
         elif depth - 1 <= 0:
-            child_value = _evaluate_immediately(
-                game, evaluator, move_info, roll, pending_bonus, consecutive_sixes,
+            node = _evaluate_immediately(
+                game, collector, move_info, roll, pending_bonus, consecutive_sixes,
             )
         elif move_info.captured:
-            child_value = _decision_value(
+            node = _decision_value(
                 game, None, {'type': 'capture_bonus', 'squares': CAPTURE_BONUS_SQUARES},
-                consecutive_sixes, depth - 1, evaluator, num_players,
+                consecutive_sixes, depth - 1, collector, num_players,
             )
         elif move_info.new_position == Board.FINAL_POSITION:
-            child_value = _decision_value(
+            node = _decision_value(
                 game, None, {'type': 'finish_bonus', 'squares': FINISH_BONUS_SQUARES},
-                consecutive_sixes, depth - 1, evaluator, num_players,
+                consecutive_sixes, depth - 1, collector, num_players,
             )
         else:
             this_second_six_piece = None
@@ -214,25 +347,27 @@ def _expand_decision(game, roll, pending_bonus, consecutive_sixes, depth, evalua
                     old_position is not None and old_position < Board.HOME_COLUMN_START
                     and new_position >= Board.HOME_COLUMN_START
                 )
-            child_value = _resolve_turn_continuation(
+            node = _resolve_turn_continuation(
                 game, roll, pending_bonus, consecutive_sixes,
                 this_second_six_piece, this_second_six_entered_home,
-                depth - 1, evaluator, num_players,
+                depth - 1, collector, num_players,
             )
 
         game.restore(snap)
-        move_values[piece.piece_id] = child_value
+        move_nodes[piece.piece_id] = node
 
-    return move_values
+    return move_nodes
 
 
-def _decision_value(game, roll, pending_bonus, consecutive_sixes, depth, evaluator, num_players):
+def _decision_value(game, roll, pending_bonus, consecutive_sixes, depth, collector, num_players):
     """Value at a decision node for game.get_current_player() (recursive
     case -- discards the per-move breakdown _expand_decision computes,
-    keeping only this node's own max^n aggregate for its parent)."""
+    keeping only this node's own max^n aggregate for its parent). Returns
+    a _Node, not a resolved value -- see module docstring."""
     if game.game_over:
         winner_seat = game.players.index(game.winner) if game.winner is not None else None
-        return _one_hot(winner_seat, num_players) if winner_seat is not None else _draw_vector(num_players)
+        value = _one_hot(winner_seat, num_players) if winner_seat is not None else _draw_vector(num_players)
+        return _Leaf(value)
 
     player = game.get_current_player()
     mover_seat = game.current_player_idx
@@ -251,24 +386,21 @@ def _decision_value(game, roll, pending_bonus, consecutive_sixes, depth, evaluat
         # RecursionError before this fix (mover's own state can't help
         # here since it doesn't change: only depth stops the recursion).
         if depth <= 0:
-            return evaluator(game, mover_seat, roll=roll, pending_bonus=pending_bonus,
-                              consecutive_sixes=consecutive_sixes)
+            return collector.request(game, mover_seat, roll, pending_bonus, consecutive_sixes)
         # No piece moved this roll -> no piece to penalize even if this
         # streak later hits 3 (docs/RULES.md: "no piece was moved with the
         # second 6 ... no piece is captured").
         return _resolve_turn_continuation(
             game, roll, pending_bonus, consecutive_sixes,
-            None, False, depth - 1, evaluator, num_players,
+            None, False, depth - 1, collector, num_players,
         )
 
     if depth <= 0:
-        return evaluator(game, mover_seat, roll=roll, pending_bonus=pending_bonus,
-                          consecutive_sixes=consecutive_sixes)
+        return collector.request(game, mover_seat, roll, pending_bonus, consecutive_sixes)
 
-    move_values = _expand_decision(game, roll, pending_bonus, consecutive_sixes,
-                                    depth, evaluator, num_players)
-    best_piece_id = max(move_values, key=lambda pid: move_values[pid][mover_seat])
-    return move_values[best_piece_id]
+    move_nodes = _expand_decision(game, roll, pending_bonus, consecutive_sixes,
+                                   depth, collector, num_players)
+    return _Max(move_nodes, mover_seat)
 
 
 def search(game, roll=None, pending_bonus=None, consecutive_sixes=0,
@@ -284,6 +416,15 @@ def search(game, roll=None, pending_bonus=None, consecutive_sixes=0,
     Game.execute_move and undone via Game.restore(snapshot) before
     returning (verified by parchis/tests/test_search.py via a snapshot
     hash before/after).
+
+    `evaluator` may be a plain callable (see the module's evaluator
+    contract above -- evaluated eagerly, once per leaf, exactly as before
+    batching existed) or an object also exposing encode()/evaluate_batch()
+    (NetEvaluator) -- in which case every leaf across this WHOLE search is
+    evaluated in one batched call at the end, not one at a time (see
+    module docstring's BATCHED LEAF EVALUATION section). Both produce
+    identical move_values/root_value; batching only changes how many times
+    the underlying evaluator runs.
 
     Returns:
         tuple(move_or_None, move_values, root_value):
@@ -313,8 +454,11 @@ def search(game, roll=None, pending_bonus=None, consecutive_sixes=0,
     if not legal_moves:
         return None, {}, _draw_vector(num_players)
 
-    move_values = _expand_decision(game, roll, pending_bonus, consecutive_sixes,
-                                    depth, evaluator, num_players)
+    collector = _Collector(evaluator)
+    move_nodes = _expand_decision(game, roll, pending_bonus, consecutive_sixes,
+                                   depth, collector, num_players)
+    collector.flush()
+    move_values = {piece_id: node.resolve() for piece_id, node in move_nodes.items()}
     best_piece_id = max(move_values, key=lambda pid: move_values[pid][mover_seat])
     best_move = next(m for m in legal_moves if m[0].piece_id == best_piece_id)
     return best_move, move_values, move_values[best_piece_id]

@@ -34,8 +34,11 @@ See `docs/AZ_DESIGN.md`'s "Ladder run" entry for the full numbers. The tactical 
 (Part 5.4)'s loader/runner/CLI (`parchis/evaluation/puzzles/`) are built and tested against a CSV
 schema agreed with the user; the 40-60 real positions are still pending (user-authored, needs real
 Parchís expertise) -- see `docs/AZ_DESIGN.md`'s "Tactical puzzle suite: loader + runner" entry.
-Batched leaf evaluation in `search.py` remains a sized-but-not-attempted optimization, worth doing
-before 4p (larger encoding, wider `max^n` branching) but not a hard blocker.
+Batched leaf evaluation in `search.py` (2026-08-28) is now implemented: every leaf across a whole
+`search()` call is collected and evaluated in one `NumpyAZNet.forward()` call instead of one per
+leaf, measured 1.3x/2.0x/2.3x faster at depth=1/2/3 with no change to any move/value search() ever
+returns (`test_batched_and_eager_search_agree`, `test_net_evaluator_batched_matches_eager_call_path`)
+-- see `docs/AZ_DESIGN.md`'s "Batched leaf evaluation" entry. Nothing else is pending before 4p.
 
 ## How to use this document
 

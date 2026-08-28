@@ -10,8 +10,10 @@ import copy
 import random
 
 import numpy as np
+import torch
 
-from parchis.az import encoding, search
+from parchis.az import encoding, net as az_net, search
+from parchis.az.agent import NetEvaluator
 from parchis.game.board import Board
 from parchis.game.game import Game
 
@@ -92,7 +94,15 @@ def test_depth1_progress_value_reproduces_greedy_progress_agent():
 def test_chance_node_equals_bruteforce_mean_over_6_faces():
     """Chance node values must equal a brute-force mean over the 6 faces
     computed independently -- isolates search._chance_node's own
-    averaging/enumeration from the rest of the recursion."""
+    averaging/enumeration from the rest of the recursion.
+
+    _chance_node/_decision_value are internal to the batched-evaluation
+    design (search.py's module docstring, BATCHED LEAF EVALUATION): they
+    take a `collector`, not an `evaluator`, and return a lazy _Node, not a
+    resolved vector -- so this test builds its own _Collector (a plain,
+    non-batched evaluator like this one always resolves eagerly, so
+    .resolve() unwinds the tree immediately, same as calling the old
+    evaluator-based signature directly would have)."""
     print("\nTesting chance node values equal a brute-force mean over 6 faces...")
 
     random.seed(7)
@@ -108,16 +118,22 @@ def test_chance_node_equals_bruteforce_mean_over_6_faces():
             sum((p.position or 0) for p in player.pieces) for player in game.players
         ], dtype=np.float64)
 
-    chance_value = search._chance_node(
+    collector = search._Collector(position_sum_evaluator)
+    chance_node = search._chance_node(
         game, consecutive_sixes=0, second_six_piece=None, second_six_entered_home=False,
-        depth=1, evaluator=position_sum_evaluator, num_players=num_players,
+        depth=1, collector=collector, num_players=num_players,
     )
+    collector.flush()
+    chance_value = chance_node.resolve()
 
     brute_force_total = np.zeros(num_players)
     for face in range(1, 7):
-        brute_force_total += search._decision_value(
-            game, face, None, 0, 1, position_sum_evaluator, num_players,
+        face_collector = search._Collector(position_sum_evaluator)
+        face_node = search._decision_value(
+            game, face, None, 0, 1, face_collector, num_players,
         )
+        face_collector.flush()
+        brute_force_total += face_node.resolve()
     brute_force_mean = brute_force_total / 6.0
 
     assert np.allclose(chance_value, brute_force_mean, atol=1e-9), (
@@ -367,6 +383,176 @@ def test_search_never_mutates_the_real_game():
     print("✓ search() left the real game byte-identical at depths 1, 2, and 3")
 
 
+class _BatchCountingEvaluator:
+    """Test double exposing the encode()/evaluate_batch() pair
+    search._Collector duck-types on, so tests can drive the BATCHED code
+    path without a real net. encode() does the full per-leaf computation
+    itself (via `per_leaf_fn`, any plain evaluator-shaped callable) and
+    evaluate_batch() just passes the precomputed rows through -- since the
+    "real" per-leaf work already happened in encode(), this isolates
+    exactly what batching changes: HOW MANY TIMES evaluate_batch runs
+    (should be exactly once per search() call, regardless of leaf count),
+    not the resulting numbers."""
+
+    def __init__(self, per_leaf_fn):
+        self.per_leaf_fn = per_leaf_fn
+        self.batch_calls = 0
+        self.total_rows_seen = 0
+
+    def encode(self, game, observer_seat, roll=None, pending_bonus=None, consecutive_sixes=0):
+        return self.per_leaf_fn(game, observer_seat, roll=roll,
+                                 pending_bonus=pending_bonus, consecutive_sixes=consecutive_sixes)
+
+    def evaluate_batch(self, rows, observer_seats):
+        self.batch_calls += 1
+        self.total_rows_seen += len(rows)
+        return rows
+
+
+def test_evaluate_batch_called_exactly_once_per_search():
+    """The whole point of batching: regardless of how many leaves a
+    search needs (~3 at depth=1, ~54 at depth=2, ~940 at depth=3 -- see
+    module docstring), a batched evaluator's evaluate_batch() must run
+    EXACTLY ONCE per search() call, not once per leaf."""
+    print("\nTesting evaluate_batch() runs exactly once per search() call...")
+
+    random.seed(5)
+    game = Game(num_players=2)
+    for _ in range(6):
+        if game.game_over:
+            break
+        game.play_turn()
+    mover = game.get_current_player()
+    roll = next((r for r in range(1, 7) if game.get_legal_moves(mover, r)), None)
+    assert roll is not None, "Test setup error: need a position with a legal move"
+
+    for depth in (1, 2, 3):
+        evaluator = _BatchCountingEvaluator(_progress_evaluator)
+        search.search(game, roll=roll, depth=depth, evaluator=evaluator)
+        assert evaluator.batch_calls == 1, (
+            f"depth={depth}: evaluate_batch called {evaluator.batch_calls} times, expected exactly 1"
+        )
+        print(f"  depth={depth}: 1 evaluate_batch() call covering {evaluator.total_rows_seen} leaves")
+        if depth >= 2:
+            assert evaluator.total_rows_seen > 3, (
+                f"depth={depth}: expected more than the depth=1 leaf count to have been batched together"
+            )
+    print("✓ evaluate_batch() runs exactly once per search() call, at depths 1-3")
+
+
+def test_batched_and_eager_search_agree():
+    """A batched evaluator (encode()/evaluate_batch(), _Collector's fast
+    path) and the exact same evaluator called eagerly (a plain callable,
+    _Collector's fallback path) must produce byte-identical move_values,
+    root_value, and chosen move -- batching must be purely a performance
+    change, never a semantic one. Covers depths 1-3 and both the
+    progress-based and capture-chain-biased toy evaluators already used
+    above, so this also indirectly re-exercises the capture/finish/
+    six-again/three-sixes branches under the batched path."""
+    print("\nTesting batched and eager search agree exactly...")
+
+    random.seed(11)
+    for evaluator_fn in (_progress_evaluator, _biased_evaluator):
+        game = Game(num_players=2)
+        for _ in range(6):
+            if game.game_over:
+                break
+            game.play_turn()
+        if game.game_over:
+            continue
+        mover = game.get_current_player()
+        roll = next((r for r in range(1, 7) if game.get_legal_moves(mover, r)), None)
+        if roll is None:
+            continue
+
+        for depth in (1, 2, 3):
+            move_eager, values_eager, root_eager = search.search(
+                game, roll=roll, depth=depth, evaluator=evaluator_fn,
+            )
+            batched_evaluator = _BatchCountingEvaluator(evaluator_fn)
+            move_batched, values_batched, root_batched = search.search(
+                game, roll=roll, depth=depth, evaluator=batched_evaluator,
+            )
+
+            assert set(values_eager) == set(values_batched)
+            for piece_id in values_eager:
+                assert np.allclose(values_eager[piece_id], values_batched[piece_id], atol=1e-12), (
+                    f"{evaluator_fn.__name__} depth={depth} piece_id={piece_id}: "
+                    f"eager={values_eager[piece_id]} batched={values_batched[piece_id]}"
+                )
+            assert np.allclose(root_eager, root_batched, atol=1e-12)
+            assert move_eager[0].piece_id == move_batched[0].piece_id
+        print(f"  {evaluator_fn.__name__}: eager and batched agree at depths 1-3")
+    print("✓ batched and eager search agree exactly on move_values, root_value, and chosen move")
+
+
+def test_net_evaluator_batched_matches_eager_call_path():
+    """End-to-end regression with a REAL NetEvaluator (not a toy stand-in
+    -- this is the one search.py actually ships with): NetEvaluator
+    normally exposes encode()/evaluate_batch(), so search._Collector takes
+    the batched path. Wrapping it in a plain callable that only forwards
+    to __call__ hides those attributes, forcing the eager per-leaf
+    fallback instead (the behavior before this optimization existed). The
+    two must agree exactly, which specifically exercises the trickiest
+    part of the batched path: evaluate_batch()'s per-row np.roll remap,
+    since different leaves in the same search have different
+    observer_seat and must each be rolled by their own amount, not a
+    shared one."""
+    print("\nTesting a real NetEvaluator's batched and eager paths agree...")
+
+    class _EagerOnlyWrapper:
+        """Deliberately exposes ONLY __call__, not encode()/evaluate_batch(),
+        so search._Collector's hasattr() duck-typing check falls through
+        to the eager per-leaf path even though the wrapped NetEvaluator
+        itself supports batching."""
+        def __init__(self, net_evaluator):
+            self._net_evaluator = net_evaluator
+
+        def __call__(self, *args, **kwargs):
+            return self._net_evaluator(*args, **kwargs)
+
+    torch.manual_seed(2)
+    for num_players in (2, 3):
+        input_size = encoding.encoding_size(num_players)
+        model = az_net.AZNet(input_size, num_players)
+        model.eval()
+        evaluator = NetEvaluator(az_net.NumpyAZNet.from_torch(model))
+        eager_evaluator = _EagerOnlyWrapper(evaluator)
+
+        random.seed(19 + num_players)
+        game = Game(num_players=num_players)
+        for _ in range(6):
+            if game.game_over:
+                break
+            game.play_turn()
+        if game.game_over:
+            continue
+        mover = game.get_current_player()
+        roll = next((r for r in range(1, 7) if game.get_legal_moves(mover, r)), None)
+        if roll is None:
+            continue
+
+        for depth in (1, 2):
+            move_batched, values_batched, root_batched = search.search(
+                game, roll=roll, depth=depth, evaluator=evaluator,
+            )
+            move_eager, values_eager, root_eager = search.search(
+                game, roll=roll, depth=depth, evaluator=eager_evaluator,
+            )
+
+            assert set(values_batched) == set(values_eager)
+            for piece_id in values_batched:
+                assert np.allclose(values_batched[piece_id], values_eager[piece_id], atol=1e-6), (
+                    f"num_players={num_players} depth={depth} piece_id={piece_id}: "
+                    f"batched={values_batched[piece_id]} eager={values_eager[piece_id]}"
+                )
+            assert np.allclose(root_batched, root_eager, atol=1e-6)
+            assert move_batched[0].piece_id == move_eager[0].piece_id
+        print(f"  num_players={num_players}: NetEvaluator batched and eager paths agree at depths 1-2")
+    print("✓ NetEvaluator's batched path (real encode()/evaluate_batch(), including the "
+          "per-row np.roll remap) matches its eager __call__-only fallback exactly")
+
+
 if __name__ == '__main__':
     test_depth1_progress_value_reproduces_greedy_progress_agent()
     test_chance_node_equals_bruteforce_mean_over_6_faces()
@@ -374,4 +560,7 @@ if __name__ == '__main__':
     test_2ply_only_capture_chain_found_at_depth2_missed_at_depth1()
     test_no_legal_move_chains_do_not_recurse_without_bound()
     test_search_never_mutates_the_real_game()
+    test_evaluate_batch_called_exactly_once_per_search()
+    test_batched_and_eager_search_agree()
+    test_net_evaluator_batched_matches_eager_call_path()
     print("\nAll search tests passed!")

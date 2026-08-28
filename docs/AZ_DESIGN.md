@@ -221,8 +221,8 @@ net forward pass itself. The doc's own "leaves are collected and evaluated in on
 pass per search, not one at a time" optimization was **not built this session** — item 8's
 checklist only requires the 5 correctness properties above, which don't depend on batching, and
 item 10's gate (below) used the much cheaper hand-built evaluator, not a net, sidestepping the
-encoding cost entirely. Revisit batching before Phase 3 (self-play generation) needs real
-throughput.
+encoding cost entirely. Batching was eventually built on 2026-08-28 — see "Batched leaf evaluation
+in search.py" near the end of this file.
 
 ### Item 9 — `parchis/az/agent.py` (search agent, arena wiring) (2026-08-25)
 
@@ -803,10 +803,8 @@ revised (larger) wall-clock estimate for the full 40-round target.
   ratings tooling" below.
 - ~~`parchis/evaluation/ladder.py` (fixed rungs + `leaderboard.json`)~~ — **built 2026-08-28**, see
   below (as `runs/pairings.jsonl`, not `leaderboard.json` — see that section for why).
-- Batched leaf evaluation in `search.py` (one forward pass per search, not per leaf) — a
-  performance optimization the doc calls for, not a correctness requirement item 8's tests check;
-  still deferred as of 2026-08-28 (sized as its own follow-up session, not undertaken yet — see
-  "Pre-Phase-4 review" below).
+- ~~Batched leaf evaluation in `search.py` (one forward pass per search, not per leaf)~~ — **built
+  2026-08-28**, see "Batched leaf evaluation in search.py" near the end of this file.
 - The literal Phase 0 item 5 throughput gate (≥200 games/sec at depth 1 on a randomly-initialized
   net) — superseded by running Phase 1's item 10 gate directly once it existed (see item 5 above).
 
@@ -828,8 +826,8 @@ this file, `SEARCH_MCTS.md`, `CODE_REVIEW.md`, `RULES.md`) for pending items. Fi
   user curates/judges the actual 40-60 positions by hand (needs real Parchís expertise, not
   something to delegate); Claude built the loader/runner/CSV schema/CLI — see "Tactical puzzle
   suite: loader + runner" below.
-- **Ladder + ratings tooling and batched leaf evaluation** — see below and the deferred-list update
-  above.
+- **Ladder + ratings tooling and batched leaf evaluation** — both built; see below and the
+  deferred-list update above.
 
 ### Tactical puzzle suite: loader + runner (2026-08-28)
 
@@ -1134,3 +1132,75 @@ anything about already-trained checkpoints or the ladder/ratings results recorde
 remain valid records of what those checkpoints did under the ruleset as it existed then). Any future
 self-play/training run will very slightly differ from before in the narrow case this bug covered —
 not judged worth re-running anything over.
+
+### Batched leaf evaluation in `search.py` (2026-08-28)
+
+The last item on the "Pre-Phase-4 review" list: item 8's own design (§2.3) always called for "one
+batched forward pass per search, not one at a time," sized but never built (see item 8's "Measured
+throughput" note above — the whole run was unbatched, `encoding.encode()`'s own cost dominating a
+net forward pass small enough that batching didn't matter yet at 2p). It matters more heading into
+4p (larger encoding, wider `max^n` branching → more leaves per decision), so it was implemented now
+rather than carried forward again.
+
+**Why this was non-trivial**: `search.py`'s recursive functions (`_decision_value`, `_chance_node`,
+`_expand_decision`, `_evaluate_immediately`) call the evaluator and immediately combine the result
+(Python `max()`/`+=`) as they unwind — the natural way to write exact expectimax, but it means the
+evaluator has always run to completion before any combining happens. Collecting every leaf across a
+whole tree into one batch means the tree has to be *built* before any of it can be *combined*, which
+the original eager, immediately-computing recursion doesn't allow.
+
+**Design**: the recursive functions were changed to build and return a small lazy-value tree instead
+of a resolved `np.ndarray` — four node types, mirroring the recursion's own shape exactly:
+- `_Leaf(value)` — already known (a terminal one-hot/draw vector, or an eagerly-evaluated result).
+- `_Pending(collector, index)` — a leaf awaiting the one shared batch; resolves by looking up its
+  row in the collector's results array.
+- `_Mean(children, weight)` — a chance node's 1/6-per-face average (or the three-sixes branch's
+  single-child pass-through).
+- `_Max(children, mover_seat)` — a decision node's max^n aggregate: resolves every child (full-width
+  search still computes every legal move's value, not just the best) and returns the one maximizing
+  the mover's own component.
+
+A `_Collector`, created once per top-level `search()` call and threaded through the whole recursion,
+is where the old `evaluator(...)` calls now go. It duck-types the evaluator: a plain callable (any
+existing evaluator not built with this in mind — `heuristic_position_evaluator`, every test oracle
+in `test_search.py`) is still called *immediately, in the exact same order*, wrapped in a resolved
+`_Leaf` — byte-identical behavior to before this change, zero risk to any existing caller. An
+evaluator exposing `encode()`/`evaluate_batch()` instead has only its cheap `encode()` called
+immediately (a pure function of the *currently-live* game state, safe against the caller's very next
+`game.restore()`); the row is appended to a shared batch and a `_Pending` placeholder returned. After
+the *entire* tree for that `search()` call is built, `collector.flush()` runs `evaluate_batch()`
+exactly once — one `NumpyAZNet.forward()` covering every leaf the search needed (~3 to ~940 of them,
+depth 1 to 3) — and only then does resolving the root `_Node` cascade the real numbers down through
+the tree.
+
+`parchis/az/agent.py`'s `NetEvaluator` was extended with that `encode()`/`evaluate_batch()` pair
+(its existing `__call__` is now just a batch-of-one call through the same two methods, not a
+separate code path). `evaluate_batch()` is the one part that isn't fully vectorized: the value
+head's relative-to-observer channel order has to be rolled back to absolute-seat order per row via
+`np.roll`, and different leaves in the same search have different `observer_seat` — done with a
+per-row loop over `np.roll` (cheap; the batched net forward is what actually mattered). No other
+file needed to change: `round_loop.py`, `selfplay.py`, `agent_spec.py`, and the puzzle runner all
+construct `NetEvaluator` and call `search.search()` through its unchanged public signature, so they
+pick up the batching automatically.
+
+**Verified**:
+- `test_batched_and_eager_search_agree` — a batched test double and the identical evaluator called
+  eagerly must produce byte-identical `move_values`/`root_value`/chosen move, across depths 1-3 and
+  two different toy evaluators (including the capture/finish/six-again/three-sixes-heavy one from
+  item 8's own 2-ply capture-chain test) — batching is a pure performance change, never semantic.
+- `test_net_evaluator_batched_matches_eager_call_path` — the same cross-check with a **real**
+  `NetEvaluator` (not a stand-in), specifically exercising the trickiest part: `evaluate_batch()`'s
+  per-row `np.roll` remap, since a real search's leaves have differing `observer_seat`s within the
+  same batch, forced eager (via a wrapper hiding `encode`/`evaluate_batch`) vs. real batched, at
+  num_players 2 and 3.
+- `test_evaluate_batch_called_exactly_once_per_search` — the actual point of the change: regardless
+  of leaf count (depth 1 vs. 2 vs. 3), a batched evaluator's `evaluate_batch()` runs **exactly
+  once** per `search()` call.
+- `test_chance_node_equals_bruteforce_mean_over_6_faces` (existing, item 8) updated to call
+  `_chance_node`/`_decision_value`'s new `collector`-based signature and `.resolve()` the result —
+  the only two tests in the suite that called these private helpers directly; every other caller
+  only ever used `search()`'s own public, unchanged signature.
+- Full suite green (390 passed) after the change.
+- Measured speedup (2p, mid-game position, real trained-shape but randomly-initialized net,
+  `NumpyAZNet`, 20 repeats): **1.33x at depth=1, 1.97x at depth=2, 2.32x at depth=3** — growing with
+  depth as expected, since deeper searches have more leaves to fold into the one batched call.

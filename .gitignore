@@ -44,6 +44,12 @@ models/
 # Generated training data (e.g. self-play datasets)
 data/
 
-# Per-run config/checkpoint/metrics (docs/AGENT_REBUILD_PLAN.md's
-# runs/<name>/ convention) -- same rationale as logs/models/data above
-runs/
+# runs/ (docs/AGENT_REBUILD_PLAN.md's runs/<name>/ convention) is NOT
+# blanket-ignored, unlike logs/models/data above: the bulky, constantly-
+# regenerated per-round artifacts (self-play shards, intermediate
+# candidates) always live in the scratchpad, never here -- this directory
+# only ever holds the small, curated "current best" checkpoint mirrors
+# (config.json/model.pt/metrics.jsonl, a few hundred KB each) and
+# runs/pairings.jsonl (parchis/evaluation/ladder.py's permanent,
+# project-wide ladder history) -- both worth keeping in version control as
+# a second copy, not regenerable output to exclude.

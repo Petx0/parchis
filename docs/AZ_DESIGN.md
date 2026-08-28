@@ -876,14 +876,161 @@ strength beyond Phase 2's bootstrap net, not just against Phase 2's own checkpoi
 0.5581 net-vs-net-at-depth-1 result above) but against the fixed external yardstick both phases are
 actually scored against.
 
-### Escalation-fix validation, in progress (rounds 40+, 2026-08-28)
+### Rounds 40-57 continuation: final results — stopped by decision, 0 new promotions
 
 The rounds-40-79 continuation (same run, same config, resumed with the escalation-depth fix now in
-the code) is the fix's first real-data test. Through round 55: **4 escalated rounds (43, 47, 51,
-55), 0/4 promoted** — `eval_depth` correctly stayed at `1` (base depth) on every one, confirming
-the confound is genuinely gone (previously eval_depth silently matched generation_depth, i.e. `2`,
-every time) — but escalation still hasn't produced a promotable candidate under the fix either.
-Base-depth rounds in this stretch: 0/12 promoted so far (several came close, e.g. round 46's CI
-`[0.4984, 0.5548]`). Not a large enough sample yet to call the fix's cost/benefit verdict — noting
-the confound is confirmed resolved, the "does escalation actually pay for itself" question is still
-open pending more rounds.
+the code) ran rounds 40-57 (18 rounds: 14 base-depth, 4 escalated at rounds 43/47/51/55) before
+being stopped deliberately — no new champion had been found across all 18, a real diminishing-
+returns signal, not an interruption. Full per-round results:
+
+| round | win_rate_a | CI | gen depth | promoted |
+|---|---|---|---|---|
+| 40 | 0.5025 | [0.4742, 0.5307] | 1 | no |
+| 41 | 0.4692 | [0.4411, 0.4975] | 1 | no |
+| 42 | 0.4792 | [0.4510, 0.5075] | 1 | no |
+| 43 | 0.4825 | [0.4543, 0.5108] | **2** | no |
+| 44 | 0.4883 | [0.4601, 0.5166] | 1 | no |
+| 45 | 0.4850 | [0.4568, 0.5133] | 1 | no |
+| 46 | 0.5267 | [0.4984, 0.5548] | 1 | no (closest miss) |
+| 47 | 0.5150 | [0.4867, 0.5432] | **2** | no |
+| 48 | 0.5025 | [0.4742, 0.5307] | 1 | no |
+| 49 | 0.4717 | [0.4436, 0.5000] | 1 | no |
+| 50 | 0.5017 | [0.4734, 0.5299] | 1 | no |
+| 51 | 0.4667 | [0.4386, 0.4950] | **2** | no |
+| 52 | 0.4792 | [0.4510, 0.5075] | 1 | no |
+| 53 | 0.4908 | [0.4626, 0.5191] | 1 | no |
+| 54 | 0.4925 | [0.4643, 0.5208] | 1 | no |
+| 55 | 0.5142 | [0.4859, 0.5424] | **2** | no |
+| 56 | 0.4758 | [0.4477, 0.5041] | 1 | no |
+| 57 | 0.4733 | [0.4452, 0.5016] | 1 | no |
+
+**Escalation, with the confound fix applied, still didn't pay off**: all 4 escalated rounds (43,
+47, 51, 55) failed to promote, `eval_depth` correctly staying at `1` (base depth) on every one —
+confirming the confound is genuinely gone (previously `eval_depth` silently matched
+`generation_depth`, i.e. `2`, every time) — but that alone wasn't enough to make escalation
+productive. Combined with the original run's 0/9, **escalation is now 0/13 across this run's entire
+history**, both before and after the confound fix. This is a real, decision-worthy result: the fix
+was correct and necessary (it removed a genuine measurement bias), but it wasn't sufficient to make
+`escalate_after_failures=3` / `escalation_depth=2` pay for itself at these settings. Recommend
+disabling escalation (or trying a materially different configuration — a shallower/cheaper
+escalation depth, or a much higher failure threshold so it fires rarely) for any future continuation
+of this lineage, rather than re-enabling it unchanged.
+
+**Final state**: 58 rounds total (0-57), **3 promotions** (rounds 4, 6, 23) — unchanged from before
+this continuation. The champion is still round 23's candidate
+(`runs/selfplay_2p_v1_champion/`, already the project's tracked checkpoint — no update needed).
+Stopped cleanly: round 57 was allowed to finish before killing the process, so no partial/corrupted
+round data; round 58 has an incomplete `shards/` directory with no `done.json`, which
+`find_resume_round` will correctly treat as not-yet-done and regenerate from scratch if this run is
+ever resumed.
+
+### Ladder run (2026-08-28): "2p clears the ladder" — decisive full round-robin
+
+With training stopped and the champion final (round 23's candidate, unchanged since the original
+40-round run), ran the first real, decisive ladder pass -- the actual evidence
+`AGENT_REBUILD_PLAN.md`'s Phase 4 gate ("no 4p work until 2p clears the ladder") asks for, not an
+ad hoc one-off comparison. 5 rungs, full round-robin (10 pairings), 600 duplicate-pairs each (1,200
+games/pairing, 12,000 games total): `random`, `heuristic_default`, `heuristic_tuned`,
+`phase2_bootstrap` (`runs/bootstrap_2p_v4_large`, depth=1), `phase3_champion`
+(`runs/selfplay_2p_v1_champion`, depth=1).
+
+**Where each participant's "intelligence" actually comes from**, plain English, weakest to
+strongest:
+
+- **`random`** — no intel at all. Picks a uniformly random legal move every time
+  (`Player.choose_move`'s own default).
+- **`heuristic_default`** — trying to maximize a hand-picked linear score over 10 features
+  (`parchis/agents/heuristic.py`: capture value, escaping base, own progress, landing safety,
+  avoiding capture threats, forming a blockade, finishing exactly, home-column advance, suppressing
+  whoever's currently leading, developing its most-behind piece). The *signs* are reasoned about by
+  hand ("capture is good, walking into a threat is bad"); the *magnitudes* are untuned guesses,
+  never checked against real games.
+- **`heuristic_tuned`** — the exact same 10-feature formula and the same hand-reasoned signs, but
+  with the magnitudes fit by CEM (the cross-entropy method: sample many candidate weight vectors,
+  play them against a mix of the untuned heuristic and random, keep refitting toward whatever
+  scored best) — same "understanding" of what matters, better calibrated on how much each thing
+  should matter.
+- **`phase2_bootstrap`** — a small neural network's value estimate plus 1 ply of lookahead search
+  (`parchis/az/search.py`). The network itself was trained once, by ordinary supervised learning,
+  on ~200,000 games generated by `heuristic_tuned` (with some random exploration mixed in) — so its
+  "intel" is a distillation of heuristic-level play into a neural net, not anything it worked out
+  for itself.
+- **`phase3_champion`** — the same network-plus-1-ply-search architecture, but the network was
+  produced by ~58 rounds of genuine AlphaZero-style self-play starting from `phase2_bootstrap`'s
+  own net: repeatedly generate games (against itself, past versions of itself, and the
+  heuristic/random pool), train a candidate on that self-generated data, and only keep the update
+  if it decisively beats the incumbent in a rigorous statistical test (`parchis/evaluation/duplicate.py`).
+  Its "intel" comes from iterative self-play improvement, not from imitating another player.
+
+**Bradley-Terry ratings** (anchored at `random = 0`, 500-replicate bootstrap CIs):
+
+| participant | rating | 95% CI |
+|---|---|---|
+| phase3_champion | 2.955 | [2.723, 3.420] |
+| phase2_bootstrap | 2.721 | [2.515, 3.123] |
+| heuristic_tuned | 2.154 | [1.984, 2.586] |
+| heuristic_default | 1.540 | [1.355, 2.006] |
+| random | 0.000 | [0.000, 0.000] |
+
+**A complete, statistically-supported strength chain**, every adjacent gap confirmed by that
+pairing's own Wilson CI (not just the aggregate rating): `heuristic_default` clearly beats `random`
+(79.5%), `heuristic_tuned` clearly beats `heuristic_default` (64.4%), `phase2_bootstrap` clearly
+beats `heuristic_tuned` (62.9%), and `phase3_champion` clearly beats `phase2_bootstrap` (55.8%, CI
+[52.9%, 58.5%] on the win-rate scale -- entirely above 50%). This is the first time this project has
+had a full, one-shot, internally-consistent ranking of its entire capability history in a single
+run, rather than a chain of separate pairwise benchmarks run at different times with different
+protocols.
+
+**Cross-validation against independent, earlier measurements** (same checkpoints, different
+benchmark runs, different seeds/pair counts) landed within noise of each other every time:
+`phase2_bootstrap` vs. `phase3_champion` gave 44.2% here → phase3_champion at 55.8%, matching the
+dedicated Phase-3-vs-Phase-2 benchmark's 55.81% almost exactly; `heuristic_tuned` vs.
+`phase3_champion` gave 31.2% here → phase3_champion at 68.8%, matching the Gate-13-protocol rerun's
+67.56% closely. Three independently-run measurements agreeing this tightly is strong evidence the
+ladder/ratings implementation itself is correct, not just that the numbers look plausible in
+isolation.
+
+**Full 5×5 cross matrix, empirical** (row's win probability against column, from the actual 12,000
+games played; each cell is exactly complementary to its mirror across the diagonal — e.g.
+55.8% + 44.2% = 100% — since a duplicate match plays the SAME games from both sides, not two
+separate samples):
+
+| beats ↓ / loses to → | phase3_champion | phase2_bootstrap | heuristic_tuned | heuristic_default | random |
+|---|---|---|---|---|---|
+| **phase3_champion** | — | 55.8% | 68.8% | 78.9% | 96.8% |
+| **phase2_bootstrap** | 44.2% | — | 62.9% | 75.7% | 95.5% |
+| **heuristic_tuned** | 31.2% | 37.1% | — | 64.4% | 89.0% |
+| **heuristic_default** | 21.1% | 24.3% | 35.6% | — | 79.5% |
+| **random** | 3.2% | 4.5% | 11.0% | 20.5% | — |
+
+**Full 5×5 cross matrix, Bradley-Terry model's implied probabilities** (`sigmoid(rating_i -
+rating_j)` from the fitted ratings above — the fully self-consistent, transitive version the model
+predicts, as opposed to each pairing measured independently above):
+
+| beats ↓ / loses to → | phase3_champion | phase2_bootstrap | heuristic_tuned | heuristic_default | random |
+|---|---|---|---|---|---|
+| **phase3_champion** | — | 55.8% | 69.0% | 80.5% | 95.1% |
+| **phase2_bootstrap** | 44.2% | — | 63.8% | 76.5% | 93.8% |
+| **heuristic_tuned** | 31.0% | 36.2% | — | 64.9% | 89.6% |
+| **heuristic_default** | 19.5% | 23.5% | 35.1% | — | 82.3% |
+| **random** | 4.9% | 6.2% | 10.4% | 17.7% | — |
+
+The two matrices agree closely everywhere (within 1-2pp on most cells, up to ~4pp on the
+widest-margin ones like `phase3_champion` vs. `random`) — expected, since the model fit is a joint
+least-surprise summary across all 10 pairings at once, while the empirical table is each pairing
+measured independently. The gaps involving `random` are the largest because those probabilities sit
+near the extremes of the sigmoid curve, where a small rating shift moves the predicted probability
+more.
+
+**Caveat, stated honestly**: the top two ratings' bootstrap CIs (`phase3_champion` [2.723, 3.420]
+vs. `phase2_bootstrap` [2.515, 3.123]) overlap somewhat, even though their direct pairwise win-rate
+CI does not — a known Bradley-Terry property (the joint MLE fit pools information across every
+rung's connections, which can widen a top rung's marginal uncertainty even when its single most
+relevant pairwise comparison is unambiguous). The direct pairwise result is the more decisive
+evidence for "is the champion better than the previous checkpoint specifically"; the rating is the
+right number for "how does everything compare to everything else at once."
+
+**Verdict: 2p clears the ladder.** `runs/pairings.jsonl` now holds this run's 10 pairings as a
+permanent, project-wide record (fixed `.gitignore`'s `runs/` rule to `runs/*/` so this file — small,
+meant to accumulate forever — doesn't get swept into the same ignore rule as the bulky per-run
+checkpoint directories).

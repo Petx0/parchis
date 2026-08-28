@@ -1,0 +1,33 @@
+{
+  "run_name": "selfplay_2p_v1",
+  "num_players": 2,
+  "n_games_per_round": 6000,
+  "games_per_shard": 2000,
+  "max_turns": 500,
+  "base_depth": 1,
+  "lam": 0.5,
+  "tau_target": 0.25,
+  "tau_start": 1.0,
+  "tau_end": 0.25,
+  "anneal_plies": 15,
+  "dirichlet_alpha": 1.0,
+  "dirichlet_epsilon": 0.25,
+  "generation_seed": 0,
+  "replay_window_rounds": 3,
+  "hidden_sizes": [
+    256,
+    256
+  ],
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "batch_size": 4096,
+  "warm_start_max_epochs": 5,
+  "warm_start_patience": 2,
+  "value_loss_weight": 2.0,
+  "val_frac": 0.1,
+  "train_seed": 0,
+  "promotion_n_pairs": 600,
+  "promotion_seed": 0,
+  "escalate_after_failures": 3,
+  "escalation_depth": 2
+}

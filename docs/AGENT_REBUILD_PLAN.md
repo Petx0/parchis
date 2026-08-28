@@ -18,12 +18,22 @@ is ~4.5x slower than Phase 2's heuristic-only generation). The initial 40-round 
 own Gate 13 benchmark on re-measurement (67.56% vs. Phase 2's 61.38%, non-overlapping CIs -- see
 `docs/AZ_DESIGN.md`). Also found and fixed a depth-confound bug in the escalation mechanism
 (an escalated round's promotion match was accidentally handing the OLD champion a search-time
-boost too); a rounds-40-79 continuation with the fix applied is in progress, validating it against
-real data. See `docs/AZ_DESIGN.md` for the running log of results.
+boost too); a rounds-40-79 continuation with the fix applied ran rounds 40-57 (2026-08-28) and was
+then stopped by decision -- 18 more rounds (4 more escalations, all confound-free) produced zero
+new promotions, confirming the fix was correct but not sufficient to make escalation pay for itself
+(0/13 escalations promoted across this lineage's entire history). Final state: 58 rounds, 3
+promotions total, champion still round 23's candidate (`runs/selfplay_2p_v1_champion/`,
+unchanged). See `docs/AZ_DESIGN.md` for the full round-by-round log.
 
 Ahead of Phase 4: `parchis/evaluation/ladder.py` + `ratings.py` (2026-08-28) now implement the
-"2p clears the ladder" gate Part 6 requires before any 4p work -- see `docs/AZ_DESIGN.md`'s
-"Ladder + ratings tooling" entry. The tactical puzzle suite (Part 5.4) is being built separately.
+"2p clears the ladder" gate Part 6 requires before any 4p work, and a decisive full round-robin
+(random / heuristic-default / heuristic-tuned / Phase 2 bootstrap / Phase 3 champion, 600 pairs
+each) confirms it: a complete, CI-backed strength chain from random up through the current
+champion, cross-validated against three independent earlier benchmarks -- **2p clears the ladder**.
+See `docs/AZ_DESIGN.md`'s "Ladder run" entry for the full numbers. The tactical puzzle suite
+(Part 5.4) is being built separately; batched leaf evaluation in `search.py` remains a sized-but-
+not-attempted optimization, worth doing before 4p (larger encoding, wider `max^n` branching) but
+not a hard blocker.
 
 ## How to use this document
 

@@ -31,9 +31,11 @@ Ahead of Phase 4: `parchis/evaluation/ladder.py` + `ratings.py` (2026-08-28) now
 each) confirms it: a complete, CI-backed strength chain from random up through the current
 champion, cross-validated against three independent earlier benchmarks -- **2p clears the ladder**.
 See `docs/AZ_DESIGN.md`'s "Ladder run" entry for the full numbers. The tactical puzzle suite
-(Part 5.4) is being built separately; batched leaf evaluation in `search.py` remains a sized-but-
-not-attempted optimization, worth doing before 4p (larger encoding, wider `max^n` branching) but
-not a hard blocker.
+(Part 5.4)'s loader/runner/CLI (`parchis/evaluation/puzzles/`) are built and tested against a CSV
+schema agreed with the user; the 40-60 real positions are still pending (user-authored, needs real
+Parchís expertise) -- see `docs/AZ_DESIGN.md`'s "Tactical puzzle suite: loader + runner" entry.
+Batched leaf evaluation in `search.py` remains a sized-but-not-attempted optimization, worth doing
+before 4p (larger encoding, wider `max^n` branching) but not a hard blocker.
 
 ## How to use this document
 
@@ -548,6 +550,18 @@ exact finish · avoid the square where 4 of 6 faces capture you · break the rig
 on a 6 · spend the 20-square bonus on the piece that gains most, not the one that captured.
 Reported as `puzzle_accuracy`. Doubles as a fast deterministic regression test and gives an
 interpretable read on *what kind* of mistakes the agent makes.
+
+*Loader/runner/CLI built 2026-08-28 (`docs/AZ_DESIGN.md`'s "Tactical puzzle suite: loader +
+runner"); CSV schema below, `python -m parchis.evaluation.puzzles --agent <spec>` replacing this
+section's original `--agent az-latest` placeholder (predates `parchis.agents.agent_spec`'s actual
+spec grammar). The 40-60 real positions are user-authored and still pending; 2 verified starter
+puzzles ship as a working template.*
+
+CSV schema (one row = one decision; colors fixed A=RED/B=YELLOW): `puzzle_id`, `category`,
+`a_piece_0`..`a_piece_3`, `b_piece_0`..`b_piece_3` (`0`=base, `1`-`68`=main track, `69`-`75`=that
+color's home column, `76`=finished), `turn` (`A`/`B`), `roll` (`1`-`6`, or `capture_bonus`/
+`finish_bonus`), `consecutive_sixes` (`0`-`2`, must be `0` unless `roll`==6), `correct_piece_id`
+(`0`-`3` — not a destination, which is fully determined and loader-computed), `rationale`.
 
 ### 5.5 Per-run metrics
 

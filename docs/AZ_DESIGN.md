@@ -98,9 +98,19 @@ matches). Generalizes the classic 2-player duplicate pair (same dice seed, seats
   seed each time) under both protocols, over the same per-repeat game budget, and compare the
   **empirical standard deviation of the resulting win rate across repeats**. Confirmed empirically:
   self-play gives `duplicate_std == 0.0` exactly (the property above) vs. real sampling spread for
-  the independent-seed method (multiplier: infinite); two distinct agents (`TUNED_WEIGHTS` vs.
-  `DEFAULT_WEIGHTS`) gave a genuine, finite **effective-n multiplier** confirming duplicate pairing
-  is a real, measurable win on non-degenerate comparisons, not just the self-play edge case.
+  the independent-seed method (multiplier: infinite) — this is the case §5.1 actually relies on for
+  sizing runs, and it's exact (no sampling involved), not a statistical estimate. A single run with
+  two distinct agents (`TUNED_WEIGHTS` vs. `DEFAULT_WEIGHTS`) also originally gave a positive
+  effective-n multiplier, read at the time as confirming a real benefit on non-degenerate
+  comparisons too — **revisited 2026-08-28 and found to overclaim**: sweeping many seeds (including
+  at 60 repeats, and against a second, more-similar pairing) showed the multiplier for genuinely
+  different policies over a full game hovers only marginally above 1.0 on average (~1.0-1.1x),
+  swinging from ~0.5x to ~1.8x seed-to-seed — a real but small effect that a 16-60 repeat sample
+  can't reliably detect the sign of, not a robust confirmation. The corresponding test
+  (`test_duplicate.py`) was downgraded from asserting that directional inequality to just checking
+  `measure_variance_reduction`'s return contract — see that test's docstring for the full
+  investigation. Doesn't change §5.1's actual sizing decision, which was always based on the exact
+  self-play case, not this one.
 - Pooling correctness: `play_duplicate_match`'s aggregate wins/CI is exactly
   `wilson_score_interval` over the pooled `(wins, n)` from its own groups (no separate/drifted
   computation).
@@ -814,11 +824,48 @@ this file, `SEARCH_MCTS.md`, `CODE_REVIEW.md`, `RULES.md`) for pending items. Fi
   schedule: `duplicate.py`'s `play_duplicate_group`/`play_duplicate_match` were built generally
   from the start (their own docstring says so) and already rotate the tested agent through every
   seat at `num_players > 2`, not just 2.
-- **Tactical puzzle suite** (§5.4, `parchis/evaluation/puzzles/`) — still not built; the user is
-  building this one by hand (curating/judging 40-60 positions needs real Parchís expertise, not
-  something to delegate).
+- **Tactical puzzle suite** (§5.4, `parchis/evaluation/puzzles/`) — split by division of labor: the
+  user curates/judges the actual 40-60 positions by hand (needs real Parchís expertise, not
+  something to delegate); Claude built the loader/runner/CSV schema/CLI — see "Tactical puzzle
+  suite: loader + runner" below.
 - **Ladder + ratings tooling and batched leaf evaluation** — see below and the deferred-list update
   above.
+
+### Tactical puzzle suite: loader + runner (2026-08-28)
+
+Built `parchis/evaluation/puzzles/` (`loader.py`, `runner.py`, `__main__.py`) against a CSV schema
+agreed with the user: one row = one fully-specified decision (both players' 4 piece positions, whose
+turn, the roll or bonus, the six-streak, the correct piece to move, a one-line rationale) with
+colors fixed to RED=A/YELLOW=B so authoring never has to think about which of `Game.__init__`'s two
+random 2-player color pairs is in play. `correct_piece_id` is deliberately not a destination square
+— it's fully determined by (piece, roll/bonus, board state), so specifying it separately would only
+add a redundant, typo-prone field; the loader computes real legal moves via
+`Game.get_legal_moves` and validates `correct_piece_id` is genuinely one of them, which transitively
+catches bad board setups and authoring mistakes for free, reusing the engine's own ground truth
+rather than reimplementing any rule.
+
+**A real engine rule surfaced while verifying the schema, not a bug**: rolling a 5 with an enterable
+piece in base makes entry MANDATORY — `RuleEngine.get_legal_moves` (`rules.py:155-156`) returns
+ONLY entry moves in that case, never considering on-board moves at all. This directly shapes how
+"mandatory entry vs. moving out" puzzles (one of §5.4's six example categories) actually have to be
+authored: that dilemma can only exist when entry is *not* available (e.g. two own pieces already
+occupy the start square), not on a plain "roll a 5 with a piece in base" setup, since the latter
+has no real choice under this engine's rules at all. Covered by a regression test
+(`test_mandatory_entry_shadows_on_board_moves`).
+
+The runner (`python -m parchis.evaluation.puzzles --agent <spec>`) reuses the same
+`checkpoint:<run_dir>[:depth=N] | heuristic:tuned|default | random` grammar every other evaluation
+CLI in this package already uses (`parchis.agents.agent_spec`), but dispatches directly to
+`search.search()`/`heuristic.choose_move_with_weights()`/`random.choice()` for the one
+fully-specified decision a puzzle describes, rather than going through `agent_spec.build_factory`'s
+arena-style factory (which builds its own `TurnContextTracker` inferring context from a live,
+multi-turn `roll_box` — the wrong model for an isolated puzzle with no turn history).
+
+Shipped with 2 verified starter puzzles (`tactical_puzzles.csv`) as a working template, pending the
+user's real 40-60. Sanity check across agent types on those 2: `heuristic:tuned` 100%,
+`checkpoint:runs/selfplay_2p_v1_champion:depth=1` 50%, `random` 50% — already showing real,
+meaningful disagreement between agents rather than a trivial 0%/100% split, exactly the kind of
+signal `puzzle_accuracy` is meant to surface. 20 new tests (`test_puzzles.py`), full suite green.
 
 ### Ladder + ratings tooling (2026-08-28)
 
@@ -1034,3 +1081,56 @@ right number for "how does everything compare to everything else at once."
 permanent, project-wide record (fixed `.gitignore`'s `runs/` rule to `runs/*/` so this file — small,
 meant to accumulate forever — doesn't get swept into the same ignore rule as the bulky per-run
 checkpoint directories).
+
+### Home-column occupancy bug: color-blind stacking check, fixed (2026-08-28)
+
+Found while verifying the tactical puzzle CSV schema against the real engine (not hypothesized —
+confirmed by reading `rules.py` directly): `RuleEngine.get_legal_moves`'s home-column stacking
+checks counted *any* color's pieces toward the `Board.MAX_PIECES_PER_SQUARE` (2) cap, even though
+home-column squares 69-75 are **private per color** — each color has its own physically distinct
+home lane that just happens to reuse the same numbers 69-75, unlike main-track squares, which
+really are one shared physical square regardless of color. Confirmed not accidental: `get_blockades`
+(the main-track equivalent) already correctly checks `pieces_at_pos[0].color ==
+pieces_at_pos[1].color` before calling two pieces a blockade — the home-column check just never got
+the same treatment.
+
+**Impact**: a RED piece sitting in RED's home lane at, say, slot 71 could wrongly count against a
+YELLOW piece trying to land on YELLOW's own (physically different) slot 71 — silently affecting any
+self-play/training/evaluation game where both colors happened to have a piece in their home stretch
+at the same slot number simultaneously, which is not a rare edge case in a close 2-player game (both
+players naturally approach home around the same time).
+
+**Blast radius, confirmed by two independent Explore passes before touching anything**:
+- Exactly two call sites, both in `rules.py`'s `get_legal_moves`: the home-column branch (a piece
+  already in home column advancing further) and the main-track branch's destination check (which
+  also fires the first time a piece crosses from the main track into its home column).
+- Captures were already correctly, unconditionally disabled for any home-column destination
+  regardless of color (`would_capture` and `Board.move_piece`'s mirrored guard) — not touched.
+- Blockades were already correctly scoped to `Board.SAFE_SQUARES` (all `< 69`) — home-column
+  positions never reach `get_blockades`/`path_crosses_blockade` — not touched.
+- `encoding.py`, `search.py`, `env.py`, `env_selfplay.py` either never call `Board.get_pieces_at`
+  directly or already separate home-column occupancy into per-color/per-player channels rather than
+  a shared position-indexed count — no companion changes needed anywhere downstream.
+- No currently-passing test relied on the buggy behavior: the two existing tests placing two colors
+  in the same home-column slot (`test_game.py`'s `test_home_column_no_captures` and
+  `test_would_capture_move_no_capture_in_home_column`) both bypass `get_legal_moves` entirely.
+
+**Fix**: added `RuleEngine._occupancy_count_for_move(position, color)`, mirroring `get_blockades`'s
+own color-check pattern rather than inventing a new convention — for a home-column `position`, only
+same-color pieces count toward the cap; for an ordinary main-track `position`, behavior is unchanged
+(every piece there counts, since it's a genuinely shared physical square). Both call sites in
+`get_legal_moves` now go through this helper instead of a bare `len(get_pieces_at(...))` check.
+
+**Verified**: two new regression tests in `test_game.py` —
+`test_home_column_stacking_is_per_color_not_shared` (an opponent's 2 pieces filling their own home
+slot 71 must not block this player's move into their own slot 71, covering both call sites) and
+`test_home_column_same_color_cap_still_enforced` (a genuine same-color 2-piece cap must still block
+a third same-color piece) — confirmed failing on the first (`assert (...) in []`) against a
+temporarily-reverted, buggy `rules.py`, and both passing once restored. Full suite green after
+restoring, +2 tests from this fix.
+
+**Scope note**: this changes runtime legality going forward; it doesn't retroactively change
+anything about already-trained checkpoints or the ladder/ratings results recorded above (those
+remain valid records of what those checkpoints did under the ruleset as it existed then). Any future
+self-play/training run will very slightly differ from before in the narrow case this bug covered —
+not judged worth re-running anything over.

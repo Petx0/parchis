@@ -1,0 +1,3 @@
+puzzle_id,category,a_piece_0,a_piece_1,a_piece_2,a_piece_3,b_piece_0,b_piece_1,b_piece_2,b_piece_3,turn,roll,consecutive_sixes,correct_piece_id,rationale
+p001,capture_priority,20,50,0,0,24,0,0,0,A,4,0,0,Capturing B's piece at 24 beats a plain advance with piece 1.
+p002,bonus_allocation,10,43,0,0,0,0,0,0,A,capture_bonus,0,1,Spending the 20-square bonus on piece 1 (43->63) reaches a safe square; piece 0 (10->30) would stay exposed.

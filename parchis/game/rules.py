@@ -36,6 +36,30 @@ class RuleEngine:
                     blockades.add(position)
         return blockades
 
+    def _occupancy_count_for_move(self, position, color):
+        """
+        How many pieces already at `position` count toward
+        Board.MAX_PIECES_PER_SQUARE for a piece of `color` moving there.
+
+        Main-track squares (< HOME_COLUMN_START) are one shared physical
+        square regardless of color, so every piece there counts -- this
+        matches get_legal_moves' existing behavior for the main track,
+        left unchanged.
+
+        Home-column squares (>= HOME_COLUMN_START) are privately numbered
+        per color: positions 69-75 mean a physically different square for
+        each color (see docs/AZ_DESIGN.md's "home-column occupancy" fix
+        write-up), so a piece of a DIFFERENT color sitting at the same
+        number must not count against `color`'s own 2-piece cap there --
+        only same-color pieces do. Mirrors get_blockades' own
+        `pieces_at_pos[0].color == pieces_at_pos[1].color` color check,
+        applied here to occupancy counting instead of blockade detection.
+        """
+        pieces = self.board.get_pieces_at(position)
+        if position >= Board.HOME_COLUMN_START:
+            pieces = [p for p in pieces if p.color == color]
+        return len(pieces)
+
     def compute_path(self, player, start_pos, num_squares):
         """
         Compute the sequence of squares a piece passes through moving
@@ -170,8 +194,10 @@ class RuleEngine:
                 new_position = current_pos + effective_roll
 
                 if new_position < Board.FINAL_POSITION:
-                    # Check if destination has room (max 2 pieces)
-                    if len(self.board.get_pieces_at(new_position)) < Board.MAX_PIECES_PER_SQUARE:
+                    # Check if destination has room (max 2 pieces of THIS
+                    # color -- home-column squares are private per color,
+                    # see _occupancy_count_for_move)
+                    if self._occupancy_count_for_move(new_position, player.color) < Board.MAX_PIECES_PER_SQUARE:
                         # Normal move within home column
                         legal_moves.append((piece, new_position, 'move'))
                 elif new_position == Board.FINAL_POSITION:
@@ -184,9 +210,12 @@ class RuleEngine:
                 new_position = self.calculate_new_position(player, current_pos, effective_roll)
 
                 if new_position is not None:
-                    # Check if destination has room (max 2 pieces)
-                    pieces_at_dest = self.board.get_pieces_at(new_position)
-                    if len(pieces_at_dest) < Board.MAX_PIECES_PER_SQUARE:
+                    # Check if destination has room (max 2 pieces -- this
+                    # move may cross into the home column for the first
+                    # time, in which case only same-color occupancy there
+                    # counts; _occupancy_count_for_move leaves ordinary
+                    # main-track destinations' color-blind counting as-is)
+                    if self._occupancy_count_for_move(new_position, player.color) < Board.MAX_PIECES_PER_SQUARE:
                         # Check if path crosses any blockade
                         if not self.path_crosses_blockade(player, current_pos, effective_roll, all_blockades):
                             legal_moves.append((piece, new_position, 'move'))

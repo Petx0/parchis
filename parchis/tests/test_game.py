@@ -445,6 +445,97 @@ def test_home_column_no_captures():
     print("✓ Pieces in home columns cannot be captured")
 
 
+def test_home_column_stacking_is_per_color_not_shared():
+    """
+    Regression test for a color-blind home-column occupancy bug
+    (docs/AZ_DESIGN.md): home-column squares 69-75 are a PRIVATE lane per
+    color -- the same numbers mean physically different squares for each
+    color -- so a different color's pieces sitting at the same NUMBER must
+    never block a piece from landing on its own color's version of that
+    square. Covers both call sites RuleEngine.get_legal_moves uses this
+    check at: a piece already in its home column advancing further
+    (rules.py's home-column branch), and a piece on the main track
+    crossing into its home column for the first time (rules.py's
+    main-track branch, whenever the destination lands >= HOME_COLUMN_START).
+    """
+    print("\nTesting home-column stacking only counts same-color pieces...")
+
+    game = Game(num_players=2)
+    player = game.players[0]
+    opponent = game.players[1]
+
+    # Fill the OPPONENT's own home-column slot 71 to the 2-piece cap --
+    # irrelevant to player's own moves, since it's a physically different
+    # square despite sharing the number 71.
+    for i in range(2):
+        p = opponent.pieces[i]
+        game.board.remove_piece(p)
+        p.move_to(71)
+        game.board.add_piece(p, 71)
+    assert len(game.board.get_pieces_at(71)) == 2, "Test setup: opponent should occupy slot 71 twice"
+
+    # Call site 1: player's piece already in home column (69), advancing
+    # 2 squares to 71.
+    piece_in_home = player.pieces[0]
+    game.board.remove_piece(piece_in_home)
+    piece_in_home.move_to(69)
+    game.board.add_piece(piece_in_home, 69)
+
+    legal_moves = game.get_legal_moves(player, 2)
+    assert (piece_in_home, 71, 'move') in legal_moves, (
+        "Player's own move into home-column slot 71 must not be blocked by the "
+        "opponent's pieces at their own (physically different) slot 71"
+    )
+    print("✓ advancing within home column into a slot the opponent occupies (as a different color) is legal")
+
+    # Call site 2: a different player piece, still on the main track, sitting
+    # exactly at its own home_entry_point -- crosses into home-column slot 71
+    # for the FIRST time with the right roll.
+    piece_entering_home = player.pieces[1]
+    game.board.remove_piece(piece_entering_home)
+    piece_entering_home.move_to(player.home_entry_point)
+    game.board.add_piece(piece_entering_home, player.home_entry_point)
+
+    legal_moves = game.get_legal_moves(player, 3)
+    assert (piece_entering_home, 71, 'move') in legal_moves, (
+        "Entering home-column slot 71 for the first time must not be blocked by "
+        "the opponent's pieces at their own (physically different) slot 71"
+    )
+    print("✓ entering home column for the first time into a slot the opponent occupies is legal")
+
+
+def test_home_column_same_color_cap_still_enforced():
+    """The fix for the bug above must only remove the CROSS-color
+    miscount -- a real same-color 2-piece cap in the home column must
+    still block a third same-color piece."""
+    print("\nTesting the home-column same-color 2-piece cap is still enforced...")
+
+    game = Game(num_players=2)
+    player = game.players[0]
+
+    # Fill player's OWN home-column slot 71 to the 2-piece cap.
+    for i in range(2):
+        p = player.pieces[i]
+        game.board.remove_piece(p)
+        p.move_to(71)
+        game.board.add_piece(p, 71)
+
+    # A third same-color piece, already in home column, trying to also
+    # reach 71.
+    third_piece = player.pieces[2]
+    game.board.remove_piece(third_piece)
+    third_piece.move_to(69)
+    game.board.add_piece(third_piece, 69)
+
+    legal_moves = game.get_legal_moves(player, 2)
+    moves_to_71 = [m for m in legal_moves if m[0] is third_piece and m[1] == 71]
+    assert not moves_to_71, (
+        "A third same-color piece must still be blocked from a home-column "
+        "slot already holding 2 of that same color"
+    )
+    print("✓ a genuine same-color 2-piece cap in the home column is still enforced")
+
+
 def test_blockades():
     """Test blockade formation and movement blocking."""
     print("\nTesting blockade rules...")

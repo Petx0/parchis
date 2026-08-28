@@ -96,13 +96,31 @@ def test_variance_reduction_self_play_is_the_zero_variance_edge_case():
           f"multiplier=inf")
 
 
-def test_variance_reduction_between_distinct_agents_is_finite_and_positive():
-    """The useful case: two distinct, comparably-matched agents (TUNED_WEIGHTS
-    vs DEFAULT_WEIGHTS) must show a REAL, finite, positive variance
-    reduction -- the duplicate method's win_rate_a must vary less across
-    repeats than the independent-seed method's does, over the same
-    per-repeat game budget, giving an effective-n multiplier >= 1."""
-    print("\nTesting measure_variance_reduction between two distinct agents...")
+def test_measure_variance_reduction_distinct_agents_returns_sane_shape():
+    """measure_variance_reduction's DISTINCT-agent code path (as opposed to
+    the self-play edge case above) exercises no code the self-play test
+    doesn't already cover -- same function, different factories -- so this
+    only checks the return contract (right keys, sane types/ranges), not a
+    directional inequality between duplicate_std and independent_std.
+
+    An earlier version of this test asserted
+    `duplicate_std <= independent_std` for one hardcoded seed
+    (TUNED_WEIGHTS vs DEFAULT_WEIGHTS, repeats=16) and read a single pass
+    as confirming "duplicate pairing is a real, measurable win on
+    non-degenerate comparisons" (docs/AZ_DESIGN.md). Investigating a
+    failure surfaced by an unrelated engine fix showed that reading was
+    too strong: sweeping many seeds (including at repeats=60, and against
+    a second, more-similar pairing) put the assertion's failure rate
+    around 40-50%, with the mean effective_n_multiplier only marginally
+    above 1.0 (~1.0-1.1x) for genuinely different policies over a full
+    ~150-300 turn game -- a real but small effect that a 16-60 repeat
+    sample can't reliably detect the *sign* of, not evidence the technique
+    is broken. The self-play case above remains the one that's exact
+    (duplicate_std == 0.0, no sampling involved) and the one
+    docs/AGENT_REBUILD_PLAN.md §5.1 actually relies on for sizing runs;
+    removed the unreliable directional assertion here rather than keep a
+    test whose pass/fail is close to a coin flip."""
+    print("\nTesting measure_variance_reduction's distinct-agent return contract...")
 
     tuned_factory = heuristic.make_heuristic_agent_factory(heuristic.TUNED_WEIGHTS)
     default_factory = heuristic.make_heuristic_agent_factory(heuristic.DEFAULT_WEIGHTS)
@@ -114,18 +132,23 @@ def test_variance_reduction_between_distinct_agents_is_finite_and_positive():
           f"duplicate_std={result['duplicate_std']:.4f} independent_std={result['independent_std']:.4f} "
           f"effective_n_multiplier={result['effective_n_multiplier']:.2f}x")
 
-    assert 0.0 < result['duplicate_std'] <= result['independent_std'], (
-        "Expected the duplicate method's win_rate to vary no more than the "
-        "independent-seed method's across repeats"
-    )
-    assert result['effective_n_multiplier'] >= 1.0
-    print(f"✓ Duplicate pairing measured a real {result['effective_n_multiplier']:.2f}x "
-          f"effective-n multiplier over independent-seed matches")
+    expected_keys = {
+        'repeats', 'n_games_per_repeat', 'duplicate_mean_win_rate', 'duplicate_std',
+        'independent_mean_win_rate', 'independent_std', 'effective_n_multiplier',
+    }
+    assert set(result) == expected_keys
+    assert result['repeats'] == 16
+    assert 0.0 <= result['duplicate_mean_win_rate'] <= 1.0
+    assert 0.0 <= result['independent_mean_win_rate'] <= 1.0
+    assert result['duplicate_std'] >= 0.0
+    assert result['independent_std'] >= 0.0
+    assert result['effective_n_multiplier'] > 0.0
+    print("✓ return contract is sane (keys, ranges) for a distinct, non-degenerate pairing")
 
 
 if __name__ == '__main__':
     test_duplicate_group_self_play_always_wins_exactly_once()
     test_duplicate_match_pools_groups_correctly()
     test_variance_reduction_self_play_is_the_zero_variance_edge_case()
-    test_variance_reduction_between_distinct_agents_is_finite_and_positive()
+    test_measure_variance_reduction_distinct_agents_returns_sane_shape()
     print("\nAll duplicate-match tests passed!")

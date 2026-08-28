@@ -22,19 +22,16 @@ Examples:
 import argparse
 import sys
 
-from parchis.agents import heuristic
-from parchis.az import search as az_search
-from parchis.az.agent import NetEvaluator
-from parchis.visualization import checkpoint_loading
+from parchis.agents import agent_spec
 from parchis.visualization.instrumented_play import play_and_record
 from parchis.visualization.visualizer import replay_game_from_log
 
 
 def _parse_agent_spec(spec_str):
-    """'SEAT=SPEC' -> (seat, (kind, params)), where SPEC is one of:
-    'checkpoint:<run_dir>[:depth=N]' | 'heuristic:tuned|default' | 'random'.
-    kind/params match parchis.visualization.instrumented_play.play_and_record's
-    agent_specs contract."""
+    """'SEAT=SPEC' -> (seat, (kind, params), label). The SPEC grammar itself
+    (kind/params match play_and_record's agent_specs contract) lives in
+    parchis.agents.agent_spec, shared with parchis.evaluation.ladder's own
+    rung parsing -- this just adds the "SEAT=" prefix on top."""
     if '=' not in spec_str:
         raise argparse.ArgumentTypeError(
             f"--agent must be SEAT=SPEC, got {spec_str!r} (missing '=')"
@@ -45,45 +42,11 @@ def _parse_agent_spec(spec_str):
     except ValueError:
         raise argparse.ArgumentTypeError(f"--agent seat must be an integer, got {seat_str!r}")
 
-    parts = spec.split(':')
-    kind = parts[0]
-
-    if kind == 'checkpoint':
-        if len(parts) < 2:
-            raise argparse.ArgumentTypeError(
-                f"--agent {spec_str!r}: 'checkpoint' needs a run_dir, e.g. checkpoint:runs/my_run"
-            )
-        run_dir = parts[1]
-        depth = None
-        for extra in parts[2:]:
-            if extra.startswith('depth='):
-                depth = int(extra.split('=', 1)[1])
-        numpy_net, _num_players, cfg = checkpoint_loading.load_agent_numpy_net(run_dir)
-        if depth is None:
-            depth = cfg.get('base_depth', az_search.DEFAULT_DEPTH)
-        evaluator = NetEvaluator(numpy_net)
-        label = f"checkpoint:{run_dir} (search depth={depth})"
-        return seat, ('search', (evaluator, depth)), label
-
-    if kind == 'heuristic':
-        which = parts[1] if len(parts) > 1 else 'tuned'
-        if which == 'tuned':
-            weights = heuristic.TUNED_WEIGHTS
-        elif which == 'default':
-            weights = heuristic.DEFAULT_WEIGHTS
-        else:
-            raise argparse.ArgumentTypeError(
-                f"--agent {spec_str!r}: 'heuristic' expects 'tuned' or 'default', got {which!r}"
-            )
-        return seat, ('heuristic', weights), f"heuristic:{which}"
-
-    if kind == 'random':
-        return seat, ('random', None), 'random'
-
-    raise argparse.ArgumentTypeError(
-        f"--agent {spec_str!r}: unknown agent kind {kind!r} "
-        f"(expected 'checkpoint', 'heuristic', or 'random')"
-    )
+    try:
+        kind, params, label = agent_spec.parse_spec(spec)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"--agent {spec_str!r}: {e}")
+    return seat, (kind, params), label
 
 
 def main():

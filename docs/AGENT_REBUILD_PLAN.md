@@ -7,14 +7,23 @@ turned that into a decisive pass (61.4% vs. tuned heuristic, Wilson 95% CI [58.9
 confirming the reduced-scale run's own hypothesis that dataset size, not epochs or loss weighting,
 was the binding constraint. See Part 3 and `docs/AZ_DESIGN.md` for the full numbers.
 
-Phase 3 (2026-08-26): the continuous self-play round loop (`parchis/az/round_loop.py` and
+Phase 3 (2026-08-26 onward): the continuous self-play round loop (`parchis/az/round_loop.py` and
 supporting modules -- `targets.py`, `champion_pool.py`, `selfplay.generate_round_games`) is built,
 tested, and launched, seeded from the Phase 2 checkpoint above. Found and fixed a real latent bug
 in the shared `TurnContextTracker` along the way (a bonus with zero legal moves left stale state
 for the next decision -- see `docs/AZ_DESIGN.md`). Round size scaled down from the plan's ~50k
 games to 6,000/round based on measured throughput (searching against a real net during generation
-is ~4.5x slower than Phase 2's heuristic-only generation). The loop is running continuously in the
-background (target: 40 rounds); see `docs/AZ_DESIGN.md` for the running log of results.
+is ~4.5x slower than Phase 2's heuristic-only generation). The initial 40-round run completed
+2026-08-27 (3 promotions; round 23's candidate is the champion) and decisively cleared Phase 2's
+own Gate 13 benchmark on re-measurement (67.56% vs. Phase 2's 61.38%, non-overlapping CIs -- see
+`docs/AZ_DESIGN.md`). Also found and fixed a depth-confound bug in the escalation mechanism
+(an escalated round's promotion match was accidentally handing the OLD champion a search-time
+boost too); a rounds-40-79 continuation with the fix applied is in progress, validating it against
+real data. See `docs/AZ_DESIGN.md` for the running log of results.
+
+Ahead of Phase 4: `parchis/evaluation/ladder.py` + `ratings.py` (2026-08-28) now implement the
+"2p clears the ladder" gate Part 6 requires before any 4p work -- see `docs/AZ_DESIGN.md`'s
+"Ladder + ratings tooling" entry. The tactical puzzle suite (Part 5.4) is being built separately.
 
 ## How to use this document
 
@@ -340,12 +349,14 @@ parchis/evaluation/puzzles/     tactical suite (positions JSON + runner)
 - [x] **3. `parchis/evaluation/duplicate.py` and `ratings.py`** (see Part 5) — built *before* any
   training, because every later gate depends on them.
   *`duplicate.py` done 2026-08-25 (built as a Phase 1 item-10 prerequisite, retroactively checked
-  off here) — see `docs/AZ_DESIGN.md`. `ratings.py` (Bradley-Terry) still deferred: no gate through
-  Phase 1 has needed cross-agent ratings, only a single A-vs-B Wilson CI.*
+  off here) — see `docs/AZ_DESIGN.md`. `ratings.py` (Bradley-Terry) built 2026-08-28, ahead of
+  Phase 4 (its "2p clears the ladder" gate needs it) — see `docs/AZ_DESIGN.md`'s "Ladder + ratings
+  tooling" entry.*
 - [x] **4. `parchis/agents/heuristic.py`** untuned v1 + ladder entry.
   *Done 2026-08-25 (also built as a Phase 1 prerequisite, retroactively checked off here): shipped
-  with CEM tuning too (`TUNED_WEIGHTS`), not just an untuned v1 — see `docs/AZ_DESIGN.md`. No
-  separate `ladder.py` entry (that file is still deferred).*
+  with CEM tuning too (`TUNED_WEIGHTS`), not just an untuned v1 — see `docs/AZ_DESIGN.md`.
+  `ladder.py` built 2026-08-28 (see item 3's note above); heuristic-tuned/default are both wired in
+  as ladder rungs.*
 - [ ] **5. GATE**: measured throughput of `search.py` at depth 1/2/3 with a randomly-initialised
   net, and games/sec for 1-ply self-play across all M4 performance cores. Target **≥ 200 games/sec
   at depth 1**. If it lands below ~50, stop and revisit — fallbacks, in order: NumPy-only

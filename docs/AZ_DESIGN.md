@@ -789,13 +789,101 @@ revised (larger) wall-clock estimate for the full 40-round target.
 
 ### Deferred out of Phase 0/1 (explicitly, not silently)
 
-- `parchis/evaluation/ratings.py` (Bradley-Terry Elo MLE) — item 3 lists it alongside duplicate.py,
-  but no gate in Phase 0/1 needs cross-agent ratings, only a single A-vs-B Wilson CI.
-- `parchis/evaluation/ladder.py` (fixed rungs + `leaderboard.json`) — item 9 mentions wiring into
-  "the ladder", but it isn't itself a numbered checklist item in Phase 0/1, and item 10's gate only
-  needed `duplicate.py`.
+- ~~`parchis/evaluation/ratings.py` (Bradley-Terry Elo MLE)~~ — **built 2026-08-28**, see "Ladder +
+  ratings tooling" below.
+- ~~`parchis/evaluation/ladder.py` (fixed rungs + `leaderboard.json`)~~ — **built 2026-08-28**, see
+  below (as `runs/pairings.jsonl`, not `leaderboard.json` — see that section for why).
 - Batched leaf evaluation in `search.py` (one forward pass per search, not per leaf) — a
   performance optimization the doc calls for, not a correctness requirement item 8's tests check;
-  deferred until Phase 3's self-play generation actually needs the throughput.
+  still deferred as of 2026-08-28 (sized as its own follow-up session, not undertaken yet — see
+  "Pre-Phase-4 review" below).
 - The literal Phase 0 item 5 throughput gate (≥200 games/sec at depth 1 on a randomly-initialized
   net) — superseded by running Phase 1's item 10 gate directly once it existed (see item 5 above).
+
+### Pre-Phase-4 review (2026-08-28): what's actually pending before "2p clears the ladder"
+
+Before starting Phase 4 (4-player extension), reviewed the whole plan (`AGENT_REBUILD_PLAN.md`,
+this file, `SEARCH_MCTS.md`, `CODE_REVIEW.md`, `RULES.md`) for pending items. Findings:
+
+- **Two `CODE_REVIEW.md` items checked and found already resolved**, not by this pass but by
+  earlier refactors: `env.py`'s "magic number 76" complaint — every literal `76` left in the file
+  is in a docstring/comment, not code; and `evaluate.py`'s bare `except:` swallowing mask-read
+  errors — `evaluate.py` no longer reads masks itself at all, it calls the shared `mask_fn`
+  (`parchis/training/common.py:25`), a plain dict lookup with nothing to swallow.
+- **Phase 4's own "4-seat duplicate-match protocol" concrete-work item is already done**, ahead of
+  schedule: `duplicate.py`'s `play_duplicate_group`/`play_duplicate_match` were built generally
+  from the start (their own docstring says so) and already rotate the tested agent through every
+  seat at `num_players > 2`, not just 2.
+- **Tactical puzzle suite** (§5.4, `parchis/evaluation/puzzles/`) — still not built; the user is
+  building this one by hand (curating/judging 40-60 positions needs real Parchís expertise, not
+  something to delegate).
+- **Ladder + ratings tooling and batched leaf evaluation** — see below and the deferred-list update
+  above.
+
+### Ladder + ratings tooling (2026-08-28)
+
+Built `parchis/evaluation/ladder.py` + `parchis/evaluation/ratings.py` — the actual mechanism
+"no 4p work until 2p clears the ladder" (`AGENT_REBUILD_PLAN.md` Part 6) refers to, which didn't
+exist until now. **Not** built on the existing `elo_ladder.py`/`multiplayer_matrix.py`: those wrap
+`evaluate_agent()`, which is MaskablePPO-`.load()`-only — can't host a search-driven AZ agent,
+which needs live search at inference time (the same reason `arena.py` exists as its own parallel
+tool, per that module's docstring). Built on `duplicate.py`'s `play_duplicate_match` instead
+(already CRN-variance-reduced, already generalizes past 2 players).
+
+`ladder.py`: round-robins named "rungs" (any arena-style factory — random, heuristic, or a
+`checkpoint:<run_dir>[:depth=N]` spec loaded via `checkpoint_loading.load_agent_numpy_net`) via
+`play_duplicate_match`, appending one JSON line per pairing to `runs/pairings.jsonl` —
+project-wide and append-only, per §5.2's spec, not per-run. (The spec also mentions a
+`leaderboard.json`; skipped for now since `pairings.jsonl` plus `ratings.py`'s own on-demand fit
+already answers "who's ahead" without a second, easily-stale cached artifact — can add one later
+if actually wanted.)
+
+`ratings.py`: fits Bradley-Terry ratings by maximum likelihood over the whole accumulated
+`pairings.jsonl` (`scipy.optimize.minimize`, L-BFGS-B, on the pairwise negative log-likelihood),
+anchored at `rating_random = 0`. Replaces `elo.py`'s order-dependent sequential K-factor updates
+with one number per agent comparable across the whole project's history, exactly as §5.3 asks.
+Percentile bootstrap for CIs, resampling pairing records (not individual games) with the anchor
+held fixed across every replicate — letting each replicate pick its own anchor would silently
+compare ratings against different zero points and contaminate the CIs.
+
+**A shared `parse_spec` grammar** (`parchis/agents/agent_spec.py`, extracted from
+`play_instrumented_game.py`'s `--agent` flag, which had grown this exact grammar first) is now used
+by both the visualization CLI and the ladder's `--rung` flag — one spec syntax
+(`checkpoint:<run_dir>[:depth=N] | heuristic:tuned|default | random`) instead of two independently-
+drifting ones.
+
+**Verified end to end** with real agents, not just synthetic data: `random` / `heuristic:default` /
+`heuristic:tuned` / the Phase 3 champion checkpoint, run as two separate `ladder.py` invocations
+into the same `pairings.jsonl` (confirming accumulation works across runs, not just within one) —
+`ratings.py` recovered the exact known strength ordering: `az_champion (2.63) > heuristic_tuned
+(1.78) > heuristic_default (1.25) > random (0.0)`. Synthetic-data unit tests
+(`test_ratings.py`) separately confirm the MLE fit recovers known planted ratings within 0.05 at
+large sample size, independent of real self-play noise. Full suite: 365 passed.
+
+### Benchmark: Phase 3 champion vs. tuned heuristic @ depth 0 (Gate 13's own protocol) (2026-08-28)
+
+Re-ran Phase 2's exact Gate 13 protocol (`net@depth1` vs. `heuristic(TUNED_WEIGHTS)@depth0`, 800
+duplicate pairs, seed 20260828) with the Phase 3 champion (`runs/selfplay_2p_v1_champion/`, round
+23's candidate) instead of the Phase 2 bootstrap checkpoint — the number the "not yet re-measured"
+note two sections up was waiting on.
+
+**win_rate_a = 0.6756 (1,081/1,600), Wilson 95% CI [0.6523, 0.6981]** — decisively clear of both
+50% and Phase 2's own finishing number. Pair record: `{a_better: 372, split: 337, b_better: 91}`.
+
+**vs. Phase 2's Gate 13 result on the identical protocol: 0.6138 (CI [0.5896, 0.6373])** — the two
+CIs don't overlap. First like-for-like number confirming Phase 3's self-play loop added real
+strength beyond Phase 2's bootstrap net, not just against Phase 2's own checkpoint directly (the
+0.5581 net-vs-net-at-depth-1 result above) but against the fixed external yardstick both phases are
+actually scored against.
+
+### Escalation-fix validation, in progress (rounds 40+, 2026-08-28)
+
+The rounds-40-79 continuation (same run, same config, resumed with the escalation-depth fix now in
+the code) is the fix's first real-data test. Through round 55: **4 escalated rounds (43, 47, 51,
+55), 0/4 promoted** — `eval_depth` correctly stayed at `1` (base depth) on every one, confirming
+the confound is genuinely gone (previously eval_depth silently matched generation_depth, i.e. `2`,
+every time) — but escalation still hasn't produced a promotable candidate under the fix either.
+Base-depth rounds in this stretch: 0/12 promoted so far (several came close, e.g. round 46's CI
+`[0.4984, 0.5548]`). Not a large enough sample yet to call the fix's cost/benefit verdict — noting
+the confound is confirmed resolved, the "does escalation actually pay for itself" question is still
+open pending more rounds.

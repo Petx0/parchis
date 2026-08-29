@@ -969,6 +969,54 @@ round data; round 58 has an incomplete `shards/` directory with no `done.json`, 
 `find_resume_round` will correctly treat as not-yet-done and regenerate from scratch if this run is
 ever resumed.
 
+### Rounds 58-67 continuation (2026-08-29): post-bug-fix/post-batching, still 0 promotions
+
+10 more rounds (58-67) of the same run, resumed after two engine changes landed on 2026-08-28: the
+color-blind home-column occupancy fix (`rules.py`) and batched leaf evaluation (`search.py`). Round
+58 had been left mid-run (no `done.json`) when the previous continuation was stopped —
+`find_resume_round` correctly regenerated it from scratch under the new code rather than resuming a
+partial/mixed-code round. Champion weights going in were unaffected by either change (no promotion
+since round 23; confirmed the git-tracked mirror's `model.pt` was byte-identical, sha256, to the
+scratchpad's round-57 `champion.pt` before launching).
+
+| round | win_rate_a | CI | gen depth | promoted | wall-clock |
+|---|---|---|---|---|---|
+| 58 | 0.4825 | [0.4543, 0.5108] | 1 | no | 566s |
+| 59 | 0.4750 | [0.4469, 0.5033] | **2** | no | 4250s |
+| 60 | 0.4750 | [0.4469, 0.5033] | 1 | no | 563s |
+| 61 | 0.4917 | [0.4635, 0.5199] | 1 | no | 564s |
+| 62 | 0.4850 | [0.4568, 0.5133] | 1 | no | 566s |
+| 63 | 0.4783 | [0.4502, 0.5066] | **2** | no | 4212s |
+| 64 | 0.5058 | [0.4776, 0.5341] | 1 | no (closest miss) | 564s |
+| 65 | 0.4900 | [0.4618, 0.5183] | 1 | no | 565s |
+| 66 | 0.4867 | [0.4585, 0.5149] | 1 | no | 566s |
+| 67 | 0.5208 | [0.4925, 0.5490] | **2** | no | 4250s |
+
+**Batching's real-world payoff, confirmed**: the 3 escalated (depth=2) rounds here took ~4210-4250s
+(~70.5 min) each, vs. ~7700-7840s (~2.15h) for the escalated rounds in the pre-batching rounds-40-57
+continuation — a ~1.84x speedup, consistent with search.py's own measured 1.97x at depth=2
+(test bench, see "Batched leaf evaluation" above). The 7 base-depth rounds were unaffected either
+way (~565s each, matching before — depth=1 search was never the bottleneck).
+
+**Still no promotion, and the pattern is now hard to read as noise**: escalation is now **0/16**
+across this run's entire history (13 before this continuation + 3 more here — 59, 63, 67), still
+never once paying for itself. More strikingly, the champion has now gone **44 rounds without a
+promotion** (24-67, spanning both the pre- and post-bug-fix code) — every one of the last 34+10 win
+rates clusters tightly around 0.47-0.52, i.e. statistical noise around a dead heat, not a struggling-
+but-still-climbing candidate. The home-column fix and the batching change did not shift this pattern
+in either direction (rounds 58-67's win rates land in exactly the same 0.475-0.52 band as rounds
+40-57's did) — consistent with the plateau being about the training setup (warm-started fine-tuning
+of the same net repeatedly on its own self-play data at this scale) rather than either of those two
+bugs. Worth an explicit decision before launching another blind continuation: keep going unchanged,
+change something structural (bigger replay window, colder warm-start / more epochs, a bigger net,
+more games/round), or treat round 23's champion as this lineage's ceiling at the current
+architecture/data scale and move on to Phase 4. Not decided here — flagging it rather than silently
+running more rounds on the same settings.
+
+**Final state**: 68 rounds total (0-67), still **3 promotions** (rounds 4, 6, 23) — champion
+unchanged, still `runs/selfplay_2p_v1_champion/`'s already-tracked checkpoint (no update needed
+beyond the `champion_meta.json` mirror's bookkeeping `round` field, corrected to 67).
+
 ### Ladder run (2026-08-28): "2p clears the ladder" — decisive full round-robin
 
 With training stopped and the champion final (round 23's candidate, unchanged since the original

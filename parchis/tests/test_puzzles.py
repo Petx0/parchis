@@ -8,10 +8,15 @@ inline via tmp_path, matching this repo's existing convention
 (parchis/tests/test_ladder.py does the same for its JSONL).
 """
 
+import csv
+from pathlib import Path
+
 import pytest
 
 from parchis.evaluation.puzzles import loader, runner
 from parchis.game.board import Board
+
+MY_PUZZLES_CSV = Path(__file__).resolve().parent.parent / "evaluation" / "puzzles" / "my_puzzles.csv"
 
 
 HEADER = ("puzzle_id,category,a_piece_0,a_piece_1,a_piece_2,a_piece_3,"
@@ -188,6 +193,41 @@ def test_load_puzzles_directory_and_global_uniqueness(tmp_path):
     with pytest.raises(ValueError, match="duplicate puzzle_id"):
         loader.load_puzzles(str(tmp_path))
     print("✓ a duplicate puzzle_id across files raises ValueError")
+
+
+def test_my_puzzles_csv_loads_cleanly():
+    """my_puzzles.csv (docs/AGENT_REBUILD_PLAN.md Part 5.4) is the user's
+    own hand-authored tactical puzzle set, filled in incrementally over
+    time -- this is a lint/regression guard on that real file, not a
+    fixture-based test like the ones above: it runs every time the suite
+    runs, catching a malformed row (a typo, a correct_piece_id that isn't
+    actually legal, a duplicate puzzle_id) the moment it's added, rather
+    than only when someone remembers to run the CLI by hand.
+
+    Deliberately does NOT assert anything about accuracy against any
+    agent -- 'the agent picked the wrong piece' isn't a bug in this file,
+    it's the entire point of having tactical puzzles at all (see
+    docs/AGENT_REBUILD_PLAN.md's own §5.4 framing). Scoring an agent stays
+    a manual `python -m parchis.evaluation.puzzles` run.
+
+    Skips (doesn't fail) while the file has zero data rows -- an empty
+    my_puzzles.csv is the normal starting state (see
+    test_load_puzzles_empty_raises above for why load_puzzles itself
+    raises ValueError on that), not something this guard should flag."""
+    print("\nTesting my_puzzles.csv loads and validates cleanly...")
+
+    with open(MY_PUZZLES_CSV, newline="") as f:
+        n_rows = sum(1 for _ in csv.DictReader(f))
+    if n_rows == 0:
+        pytest.skip(f"{MY_PUZZLES_CSV.name} has no puzzles yet")
+
+    puzzles = loader.load_puzzles(str(MY_PUZZLES_CSV))
+    assert len(puzzles) == n_rows, (
+        f"{MY_PUZZLES_CSV.name}: {n_rows} CSV rows but load_puzzles returned "
+        f"{len(puzzles)} -- should never differ for a single well-formed file"
+    )
+    print(f"✓ {MY_PUZZLES_CSV.name}: {len(puzzles)} puzzles load and validate cleanly "
+          f"(well-formed rows, correct_piece_id legal in context, puzzle_ids unique)")
 
 
 def test_load_puzzles_empty_raises(tmp_path):

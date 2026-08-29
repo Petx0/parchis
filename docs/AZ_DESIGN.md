@@ -1333,3 +1333,80 @@ stray `,` is rejected with a message naming `/` as the expected separator —,
 `test_render_puzzle_multi_answer_marks_every_correct_piece`). All 10 of the user's real puzzles,
 including puzzle 16, now load, validate, and render cleanly. Full suite green (408 passed) after
 the change.
+
+Separately, one authoring mistake turned up and was fixed the same day: the user had entered RED's
+real piece positions under the `b_piece_*` (YELLOW) columns and vice versa, for all 10 rows.
+Swapping only the position columns broke puzzle 16 (piece 2 lost its legal move once the acting
+color's real data was corrected) — confirmed with the user that the same mix-up applied to `turn`
+too, so `turn` (A↔B) was swapped alongside the positions (a self-consistent relabeling: the acting
+player's own numbers are unchanged, only which color owns them changes). All 10 puzzles now
+correctly show YELLOW as the mover and validate cleanly, including puzzle 16's dual answer.
+
+### Puzzle accuracy vs. search depth, champion checkpoint (2026-08-29)
+
+Exploratory analysis, on the user's 10 real puzzles (`my_puzzles.csv`) against the Phase 3 champion
+(`runs/selfplay_2p_v1_champion`), sweeping `depth` 1–5 — a first, small-sample look at how much
+search actually buys this checkpoint on real tactics, now that the puzzle suite has real (if few)
+positions and the visualizer exists to inspect individual disagreements. Reproducible via:
+
+```python
+from parchis.agents import agent_spec
+from parchis.evaluation.puzzles.loader import load_puzzles
+from parchis.evaluation.puzzles.runner import decide_from_spec, score_puzzles
+
+puzzles = load_puzzles('parchis/evaluation/puzzles/my_puzzles.csv')
+for depth in (1, 2, 3, 4, 5):
+    kind, params, _label = agent_spec.parse_spec(f'checkpoint:runs/selfplay_2p_v1_champion:depth={depth}')
+    result = score_puzzles(decide_from_spec(kind, params, seed=0), puzzles)
+    print(depth, result['accuracy'])
+```
+
+| Depth | Accuracy | Wall-clock (10 puzzles) |
+|---|---|---|
+| 1 | 30.0% (3/10) | <0.01s |
+| 2 | 50.0% (5/10) | 0.04s |
+| 3 | 60.0% (6/10) | 0.65s |
+| 4 | 40.0% (4/10) | 9.96s |
+| 5 | 60.0% (6/10) | 198.5s |
+
+Per-puzzle chosen piece at each depth (✓/✗ vs. the labeled correct answer):
+
+```
+puzzle  correct    d=1  d=2  d=3  d=4  d=5
+     1  3          3✓   3✓   2✗   2✗   2✗
+     2  1          3✗   3✗   3✗   3✗   3✗
+     3  2          2✓   2✓   2✓   2✓   2✓
+     4  2          3✗   3✗   3✗   3✗   3✗
+     5  3          0✗   0✗   0✗   3✓   3✓
+    14  3          2✗   3✓   3✓   3✓   3✓
+    16  2/3        1✗   2✓   2✓   3✓   3✓
+    17  2          1✗   1✗   2✓   1✗   2✓
+    18  2          1✗   1✗   2✓   1✗   1✗
+    19  2          2✓   2✓   2✓   3✗   2✓
+```
+
+**Accuracy is not monotonic in depth**: 30% → 50% → 60% → **40%** → 60%. The depth-4 dip is a full,
+deterministic re-run of all 10 puzzles (seed=0 throughout), not sampling noise. This is consistent
+with **search pathology**: `max^n` propagates the *maximum* of leaf value estimates upward, so if
+the value net's evaluations carry a systematic bias at a given horizon (not pure random noise),
+searching deeper can amplify that bias into a worse decision before eventually washing it out —
+depth adds compounding of whatever the net gets wrong at that horizon, not purely more signal.
+Puzzles 17/18/19 visibly wobble (correct → wrong → correct) across depths 3–5 rather than settling,
+the clearest individual evidence of this rather than a steady climb.
+
+Two puzzles (**2 and 4**) are wrong at *every* depth 1–5 — genuine value-function blind spots that
+more search cannot fix by construction (search only ever maximizes over the leaf evaluator's own
+judgment; it can't correct a leaf value that's simply wrong). Worth inspecting by hand via
+`visualize_puzzles.py --puzzle-id 2` / `--puzzle-id 4` once there's time to dig into *why* the
+champion misjudges these two specifically.
+
+Compute cost grows ~15-20x per extra depth level (matching search.py's own ~6×2.9 leaves-per-layer
+growth), so depth 5 took over 3 minutes for just 10 puzzles vs. under a second through depth 3, for
+no net accuracy gain over depth 3 on this sample. **Depth 3 looks like the practical sweet spot**
+for this checkpoint at this sample size.
+
+**Caveats, explicitly**: n=10 is small — every percentage above moves by 10 points per puzzle, and
+"which depth wins" could easily reorder once the real 40-60 puzzle set exists. Revisit this sweep
+(same one-liner above) once `my_puzzles.csv` has substantially more rows, both to get a statistically
+meaningful answer and to see whether puzzles 2/4's blind spots hold up or were themselves
+edge-of-sample artifacts.

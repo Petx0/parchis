@@ -44,7 +44,11 @@ answer on the real board -- see `docs/AZ_DESIGN.md`'s "Tactical puzzle suite: lo
 positions (`parchis/evaluation/puzzles/my_puzzles.csv`); fixed a `;`-delimiter/BOM mismatch from the
 user's spreadsheet export (now auto-detected per file) and extended the schema to accept multiple
 correct answers (`correct_piece_id` may be `'/'`-separated, e.g. `2/3`) after one real puzzle turned
-up genuinely needing it -- all 10 of the user's puzzles so far load and validate cleanly. Batched
+up genuinely needing it -- all 10 of the user's puzzles so far load and validate cleanly. A first
+depth-1-5 accuracy sweep of the champion against those 10 puzzles found accuracy is **not**
+monotonic in depth (30%/50%/60%/40%/60%) -- a search-pathology signature, not noise -- plus two
+puzzles wrong at every depth; small-sample (n=10), flagged to revisit once the real 40-60 exist --
+see `docs/AZ_DESIGN.md`'s "Puzzle accuracy vs. search depth" entry. Batched
 leaf evaluation in `search.py` (2026-08-28) is now implemented: every leaf across a whole
 `search()` call is collected and evaluated in one `NumpyAZNet.forward()` call instead of one per
 leaf, measured 1.3x/2.0x/2.3x faster at depth=1/2/3 with no change to any move/value search() ever

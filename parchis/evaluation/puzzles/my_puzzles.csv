@@ -1,11 +1,11 @@
 ﻿puzzle_id;category;a_piece_0;a_piece_1;a_piece_2;a_piece_3;b_piece_0;b_piece_1;b_piece_2;b_piece_3;turn;roll;consecutive_sixes;correct_piece_id;rationale
-1;endgame;76;76;66;65;76;76;32;31;A;6;0;3;Keep the one at 10-distance
-2;midgame;76;63;12;5;76;29;46;39;A;6;1;1;Use the second six to enter color-final-strech to avoid 3rd 6 penalty
-3;endgame;76;73;70;56;76;73;70;22;A;1;0;2;6-distance is not doable with 1 roll
-4;midgame;67;34;27;11;75;17;50;39;A;1;0;2;Piece at #27 is threatened by a 10 bonus
-5;midgame;70;59;42;15;63;63;56;46;A;4;0;3;Piece at #15 is threatened by a 20 bonus
-14;endgame;73;71;69;35;73;71;69;1;A;2;0;3;The other 3 pieces are already at 1-roll distance
-16;endgame;76;64;33;35;76;76;76;63;A;4;0;2/3;Hail Mary, last change to capture
-17;midgame;76;74;66;0;76;74;32;0;A;2;0;2;Don't missuse the 10-bonuses
-18;midgame;76;74;72;0;76;74;72;0;A;2;0;2;Don't missuse the 10-bonuses
-19;endgame;76;76;73;69;76;76;73;69;A;2;0;2;Keep the option of winning in one turn
+1;endgame;76;76;32;31;76;76;66;65;B;6;0;3;Keep the one at 10-distance
+2;midgame;76;29;46;39;76;63;12;5;B;6;1;1;Use the second six to enter color-final-strech to avoid 3rd 6 penalty
+3;endgame;76;73;70;22;76;73;70;56;B;1;0;2;6-distance is not doable with 1 roll
+4;midgame;75;17;50;39;67;34;27;11;B;1;0;2;Piece at #27 is threatened by a 10 bonus
+5;midgame;63;63;56;46;70;59;42;15;B;4;0;3;Piece at #15 is threatened by a 20 bonus
+14;endgame;73;71;69;1;73;71;69;35;B;2;0;3;The other 3 pieces are already at 1-roll distance
+16;endgame;76;76;76;63;76;64;33;35;B;4;0;2/3;Hail Mary, last change to capture
+17;midgame;76;74;32;0;76;74;66;0;B;2;0;2;Don't missuse the 10-bonuses
+18;midgame;76;74;72;0;76;74;72;0;B;2;0;2;Don't missuse the 10-bonuses
+19;endgame;76;76;73;69;76;76;73;69;B;2;0;2;Keep the option of winning in one turn

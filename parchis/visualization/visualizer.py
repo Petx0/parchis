@@ -484,7 +484,7 @@ class ParchisVisualizer:
         self._draw_no_data_placeholder(self.value_ax_root)
         self._draw_no_data_placeholder(self.value_ax_moves)
 
-    def draw_value_panel(self, decision, player_colors_by_seat):
+    def draw_value_panel(self, decision, player_colors_by_seat, correct_piece_ids=None):
         """Render one decision's agent-value data into the two side-panel
         axes created by create_board(show_value_panel=True) -- a no-op if
         that panel wasn't requested (axes are None). `decision` is one
@@ -499,6 +499,13 @@ class ParchisVisualizer:
 
         player_colors_by_seat: {seat: color_str}, built once from the log's
         metadata, used to color/label the root-value bars.
+
+        correct_piece_ids: None for a real game replay (no such thing as a
+        "ground truth" move there), or a puzzle's known-correct piece_ids
+        (parchis.visualization.visualize_puzzles -- a tuple, since a
+        puzzle may have more than one accepted answer) -- marks each of
+        those moves' bars distinctly from the agent's own chosen_piece_id,
+        whether or not they overlap (see _draw_move_value_bars).
         """
         if self.value_ax_root is None:
             return  # show_value_panel was False for this replay
@@ -508,7 +515,7 @@ class ParchisVisualizer:
             return
 
         self._draw_root_value_bars(decision, player_colors_by_seat)
-        self._draw_move_value_bars(decision)
+        self._draw_move_value_bars(decision, correct_piece_ids=correct_piece_ids)
 
     def _draw_root_value_bars(self, decision, player_colors_by_seat):
         ax = self.value_ax_root
@@ -533,7 +540,19 @@ class ParchisVisualizer:
         for i, v in enumerate(root_value):
             ax.text(min(v + 0.02, 0.92), i, f"{v:.2f}", va='center', fontsize=8)
 
-    def _draw_move_value_bars(self, decision):
+    # Ground-truth marker color for _draw_move_value_bars -- deliberately
+    # distinct from the 'red' used for the agent's own chosen_piece_id, so
+    # "the agent picked this" and "this was actually correct" never read as
+    # the same claim even when they coincide (see that method's docstring).
+    CORRECT_MARKER_COLOR = '#1a8a1a'
+
+    def _draw_move_value_bars(self, decision, correct_piece_ids=None):
+        """`correct_piece_ids`: see draw_value_panel's own docstring. A bar
+        can be chosen-only (agent's pick, wrong), correct-only (an
+        accepted answer the agent missed), both (agent got it right --
+        drawn as correct, since that's the more informative fact once the
+        two coincide), or neither (an ordinary untaken, incorrect
+        candidate)."""
         ax = self.value_ax_moves
         chosen_piece_id = decision.get('chosen_piece_id')
 
@@ -559,15 +578,27 @@ class ParchisVisualizer:
         bar_colors = ['#333333' if pid == chosen_piece_id else '#bbbbbb' for pid in piece_ids]
         bars = ax.barh(y_pos, values, color=bar_colors)
         for bar, pid in zip(bars, piece_ids):
-            if pid == chosen_piece_id:
+            is_chosen = pid == chosen_piece_id
+            is_correct = correct_piece_ids is not None and pid in correct_piece_ids
+            if is_correct:
+                bar.set_edgecolor(self.CORRECT_MARKER_COLOR)
+                bar.set_linewidth(3.0 if is_chosen else 2.5)
+                if not is_chosen:
+                    bar.set_linestyle('--')  # the right answer, but not what the agent played
+            elif is_chosen:
                 bar.set_edgecolor('red')
                 bar.set_linewidth(2.5)
 
         ax.set_yticks(y_pos)
-        ax.set_yticklabels([
-            f"piece {pid}" + ("  ← chosen" if pid == chosen_piece_id else "")
-            for pid in piece_ids
-        ], fontsize=9)
+        labels = []
+        for pid in piece_ids:
+            tags = []
+            if pid == chosen_piece_id:
+                tags.append("agent")
+            if correct_piece_ids is not None and pid in correct_piece_ids:
+                tags.append("correct")
+            labels.append(f"piece {pid}" + (f"  ← {'/'.join(tags)}" if tags else ""))
+        ax.set_yticklabels(labels, fontsize=9)
         if xlim is not None:
             ax.set_xlim(*xlim)
         ax.set_title(title, fontsize=10)

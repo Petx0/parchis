@@ -9,6 +9,7 @@ inline via tmp_path, matching this repo's existing convention
 """
 
 import csv
+import random
 from pathlib import Path
 
 import pytest
@@ -49,7 +50,7 @@ def test_load_puzzle_row_capture_example():
     assert case.category == "cat"
     assert case.roll == 4 and case.pending_bonus is None
     assert case.consecutive_sixes == 0
-    assert case.correct_piece_id == 0
+    assert case.correct_piece_ids == (0,)
     assert case.game.get_current_player().color == "RED"
     legal_ids = sorted({m[0].piece_id for m in case.legal_moves})
     assert legal_ids == [0, 1], f"Expected exactly pieces 0 and 1 legal, got {legal_ids}"
@@ -150,6 +151,76 @@ def test_incorrect_piece_id_not_legal_raises():
     print("✓ raises ValueError")
 
 
+def test_correct_piece_id_accepts_multiple_slash_separated_answers():
+    """A puzzle can have more than one genuinely correct move (e.g. two
+    equally-safe captures) -- correct_piece_id='2/3' means either piece 2
+    OR piece 3 counts as correct. '/' was chosen specifically because it
+    can never collide with either CSV delimiter _detect_delimiter accepts
+    (',' or ';'), unlike ',' itself (see test_load_puzzles_semicolon_delimited_with_bom's
+    docstring for why a real puzzle file already relies on that)."""
+    print("\nTesting correct_piece_id='2/3' is accepted as two valid answers...")
+    row = dict(zip(
+        HEADER.split(","),
+        _row(a=(20, 50, 60, 0), b=(0, 0, 0, 0), roll="4", correct_piece_id="0/1").split(","),
+    ))
+    case = loader.load_puzzle_row(row)
+    assert case.correct_piece_ids == (0, 1)
+    print(f"✓ correct_piece_ids={case.correct_piece_ids}")
+
+
+def test_correct_piece_id_multiple_answers_deduplicates_and_sorts():
+    print("\nTesting correct_piece_id='1/0/1' deduplicates and sorts...")
+    row = dict(zip(HEADER.split(","), _row(correct_piece_id="1/0/1").split(",")))
+    case = loader.load_puzzle_row(row)
+    assert case.correct_piece_ids == (0, 1)
+    print(f"✓ correct_piece_ids={case.correct_piece_ids}")
+
+
+def test_correct_piece_id_multiple_answers_all_must_be_legal():
+    print("\nTesting correct_piece_id='0/2' rejects the row if ANY listed answer is illegal...")
+    # piece 0 and piece 1 are legal here (see _row's docstring); piece 2 is
+    # in base with roll=4 (not the entry roll) so it has no legal move.
+    row = dict(zip(HEADER.split(","), _row(correct_piece_id="0/2").split(",")))
+    with pytest.raises(ValueError, match="not among the actual legal moves"):
+        loader.load_puzzle_row(row)
+    print("✓ raises ValueError")
+
+
+def test_correct_piece_id_malformed_multi_value_raises(tmp_path):
+    """A ','-separated correct_piece_id (the mistake this feature was
+    actually built for -- see AZ_DESIGN.md's "Puzzle suite visualization"
+    entry) must be rejected with a message naming '/' as the expected
+    separator. Built as a real ';'-delimited file (matching
+    test_load_puzzles_semicolon_delimited_with_bom), not via _row()'s
+    plain ','-joined string -- a literal ',' inside a ','-delimited row
+    would corrupt the CSV's own column alignment before ever reaching this
+    validation, which isn't the scenario being tested here."""
+    print("\nTesting a ','-separated correct_piece_id is rejected, naming '/' instead...")
+    csv_path = tmp_path / "puzzles.csv"
+    header = ";".join(HEADER.split(","))
+    row = ";".join(["p1", "cat", "20", "50", "0", "0", "24", "0", "0", "0",
+                     "A", "4", "0", "2,3", "because"])
+    csv_path.write_text(header + "\n" + row + "\n")
+
+    with pytest.raises(ValueError, match="separated by '/'"):
+        loader.load_puzzles(str(csv_path))
+    print("✓ raises ValueError, naming '/' as the expected separator")
+
+
+def test_score_puzzles_multi_answer_counts_either_as_correct(tmp_path):
+    print("\nTesting score_puzzles treats any listed correct_piece_id as correct...")
+    csv_path = tmp_path / "puzzles.csv"
+    _write_csv(csv_path, [_row(puzzle_id="p1", correct_piece_id="0/1")])
+    puzzles = loader.load_puzzles(str(csv_path))
+
+    result_0 = runner.score_puzzles(_fixed_decide(0), puzzles)
+    result_1 = runner.score_puzzles(_fixed_decide(1), puzzles)
+    assert result_0["n_correct"] == 1 and result_0["accuracy"] == 1.0
+    assert result_1["n_correct"] == 1 and result_1["accuracy"] == 1.0
+    assert result_0["results"][0]["correct_piece_ids"] == [0, 1]
+    print("✓ both accepted answers score as correct")
+
+
 def test_turn_must_be_a_or_b():
     print("\nTesting an invalid turn value is rejected...")
     row = dict(zip(HEADER.split(","), _row(turn="C").split(",")))
@@ -230,6 +301,38 @@ def test_my_puzzles_csv_loads_cleanly():
           f"(well-formed rows, correct_piece_id legal in context, puzzle_ids unique)")
 
 
+def test_load_puzzles_semicolon_delimited_with_bom(tmp_path):
+    """A real puzzle file turned up authored this way: spreadsheet software
+    in a locale where ',' is the decimal separator exports ';'-delimited
+    "CSV" with a leading UTF-8 BOM by default. load_puzzles must handle
+    this transparently (auto-detected per file, see _detect_delimiter),
+    including a rationale that itself contains a literal comma -- which
+    must NOT be mistaken for the delimiter once ';' is the real one."""
+    print("\nTesting load_puzzles handles a semicolon-delimited, BOM-prefixed file...")
+    csv_path = tmp_path / "puzzles.csv"
+    header = ";".join(HEADER.split(","))
+    # Built field-by-field (not via _row().replace(',', ';')) specifically
+    # so the rationale's own literal comma survives untouched -- matches
+    # _row()'s known-good default position/roll/turn, just semicolon-joined.
+    row = ";".join(["p1", "cat", "20", "50", "0", "0", "24", "0", "0", "0",
+                     "A", "4", "0", "0", "Hail Mary, last chance"])
+    csv_path.write_bytes(("﻿" + header + "\n" + row + "\n").encode("utf-8"))
+
+    cases = loader.load_puzzles(str(csv_path))
+    assert len(cases) == 1
+    assert cases[0].puzzle_id == "p1"
+    assert cases[0].rationale == "Hail Mary, last chance"
+    print(f"✓ loaded {len(cases)} puzzle(s) from a ';'-delimited, BOM-prefixed file, "
+          f"rationale preserved: {cases[0].rationale!r}")
+
+
+def test_detect_delimiter_raises_on_unrecognized_header():
+    print("\nTesting _detect_delimiter raises when neither ',' nor ';' finds 'puzzle_id'...")
+    with pytest.raises(ValueError, match="delimiter"):
+        loader._detect_delimiter("id|category|roll\n", "fake_path.csv")
+    print("✓ raises ValueError")
+
+
 def test_load_puzzles_empty_raises(tmp_path):
     print("\nTesting load_puzzles on an empty puzzle set raises...")
     csv_path = tmp_path / "empty.csv"
@@ -264,7 +367,7 @@ def test_score_puzzles_all_correct(tmp_path):
         "by_category": {"cat": {"n_correct": 1, "n_total": 1, "accuracy": 1.0}},
         "results": [{
             "puzzle_id": "p1", "category": "cat", "correct": True,
-            "chosen_piece_id": 0, "correct_piece_id": 0, "rationale": "because",
+            "chosen_piece_id": 0, "correct_piece_ids": [0], "rationale": "because",
         }],
     }
     print(f"✓ {result['accuracy']:.0%} accuracy")
@@ -343,6 +446,60 @@ def test_decide_search_heuristic_random_dispatch(tmp_path):
         runner.decide("not_a_real_kind", None, case)
     print(f"✓ heuristic={heuristic_move[0].piece_id} random={random_move[0].piece_id} "
           f"search={search_move[0].piece_id}, unknown kind raises")
+
+
+def test_decide_with_breakdown_move_matches_decide():
+    """decide_with_breakdown's chosen move must always equal decide()'s own
+    (decide() is defined in terms of it -- this specifically guards
+    against the heuristic/random branches' hand-copied tie-break/rng logic
+    ever drifting from decide()'s, since they're no longer the literal
+    same function call)."""
+    print("\nTesting decide_with_breakdown's move matches decide()'s, across all 3 kinds...")
+    from parchis.agents import heuristic
+    from parchis.az.agent import heuristic_position_evaluator
+
+    row = dict(zip(HEADER.split(","), _row().split(",")))
+    case = loader.load_puzzle_row(row)
+
+    for kind, params in (
+        ("heuristic", heuristic.TUNED_WEIGHTS),
+        ("random", None),
+        ("search", (heuristic_position_evaluator, 1)),
+    ):
+        move_plain = runner.decide(kind, params, case, rng=random.Random(0))
+        move_breakdown, decision = runner.decide_with_breakdown(kind, params, case, rng=random.Random(0))
+        assert move_plain[0].piece_id == move_breakdown[0].piece_id, (
+            f"kind={kind}: decide()={move_plain[0].piece_id} != "
+            f"decide_with_breakdown()={move_breakdown[0].piece_id}"
+        )
+        assert decision["kind"] == kind
+        assert decision["seat"] == case.acting_seat
+        assert decision["chosen_piece_id"] == move_breakdown[0].piece_id
+        print(f"  {kind}: piece_id={move_breakdown[0].piece_id}, decision keys={sorted(decision)}")
+    print("✓ decide_with_breakdown's move matches decide() for search/heuristic/random")
+
+
+def test_decide_with_breakdown_search_and_heuristic_shapes():
+    print("\nTesting decide_with_breakdown's decision dict shape for search and heuristic...")
+    from parchis.agents import heuristic
+    from parchis.az.agent import heuristic_position_evaluator
+
+    row = dict(zip(HEADER.split(","), _row().split(",")))
+    case = loader.load_puzzle_row(row)
+    legal_ids = sorted({m[0].piece_id for m in case.legal_moves})
+
+    _move, search_decision = runner.decide_with_breakdown(
+        "search", (heuristic_position_evaluator, 1), case,
+    )
+    assert set(search_decision) >= {"kind", "seat", "chosen_piece_id", "root_value", "move_values"}
+    assert sorted(int(pid) for pid in search_decision["move_values"]) == legal_ids
+    assert len(search_decision["root_value"]) == case.game.num_players
+
+    _move, heuristic_decision = runner.decide_with_breakdown("heuristic", heuristic.TUNED_WEIGHTS, case)
+    assert set(heuristic_decision) >= {"kind", "seat", "chosen_piece_id", "move_scores"}
+    assert sorted(int(pid) for pid in heuristic_decision["move_scores"]) == legal_ids
+    print(f"✓ search move_values piece_ids={sorted(search_decision['move_values'])}, "
+          f"heuristic move_scores piece_ids={sorted(heuristic_decision['move_scores'])}")
 
 
 def test_cli_smoke_test(tmp_path, monkeypatch, capsys):

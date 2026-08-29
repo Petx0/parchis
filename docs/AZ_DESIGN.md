@@ -1252,3 +1252,84 @@ pick up the batching automatically.
 - Measured speedup (2p, mid-game position, real trained-shape but randomly-initialized net,
   `NumpyAZNet`, 20 repeats): **1.33x at depth=1, 1.97x at depth=2, 2.32x at depth=3** — growing with
   depth as expected, since deeper searches have more leaves to fold into the one batched call.
+
+### Puzzle suite visualization (2026-08-29)
+
+Built `parchis/visualization/visualize_puzzles.py`, rendering one puzzle at a time on the real board
+photo: the position, whose turn it is, the roll and consecutive_sixes, an agent's own per-move
+evaluation (win probability for a search agent, raw score for a heuristic one), the puzzle's
+ground-truth `correct_piece_id`, and whether the agent's own answer actually matches it. Deliberately
+reuses `parchis.visualization.visualizer.ParchisVisualizer`'s existing board/value-panel machinery
+(built for live-game replay) rather than duplicating it — a puzzle renders as a single-decision
+"replay" of one position, through the exact same `draw_pieces`/`set_status`/`draw_value_panel` calls
+a real game's replay already uses.
+
+Two small, additive pieces made this possible with no new rendering code:
+- **`runner.decide_with_breakdown(kind, params, case, rng=None)`**: `decide()` (used by
+  `score_puzzles` for pass/fail scoring) is now defined in terms of this — it computes the exact
+  same move, but also returns a `decision` dict in the same shape
+  `parchis.visualization.agentinfo_io` already saves/loads for real games (`root_value`/
+  `move_values` for a search agent, `move_scores` for a heuristic one). Tie-break/rng logic for
+  "heuristic"/"random" is copied from `decide()`'s own (not delegated, so the two can never silently
+  diverge — guarded by `test_decide_with_breakdown_move_matches_decide`).
+- **`ParchisVisualizer.draw_value_panel`/`_draw_move_value_bars` gained an optional
+  `correct_piece_id` parameter** (`None` for a real game replay, unchanged behavior — no such thing
+  as a "ground truth" move there). A candidate move's bar is now marked for up to two independent,
+  non-exclusive facts: the agent's own `chosen_piece_id` (red edge, as before) and the puzzle's
+  `correct_piece_id` (new: green edge, dashed when NOT also chosen — i.e. "the right answer, which
+  the agent missed"). When a bar is both chosen and correct it draws as correct (the more
+  informative fact once the two coincide), so "the agent got it right" and "the agent got it wrong"
+  are visually unambiguous even at a glance, never conflated.
+
+CLI (mirrors the runner's own): `python -m parchis.visualization.visualize_puzzles --agent <spec>
+[--csv PATH] [--puzzle-id ID] [--save-dir DIR]`. Interactive by default (one shared figure, reused
+across puzzles, press ENTER to advance — matching `replay_game_from_log`'s own UX); `--save-dir`
+switches to headless, one PNG per puzzle, no GUI, no pauses (used for both manual visual
+verification and the automated smoke tests below).
+
+**Verified**: `parchis/tests/test_visualize_puzzles.py` (7 tests) — position/status-text
+correctness, the correct/chosen bar-marking logic exercised both when they coincide and when they
+don't (confirmed via matplotlib patch edge-color inspection, not just "no exception"), an end-to-end
+headless render of the real `tactical_puzzles.csv` fixture, and CLI smoke tests including
+`--puzzle-id` filtering. Manually inspected renders of both starter puzzles plus a synthetic
+wrong-answer case confirmed the visual design reads correctly (board position, status line, bar
+colors/edges/labels all correct). Full suite green (401 passed) after the change.
+
+**Found along the way, fixed**: the real `my_puzzles.csv` the user had started filling in used
+`;`-delimiters with a leading UTF-8 BOM — the default "CSV" export of spreadsheet software in any
+locale where `,` is the decimal separator (not a bug in the user's data, just a mismatch with the
+loader's comma-only assumption). `loader.load_puzzles` now auto-detects `,` vs `;` per file by
+checking which one actually splits the header into a first column literally named `puzzle_id`
+(not a byte-count heuristic — a real semicolon-delimited puzzle file can legitimately have a comma
+inside its own `rationale` text, which this file's puzzle 16 does), and opens every file with
+`encoding='utf-8-sig'` (strips a leading BOM, a no-op otherwise). Regression-tested
+(`test_load_puzzles_semicolon_delimited_with_bom`, `test_detect_delimiter_raises_on_unrecognized_header`).
+Once fixed, 9 of the user's 10 real puzzles loaded and validated cleanly against the real engine on
+the first try; the 10th (`puzzle 16`) had `correct_piece_id=2,3` — two genuinely correct candidate
+answers, not an authoring mistake. Flagged back to the user (rather than silently picking one or
+guessing at intent) with two options: pick one canonical answer, or extend the schema to accept
+multiple. **The user chose to extend the schema.**
+
+**Multi-answer support, added the same session**: `correct_piece_id` may now be one integer (`2`)
+or several separated by `/` (`2/3`), meaning ANY of them counts as correct — `PuzzleCase` gained
+`correct_piece_ids` (always a tuple, even for a single answer, sorted and deduplicated, so every
+consumer uses one check, `chosen_piece_id in case.correct_piece_ids`, with no separate
+single/multi-answer code path). `/` was picked specifically because it can never collide with
+either of `_detect_delimiter`'s two accepted CSV delimiters (`,` or `;`) — a puzzle author must
+never need to know or care which delimiter their own file happens to use when writing a
+multi-answer cell. This meant fixing the one real cell that motivated the feature (the user's own
+`2,3` → `2/3`, since a bare `,` is unsafe in a `,`-delimited file even though it happened to work
+in this particular `;`-delimited one) and touching every consumer of the old singular field:
+`runner.score_puzzles` (membership check, `correct_piece_id` → `correct_piece_ids` in its result
+dicts), `visualize_puzzles.py` (status text, result dict), and `ParchisVisualizer.draw_value_panel`/
+`_draw_move_value_bars` (`correct_piece_id=None` → `correct_piece_ids=None`, membership instead of
+equality — a puzzle with 2 accepted answers now marks BOTH bars, never just one). Regression-tested
+(`test_correct_piece_id_accepts_multiple_slash_separated_answers`,
+`test_correct_piece_id_multiple_answers_deduplicates_and_sorts`,
+`test_correct_piece_id_multiple_answers_all_must_be_legal` — every listed answer must itself be a
+real legal move, not just one of them —, `test_correct_piece_id_malformed_multi_value_raises` — a
+stray `,` is rejected with a message naming `/` as the expected separator —,
+`test_score_puzzles_multi_answer_counts_either_as_correct`,
+`test_render_puzzle_multi_answer_marks_every_correct_piece`). All 10 of the user's real puzzles,
+including puzzle 16, now load, validate, and render cleanly. Full suite green (408 passed) after
+the change.

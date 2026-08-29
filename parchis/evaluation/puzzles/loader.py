@@ -10,7 +10,9 @@ Schema (one row = one puzzle = one decision point):
     puzzle_id, category,
     a_piece_0..a_piece_3 (RED's 4 pieces), b_piece_0..b_piece_3 (YELLOW's),
     turn (A|B), roll (1-6 | capture_bonus | finish_bonus),
-    consecutive_sixes (0-2, must be 0 unless roll==6), correct_piece_id (0-3),
+    consecutive_sixes (0-2, must be 0 unless roll==6),
+    correct_piece_id (0-3, or several 0-3 values separated by '/' when more
+    than one move is genuinely correct -- e.g. "2/3"),
     rationale.
 
 Position encoding (same for all 8 piece columns): 0 = in base,
@@ -29,11 +31,22 @@ design -- encoding, search -- is color-invariant throughout).
 destination is fully determined by (piece, roll/bonus, board state) under
 Parchís rules, so specifying it separately would be redundant and a source
 of authoring-typo bugs. The loader computes the real legal moves and
-validates `correct_piece_id` is genuinely one of them -- this single
-check, reusing RuleEngine.get_legal_moves (the exact path every real
-agent decision goes through), transitively catches bad board setups,
+validates EVERY listed correct_piece_id is genuinely one of them -- this
+single check, reusing RuleEngine.get_legal_moves (the exact path every
+real agent decision goes through), transitively catches bad board setups,
 wrong turn/roll/consecutive_sixes combinations, and plain typos, without
 reimplementing any rule logic itself.
+
+A puzzle can have more than one genuinely correct answer (e.g. two
+equally-safe captures) -- `PuzzleCase.correct_piece_ids` is always a
+tuple (never a bare int, even for the single-answer case, so callers
+never need two different code paths): `chosen_piece_id in
+case.correct_piece_ids` is the one correctness check every consumer
+(runner.score_puzzles, visualize_puzzles.render_puzzle) uses. '/' was
+chosen as the in-field separator (not ',') specifically so it never
+collides with either of the two CSV delimiters _detect_delimiter accepts
+(a puzzle author must never need to know or care which delimiter their
+own file happens to use when writing a multi-answer cell).
 
 Historical note: RuleEngine.get_legal_moves' home-column occupancy check
 used to not filter by color (a puzzle with both a RED and a YELLOW piece
@@ -72,7 +85,7 @@ class PuzzleCase:
     consecutive_sixes: int
     acting_seat: int
     legal_moves: list
-    correct_piece_id: int
+    correct_piece_ids: tuple  # tuple[int, ...], sorted, always >= 1 element
     rationale: str
 
 
@@ -218,17 +231,24 @@ def load_puzzle_row(row):
     effective_value = roll if pending_bonus is None else pending_bonus["squares"]
     legal_moves = game.get_legal_moves(acting_player, effective_value)
 
+    raw_correct = (row.get("correct_piece_id") or "").strip()
     try:
-        correct_piece_id = int(row.get("correct_piece_id"))
-    except (TypeError, ValueError):
-        raise ValueError(f"puzzle {puzzle_id}: correct_piece_id must be an integer")
-    if not (0 <= correct_piece_id <= 3):
-        raise ValueError(f"puzzle {puzzle_id}: correct_piece_id={correct_piece_id} must be 0-3")
-    if not any(m[0].piece_id == correct_piece_id for m in legal_moves):
-        legal_ids = sorted({m[0].piece_id for m in legal_moves})
+        correct_piece_ids = tuple(sorted({int(x) for x in raw_correct.split("/")}))
+    except ValueError:
         raise ValueError(
-            f"puzzle {puzzle_id}: correct_piece_id={correct_piece_id} is not among the "
-            f"actual legal moves for this position (legal piece_ids: {legal_ids}) -- "
+            f"puzzle {puzzle_id}: correct_piece_id must be one or more integers "
+            f"separated by '/' (e.g. '2' or '2/3'), got {raw_correct!r}"
+        )
+    out_of_range = [pid for pid in correct_piece_ids if not (0 <= pid <= 3)]
+    if out_of_range:
+        raise ValueError(f"puzzle {puzzle_id}: correct_piece_id(s) {out_of_range} must be 0-3")
+
+    legal_ids = {m[0].piece_id for m in legal_moves}
+    illegal = [pid for pid in correct_piece_ids if pid not in legal_ids]
+    if illegal:
+        raise ValueError(
+            f"puzzle {puzzle_id}: correct_piece_id(s) {illegal} not among the "
+            f"actual legal moves for this position (legal piece_ids: {sorted(legal_ids)}) -- "
             f"check the board setup, turn, roll, and consecutive_sixes"
         )
 
@@ -238,7 +258,7 @@ def load_puzzle_row(row):
         puzzle_id=puzzle_id, category=category, game=game, roll=roll,
         pending_bonus=pending_bonus, consecutive_sixes=consecutive_sixes,
         acting_seat=acting_seat, legal_moves=legal_moves,
-        correct_piece_id=correct_piece_id, rationale=rationale,
+        correct_piece_ids=correct_piece_ids, rationale=rationale,
     )
 
 
@@ -248,16 +268,49 @@ def _csv_files(path):
     return [path]
 
 
+_DELIMITER_CANDIDATES = (",", ";")
+
+
+def _detect_delimiter(header_line, filepath):
+    """','  is the documented schema delimiter (this is a CSV suite), but
+    spreadsheet software exports ';'-delimited "CSV" by default in many
+    locales (anywhere ',' is the decimal separator) -- a real puzzle file
+    authored in a spreadsheet and saved as CSV hit exactly this. Detected
+    by checking which candidate actually splits the header into a first
+    column literally named 'puzzle_id' -- not a byte-count heuristic
+    (csv.Sniffer would get confused by a comma legitimately appearing
+    inside a semicolon-delimited file's own rationale text, which real
+    puzzles do)."""
+    for delimiter in _DELIMITER_CANDIDATES:
+        if header_line.split(delimiter)[0].strip() == "puzzle_id":
+            return delimiter
+    raise ValueError(
+        f"{filepath}: couldn't detect the CSV delimiter -- expected the header's "
+        f"first column to be 'puzzle_id' using ',' or ';' as the separator, got "
+        f"header line: {header_line!r}"
+    )
+
+
 def load_puzzles(path):
     """path: a single .csv file, or a directory of them (globbed, sorted
     for deterministic ordering across a filesystem). Returns
     list[PuzzleCase]. Validates puzzle_id uniqueness GLOBALLY across every
-    row from every file, not just within one file."""
+    row from every file, not just within one file.
+
+    Each file is opened with encoding='utf-8-sig' (strips a leading UTF-8
+    BOM if present -- a no-op otherwise -- another common byte-for-byte
+    artifact of the same spreadsheet-export path _detect_delimiter's own
+    docstring describes) and its delimiter auto-detected independently
+    (different puzzle files may use different delimiters; each is only
+    ever read with its own)."""
     cases = []
     seen_in = {}
     for filepath in _csv_files(path):
-        with open(filepath, newline="") as f:
-            reader = csv.DictReader(f)
+        with open(filepath, encoding="utf-8-sig", newline="") as f:
+            header_line = f.readline()
+            delimiter = _detect_delimiter(header_line, filepath)
+            f.seek(0)
+            reader = csv.DictReader(f, delimiter=delimiter)
             for row in reader:
                 case = load_puzzle_row(row)
                 if case.puzzle_id in seen_in:

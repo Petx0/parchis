@@ -37,9 +37,15 @@ each) confirms it: a complete, CI-backed strength chain from random up through t
 champion, cross-validated against three independent earlier benchmarks -- **2p clears the ladder**.
 See `docs/AZ_DESIGN.md`'s "Ladder run" entry for the full numbers. The tactical puzzle suite
 (Part 5.4)'s loader/runner/CLI (`parchis/evaluation/puzzles/`) are built and tested against a CSV
-schema agreed with the user; the 40-60 real positions are still pending (user-authored, needs real
-Parchís expertise) -- see `docs/AZ_DESIGN.md`'s "Tactical puzzle suite: loader + runner" entry.
-Batched leaf evaluation in `search.py` (2026-08-28) is now implemented: every leaf across a whole
+schema agreed with the user, plus a visualizer (`parchis/visualization/visualize_puzzles.py`,
+2026-08-29) that renders a puzzle's position, an agent's per-move evaluation, and the ground-truth
+answer on the real board -- see `docs/AZ_DESIGN.md`'s "Tactical puzzle suite: loader + runner" and
+"Puzzle suite visualization" entries. The user has since started filling in the real 40-60
+positions (`parchis/evaluation/puzzles/my_puzzles.csv`); fixed a `;`-delimiter/BOM mismatch from the
+user's spreadsheet export (now auto-detected per file) and extended the schema to accept multiple
+correct answers (`correct_piece_id` may be `'/'`-separated, e.g. `2/3`) after one real puzzle turned
+up genuinely needing it -- all 10 of the user's puzzles so far load and validate cleanly. Batched
+leaf evaluation in `search.py` (2026-08-28) is now implemented: every leaf across a whole
 `search()` call is collected and evaluated in one `NumpyAZNet.forward()` call instead of one per
 leaf, measured 1.3x/2.0x/2.3x faster at depth=1/2/3 with no change to any move/value search() ever
 returns (`test_batched_and_eager_search_agree`, `test_net_evaluator_batched_matches_eager_call_path`)
@@ -562,14 +568,19 @@ interpretable read on *what kind* of mistakes the agent makes.
 *Loader/runner/CLI built 2026-08-28 (`docs/AZ_DESIGN.md`'s "Tactical puzzle suite: loader +
 runner"); CSV schema below, `python -m parchis.evaluation.puzzles --agent <spec>` replacing this
 section's original `--agent az-latest` placeholder (predates `parchis.agents.agent_spec`'s actual
-spec grammar). The 40-60 real positions are user-authored and still pending; 2 verified starter
-puzzles ship as a working template.*
+spec grammar). A visualizer (`parchis/visualization/visualize_puzzles.py`, 2026-08-29) renders any
+puzzle's position, an agent's per-move evaluation, and the ground-truth answer on the real board --
+see AZ_DESIGN.md's "Puzzle suite visualization". The user has started filling in the real 40-60
+positions in `parchis/evaluation/puzzles/my_puzzles.csv`.*
 
 CSV schema (one row = one decision; colors fixed A=RED/B=YELLOW): `puzzle_id`, `category`,
 `a_piece_0`..`a_piece_3`, `b_piece_0`..`b_piece_3` (`0`=base, `1`-`68`=main track, `69`-`75`=that
 color's home column, `76`=finished), `turn` (`A`/`B`), `roll` (`1`-`6`, or `capture_bonus`/
 `finish_bonus`), `consecutive_sixes` (`0`-`2`, must be `0` unless `roll`==6), `correct_piece_id`
-(`0`-`3` — not a destination, which is fully determined and loader-computed), `rationale`.
+(`0`-`3` — not a destination, which is fully determined and loader-computed; or several `0`-`3`
+values separated by `/`, e.g. `2/3`, when more than one move is genuinely correct), `rationale`.
+The file itself may be `,`- or `;`-delimited (auto-detected per file — spreadsheet software in a
+`,`-as-decimal-separator locale exports the latter by default) and may start with a UTF-8 BOM.
 
 ### 5.5 Per-run metrics
 

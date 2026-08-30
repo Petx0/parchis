@@ -70,6 +70,69 @@ def test_build_pool_composition_with_four_promotions():
     print(f"✓ nets={len(nets)} (champion + 4 promoted), anchors={len(anchors)}")
 
 
+def test_append_recent_caps_at_n_fifo():
+    print("\nTesting append_recent caps at MAX_RECENT_HISTORY, evicting oldest-first...")
+    history = []
+    n = champion_pool.MAX_RECENT_HISTORY
+    for i in range(n + 2):
+        history = champion_pool.append_recent(history, f"round_{i:03d}/candidate.pt")
+    assert len(history) == n
+    assert history == [f"round_{i:03d}/candidate.pt" for i in range(2, n + 2)]
+    print(f"✓ after {n + 2} appends, history has {len(history)} entries (oldest 2 evicted)")
+
+
+def test_append_recent_does_not_mutate_input():
+    print("\nTesting append_recent does not mutate its input list...")
+    original = ["a.pt", "b.pt"]
+    updated = champion_pool.append_recent(original, "c.pt")
+    assert original == ["a.pt", "b.pt"], "append_recent must not mutate its input"
+    assert updated == ["a.pt", "b.pt", "c.pt"]
+    print("✓ input list unchanged; a new list was returned")
+
+
+def test_save_and_load_recent_history_round_trips(tmp_path):
+    print("\nTesting save/load_recent_history round-trips...")
+    path = tmp_path / "nested" / "recent_history.json"
+    history = ["runs/x/rounds/round_010/candidate.pt", "runs/x/rounds/round_011/candidate.pt"]
+
+    champion_pool.save_recent_history(path, history)
+    loaded = champion_pool.load_recent_history(path)
+
+    assert loaded == history
+    print(f"✓ round-tripped {loaded} through {path}, including creating parent dirs")
+
+
+def test_load_recent_history_missing_file_returns_empty(tmp_path):
+    print("\nTesting load_recent_history returns [] for a missing file...")
+    result = champion_pool.load_recent_history(tmp_path / "does_not_exist.json")
+    assert result == []
+    print("✓ [] for a fresh run with no rounds completed yet")
+
+
+def test_build_pool_composition_with_recent_and_promoted_combined():
+    print("\nTesting build_pool combines promoted AND recent checkpoints...")
+    champion = object()
+    promoted = [object(), object()]
+    recent = [object(), object(), object()]
+    nets, anchors = champion_pool.build_pool(champion, promoted, recent_numpy_nets=recent)
+    assert nets == (champion, *promoted, *recent), (
+        "Expected nets = (champion, *promoted, *recent), in that order"
+    )
+    assert len(nets) == 1 + len(promoted) + len(recent)
+    assert len(anchors) == 2
+    print(f"✓ nets={len(nets)} (champion + {len(promoted)} promoted + {len(recent)} recent), "
+          f"anchors={len(anchors)}")
+
+
+def test_build_pool_recent_defaults_to_empty():
+    print("\nTesting build_pool's recent_numpy_nets defaults to empty (backward compatible)...")
+    champion = object()
+    promoted = [object()]
+    nets, _anchors = champion_pool.build_pool(champion, promoted)
+    assert nets == (champion, *promoted), "Omitting recent_numpy_nets must not add anything"
+    print(f"✓ nets={nets} unaffected when recent_numpy_nets is omitted")
+
+
 def test_build_pool_anchor_factories_are_callable_arena_factories():
     print("\nTesting build_pool's anchor_factories are valid arena-style factories...")
     import inspect

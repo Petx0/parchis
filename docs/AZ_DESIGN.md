@@ -1410,3 +1410,164 @@ for this checkpoint at this sample size.
 (same one-liner above) once `my_puzzles.csv` has substantially more rows, both to get a statistically
 meaningful answer and to see whether puzzles 2/4's blind spots hold up or were themselves
 edge-of-sample artifacts.
+
+## Strength-improvement plan: diagnosis and Phase 1-3 implementation (2026-08-29/30)
+
+Full write-up, literature review, and the executable plan itself:
+`.claude/plans/twinkly-marinating-hinton.md`. This section records what the plan's Phase 1
+diagnostics actually found and summarizes the Phase 2/3/5.1 code changes that followed from them.
+Scope: 2-player only (per the plan's own explicit framing — 4-player is deferred).
+
+### Phase 1 diagnosis: three independent findings, one coherent picture
+
+**1.1 — `val_value_loss` is completely flat across the entire 44-round plateau (rounds 24-67), and
+is actually slightly *worse* than the pre-plateau rounds.** Read directly from every round's
+`metrics.jsonl` (final epoch), backed up from the scratchpad (see "Preserving the full round
+history" below): linear slope over rounds 24-67 = **-0.000021/round** (indistinguishable from
+zero over 44 rounds), mean = 0.53647, vs. **0.52955** for rounds 0-23 (when 3 real promotions
+happened). `val_policy_loss` shows the same flat pattern (slope +0.000056/round). This argues
+against "the net is still slowly improving and the promotion gate is just too noisy" and for "the
+training loop has stopped extracting new signal from what it's being fed."
+
+**1.2 — Never-promoted candidates from rounds 10 through 67 are statistically indistinguishable in
+playing strength, both from each other AND from the actual champion (round 23).** A diagnostic
+ladder (`n_pairs=200`, exploratory — below the 600-pair promotion standard) round-robinned rounds
+10/30/45/60/67 (all never promoted) against round 23 (the champion) and `heuristic_tuned`:
+
+```
+round_0023_champion   Bradley-Terry 0.733  [0.632, 0.836]
+round_0030                          0.681  [0.578, 0.771]
+round_0045                          0.665  [0.584, 0.760]
+round_0060                          0.645  [0.574, 0.742]
+round_0010                          0.642  [0.533, 0.729]
+round_0067                          0.626  [0.525, 0.697]
+heuristic_tuned                     0.000  [0.000, 0.000]
+```
+
+All 15 net-vs-net pairings landed at 46.2%-54.2% (every CI straddles 50%); all 6 nets beat
+`heuristic_tuned` by nearly identical margins (64.5%-68.2%, consistent with the decisive ladder's
+68.8%). **Round 10 is already exactly as strong as round 67** — the ceiling was reached far
+earlier than round 23's promotion, not gradually approached and then lost. This reframes (without
+invalidating) the pool-diversity hypothesis: the promotion gate wasn't secretly discarding
+*stronger* candidates, it was discarding *differently-weighted, equally-strong* ones — self-play
+against a nearly-static opponent for 44 rounds is a known stall pattern regardless of whether that
+static opponent happens to be "the best."
+
+**1.3 — Puzzles 2 and 4's blind spots (search-pathology section above) share a visible signature.**
+Rendered both via `visualize_puzzles.py --puzzle-id 2`/`--puzzle-id 4`: in both, the agent picks
+piece 3, and the margin over the correct answer is razor-thin (puzzle 2: 0.54 vs. 0.47 correct;
+puzzle 4: 0.33 vs. 0.32, with all four candidates clustered within 0.02 of each other). A
+suggestive (n=2, held loosely) lead for later investigation: a possible per-`piece_id` bias in the
+learned value function — `piece_id` is a fixed input/output slot in the encoding and policy head,
+so a training-distribution correlation with piece 3 specifically is at least plausible — rather than
+a pure board-geometry misjudgment.
+
+**1.4 — Confirmed, statistically significant bias: `root_value` overestimates the mover's own win
+probability by ~2.9 points relative to an independent rollout estimate.** 400 decisions sampled
+from 60 fresh champion-vs-champion games (9,914 decisions harvested, base_depth=1), each compared
+against the mean of 24 independent continuations played out via `Game.snapshot()`/`restore()` using
+the tuned heuristic on every seat (fast, no search, no shared net bias):
+
+```
+n = 400
+mean(root_value - rollout_value), mover's own win-prob channel: +0.0287
+stderr: 0.0068
+one-sample t-test vs 0: t=4.210, p=0.0000
+```
+
+This directly supports the hypothesis that `targets.blend_value_target`'s existing
+`0.5·outcome + 0.5·root_value` formula partly bootstraps its own training target from the net's
+own biased self-estimate, entrenching rather than correcting that bias round after round — the
+same "amplifies rather than corrects a systematic bias" signature as 1.3's search-pathology finding,
+just showing up in training-target construction instead of at decision time.
+
+**Together**, 1.1 (flat validation loss), 1.2 (candidate strength plateaued by round 10, opponent
+pool nearly static for the whole run since only 3 promotions ever occurred), and 1.4 (a real,
+significant self-referential bias in the bootstrap term) triangulate on the same conclusion: this
+looks like a training-data/target-quality plateau, not a search-depth problem — consistent with
+the escalation mechanism's own 0-for-16 record from generating deeper-search training data.
+
+### Phase 2.1 — Escalation retired by default
+
+`SelfPlayRoundConfig.enable_escalation: bool = True` (default preserves existing configs' exact
+behavior); `round_loop.py`'s `escalate = cfg.enable_escalation and meta['consecutive_failures'] >=
+cfg.escalate_after_failures`. The next continuation sets this `False`. Verified by revert
+(`test_escalation_disabled_when_enable_escalation_false`, `parchis/tests/test_round_loop.py`):
+fails against the pre-fix code (round 2 still escalated to depth 2), passes after.
+
+### Phase 2.2 — Rollout-refined value targets (conditional on 1.4 — built, since 1.4 confirmed a
+real bias)
+
+New module `parchis/az/rollouts.py`: `estimate_rollout_value(game, snapshot, mover_seat, n_rollouts,
+rng, max_turns, tuned_weights)` — restores `game` to `snapshot`, plays `n_rollouts` continuations
+with the tuned heuristic on every seat, returns the mean mover-relative outcome. Gated by two new
+`SelfPlayRoundConfig` fields: `value_target_mode: str = "root_value"` (default, unchanged behavior)
+vs. `"rollout"` (a round-level A/B switch), and `rollout_target_fraction: float = 0.05` /
+`rollout_n: int = 24` (cost control — only a random subsample of a round's recorded decisions
+actually pay the `rollout_n`× cost, exactly the lesson escalation's own record already taught: don't
+spend compute on every decision before confirming payoff). Wired into
+`selfplay.py::generate_round_games`'s existing backfill: `value_target` uses `rollout_value` as the
+bootstrap term when one was sampled for that decision, else falls back to `root_value` unchanged.
+
+**A real bug caught and fixed during implementation, worth recording**: the first draft called
+`random.seed(...)` directly inside the rollout loop to vary each rollout's dice sequence — but
+`Game.dice.roll()` reads from that SAME global `random` module, so this would have silently
+corrupted the *real* game's own subsequent dice sequence the moment control returned to it after
+the rollout-sampled decision, for every game where a rollout fired. This is the exact failure mode
+`parchis/search/isolated_random.py` already exists to prevent (built for `parchis/search/mcts.py`'s
+own simulated rollouts) — reused directly rather than re-solved: `estimate_rollout_value`'s whole
+rollout loop now runs inside `isolated_random(...)`, saving and restoring the global state around
+it. Caught by writing the reproducibility test first
+(`test_selfplay_round.py::test_rollout_value_used_as_bootstrap_term_changes_value_target`, which
+asserts the same seed produces the same recorded decisions regardless of rollout settings) — it
+failed until the isolated_random fix was applied, then passed. A second, more direct regression
+test (`test_rollouts.py::test_estimate_rollout_value_does_not_perturb_the_global_random_state`)
+locks this in explicitly: seed global random, note the next 5 draws, reseed identically, call
+`estimate_rollout_value`, confirm the next 5 draws are bit-for-bit the same as before the call.
+
+### Phase 3.1 — Opponent pool broadened with a "recent" FIFO alongside "promoted"
+
+`round_loop.py` already saved every round's `candidate.pt` regardless of promotion outcome, but
+only promoted ones (3 of 68) were ever reused as self-play opponents — meaning 65 already-computed
+candidates were discarded rather than used, and (per 1.2's finding) they weren't even weaker, just
+different. `champion_pool.py` gains a second FIFO, `MAX_RECENT_HISTORY = 8` (larger than
+`MAX_PROMOTED_HISTORY = 4` since these are lower-confidence members), with
+`append_recent`/`load_recent_history`/`save_recent_history` mirroring the promoted trio exactly.
+`build_pool(champion_numpy_net, promoted_numpy_nets, recent_numpy_nets=(), tuned_weights=None)` now
+samples uniformly across `(champion, *promoted, *recent)` — no weighting toward promoted yet
+(deliberately simplest-first, per the same "don't add complexity before confirming payoff" lesson).
+`round_loop.py::run_round` appends **every** round's candidate to recent history unconditionally
+(unlike promoted history's `if promoted:` gate), persisted to a new `recent_history.json` alongside
+`promoted_history.json`. `run_round`'s signature grew a `recent_history` parameter and a 4th return
+value to carry this through `run_continuous`'s loop, exactly like `promoted_history` already does.
+
+### Phase 5.1 — Depth docs/practice gap corrected
+
+`docs/AGENT_REBUILD_PLAN.md` Part 4's table said "Play/eval depth: 2 default, 3 for the strongest
+setting" — never actually true in practice (every promotion gate and benchmark in this project's
+history ran at `eval_depth = base_depth = 1`). Corrected to state actual practice, with a pointer to
+why a real depth change needs much more puzzle-suite evidence first (search-pathology finding
+above). Also corrected the same table's "Parallelism" row, which claimed `multiprocessing` over M4
+performance cores — never implemented; only batched leaf evaluation shipped.
+
+### Preserving the full round history
+
+The scratchpad's `runs/selfplay_2p_v1/rounds/` (68 rounds, ~27h of compute) is session-ephemeral,
+not git-tracked, and was the direct input to 1.1/1.2 above. Backed up the ~34MB of irreplaceable
+artifacts (`candidate.pt` + `metrics.jsonl` + `promotion_result.json` + `done.json` per round) to
+`~/parchis_training_archive/selfplay_2p_v1/` — a plain local directory, deliberately **not** under
+`~/Library/Mobile Documents/...` (iCloud-synced) to avoid triggering a 45GB sync. The 45GB excluded
+is almost entirely `shards/` (raw self-play game arrays, ~667MB/round) — regenerable training data,
+not needed by any diagnostic or by Phase 3.1's forward-looking pool-broadening (which only needs
+candidate *weights*, not the games that produced them).
+
+### What's still open
+
+Per the plan's own deferred-decisions list: whether round 23's champion is this lineage's ceiling
+(revisit once the next 15-20 rounds run under Phases 2.1/2.2/3.1 combined — judge by *promotion
+rate over that window*, not any single round's CI, since rounds 24-67 already established
+0.47-0.52 as the noise floor for a single round's comparison); Phase 4's auxiliary head and any
+capacity increase (deliberately sequenced after this round of changes gets a chance to move the
+needle on cheaper, lower-risk levers first); and growing `my_puzzles.csv` toward 40-60, in parallel
+with the above, which every puzzle-based conclusion in this and the prior section remains gated on.
+edge-of-sample artifacts.

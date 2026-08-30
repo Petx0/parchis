@@ -279,10 +279,74 @@ def test_promoted_nets_can_occupy_the_non_champion_seat(monkeypatch):
           f"games with a promoted net in the pool")
 
 
+def test_rollout_target_fraction_zero_never_sets_rollout_value():
+    print("\nTesting rollout_target_fraction=0.0 (default) leaves every rollout_value as None...")
+    net = _tiny_numpy_net(num_players=2)
+    examples, _stats = selfplay.generate_round_games(
+        net, [], n_games=20, num_players=2, max_turns=300, depth=1, seed=20,
+    )
+    assert examples
+    assert all(ex['rollout_value'] is None for ex in examples), (
+        "Expected no rollout_value to be set when rollout_target_fraction defaults to 0.0"
+    )
+    print(f"✓ all {len(examples)} recorded decisions have rollout_value=None")
+
+
+def test_rollout_target_fraction_one_sets_rollout_value_for_every_decision():
+    print("\nTesting rollout_target_fraction=1.0 rolls out every recorded decision...")
+    net = _tiny_numpy_net(num_players=2)
+    examples, _stats = selfplay.generate_round_games(
+        net, [], n_games=6, num_players=2, max_turns=150, depth=1, seed=21,
+        rollout_target_fraction=1.0, rollout_n=4,
+    )
+    assert examples
+    assert all(ex['rollout_value'] is not None for ex in examples), (
+        "Expected every recorded decision to have a rollout_value with rollout_target_fraction=1.0"
+    )
+    for ex in examples:
+        assert ex['rollout_value'].shape == (2,)
+        assert abs(float(ex['rollout_value'].sum()) - 1.0) < 1e-4
+    print(f"✓ all {len(examples)} recorded decisions have a valid rollout_value")
+
+
+def test_rollout_value_used_as_bootstrap_term_changes_value_target():
+    print("\nTesting value_target uses rollout_value (not root_value) when one was sampled...")
+    net = _tiny_numpy_net(num_players=2)
+    kwargs = dict(n_games=6, num_players=2, max_turns=150, depth=1, seed=22, lam=0.9)
+
+    examples_root, _ = selfplay.generate_round_games(net, [], **kwargs)
+    examples_rollout, _ = selfplay.generate_round_games(
+        net, [], rollout_target_fraction=1.0, rollout_n=4, **kwargs,
+    )
+
+    assert len(examples_root) == len(examples_rollout), (
+        "Same seed must produce the same recorded decisions regardless of rollout settings "
+        "(rollout_rng is a separate stream from the move-selection RNGs)"
+    )
+    # lam=0.9 weights the bootstrap term heavily, so a genuinely different
+    # bootstrap source (rollout_value vs root_value) should show up as a
+    # different value_target for at least some decisions -- outcome
+    # (the other 10%) is identical between the two runs since dirichlet_rng
+    # and the outer game-sampling rng are untouched by rollout settings.
+    differs = [
+        not np.allclose(a['value_target'], b['value_target'], atol=1e-6)
+        for a, b in zip(examples_root, examples_rollout)
+    ]
+    assert any(differs), (
+        "Expected at least one decision's value_target to differ between root_value and "
+        "rollout modes"
+    )
+    print(f"✓ {sum(differs)}/{len(differs)} decisions' value_targets differed between modes, "
+          f"confirming rollout_value is actually used as the bootstrap term when sampled")
+
+
 if __name__ == '__main__':
     test_champion_seat_is_always_recorded()
     test_anchor_wrapper_never_records_and_still_counts_plies()
     test_non_champion_anchor_seats_reduce_recorded_fraction()
     test_truncated_round_game_value_target_outcome_component_is_draw()
     test_round_examples_to_arrays_shapes_and_row_sums()
+    test_rollout_target_fraction_zero_never_sets_rollout_value()
+    test_rollout_target_fraction_one_sets_rollout_value_for_every_decision()
+    test_rollout_value_used_as_bootstrap_term_changes_value_target()
     print("\n(remaining tests need monkeypatch -- run via pytest)")

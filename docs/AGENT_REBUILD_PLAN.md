@@ -53,7 +53,23 @@ leaf evaluation in `search.py` (2026-08-28) is now implemented: every leaf acros
 `search()` call is collected and evaluated in one `NumpyAZNet.forward()` call instead of one per
 leaf, measured 1.3x/2.0x/2.3x faster at depth=1/2/3 with no change to any move/value search() ever
 returns (`test_batched_and_eager_search_agree`, `test_net_evaluator_batched_matches_eager_call_path`)
--- see `docs/AZ_DESIGN.md`'s "Batched leaf evaluation" entry. Nothing else is pending before 4p.
+-- see `docs/AZ_DESIGN.md`'s "Batched leaf evaluation" entry.
+
+The round-23-champion-plateau decision above is now resolved by evidence rather than left open:
+a full analysis (training results + puzzle findings + a TD-Gammon/post-AlphaZero literature review)
+found three independent signals -- flat validation loss for all 44 plateau rounds, never-promoted
+candidates statistically tied in strength with the champion back to round 10, and a confirmed,
+significant self-bias in `root_value` relative to independent rollouts (p<0.0001) -- pointing at a
+training-data/target-quality plateau rather than a search-depth problem or a dead end. Plan and
+full diagnostic numbers: `.claude/plans/twinkly-marinating-hinton.md` and
+`docs/AZ_DESIGN.md`'s "Strength-improvement plan" entry (2026-08-29/30). Implemented and tested:
+escalation retired by default (0/16 lifetime promotions, ~79% of wall-clock, not worth its cost);
+rollout-refined value targets (`parchis/az/rollouts.py`, opt-in, cost-controlled subsampling); the
+self-play pool broadened with a "recent" (every round, not just promoted) checkpoint history
+alongside the existing "last-4-promoted" one; and the Part 4 depth/parallelism table corrected to
+match actual practice. Next: launch a continuation under all three changes and judge by promotion
+*rate* over 15-20 rounds (not any single round's CI); auxiliary-head/architecture work and any
+capacity increase are deliberately sequenced after that. Nothing else is pending before 4p.
 
 ## How to use this document
 
@@ -521,13 +537,13 @@ is deliberately shaped to make that possible.
 | Value target | seat-win distribution, cross-entropy | calibrated P(win), directly usable by search |
 | Discount | none (γ=1) | the objective is the outcome, not a discounted proxy |
 | Value target blend λ | 0.5 (search root value vs. outcome) | §1.6 variance reduction |
-| Generation depth | 1 (2 on escalation) | ~3 leaves/decision keeps generation cheap |
-| Play/eval depth | 2 default, 3 for the strongest setting | ~54 / ~1000 leaves |
+| Generation depth | 1 (2 on escalation, retired by default 2026-08-29 -- see docs/AZ_DESIGN.md) | ~3 leaves/decision keeps generation cheap |
+| Play/eval depth | 1, always -- matches generation depth (revised 2026-08-29; this row originally said "2 default, 3 for strongest," an aspiration never actually used: every promotion gate and benchmark in this project's history ran eval at base_depth=1. See `round_loop.py`'s eval-depth-confound fix and the puzzle suite's search-pathology finding, both in docs/AZ_DESIGN.md, for why a real depth increase needs much more puzzle-suite evidence before adopting) | ~3 leaves at depth 1; ~54 / ~1000 at depth 2/3 if ever revisited |
 | Truncation | 1,000 turns → scored as a draw (1/N per seat) | §1.8; never silently 0 |
 | Optimiser | AdamW, lr 1e-3 cosine, weight decay 1e-4 | early stopping on validation loss |
 | Buffer | last ~3 rounds | recency window, not unbounded accumulation |
 | Promotion | ≥600 duplicate pairs, Wilson lower bound > 50% | the gate Phase C lacked |
-| Parallelism | `multiprocessing` over M4 performance cores; batched leaf eval per search | dominant cost is net evals |
+| Parallelism | batched leaf eval per search (revised 2026-08-29: `multiprocessing` over M4 performance cores was never actually implemented -- no code under `parchis/az/` uses it; only the batched-leaf-eval half of this row shipped) | dominant cost is net evals |
 
 **GCP phase (later, only if the M4 saturates):** the loop is embarrassingly parallel at the
 game-generation level. Move generation to N preemptible CPU workers writing shards to GCS, keep a

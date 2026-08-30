@@ -84,11 +84,11 @@ def turn_context_block_size():
 
 
 def encoding_size(num_players):
-    """Total encode() output length for a given player count. 2p=220 is a
+    """Total encode() output length for a given player count. 2p=216 is a
     coincidence of this exact feature list, not a rounded target (the plan's
     own §2.1 estimate -- "2p ~220, 4p ~430" -- was an approximation; the
-    4p total this module actually produces is smaller, ~380, since none of
-    the ~10 "own piece" features scale with N. See docs/AZ_DESIGN.md."""
+    actual totals this module produces are close but not identical, since
+    none of the ~10 "own piece" features scale with N. See docs/AZ_DESIGN.md."""
     return (own_piece_block_size() + track_block_size(num_players)
             + home_column_block_size(num_players) + per_seat_scalar_block_size(num_players)
             + turn_context_block_size())

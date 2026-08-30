@@ -30,7 +30,7 @@ import random
 import numpy as np
 
 from parchis.agents import heuristic
-from parchis.az import champion_pool, encoding, search, targets
+from parchis.az import champion_pool, encoding, rollouts, search, targets
 from parchis.az.agent import NetEvaluator
 from parchis.az.turn_context import TurnContextTracker
 from parchis.evaluation import arena
@@ -190,7 +190,9 @@ def examples_to_arrays(examples, num_players):
 
 def _make_search_recording_factory(numpy_net, examples, game_index_box, depth, ply_box,
                                     dirichlet_rng, tau_start, tau_end, anneal_plies,
-                                    tau_target, dirichlet_alpha, dirichlet_epsilon):
+                                    tau_target, dirichlet_alpha, dirichlet_epsilon,
+                                    rollout_target_fraction=0.0, rollout_n=24,
+                                    rollout_rng=None, max_turns=arena.DEFAULT_MAX_TURNS):
     """One seat's factory for generate_round_games, when that seat is
     occupied by a search-capable pool member (the champion or a promoted
     net) this game: every real decision runs search.search() directly
@@ -203,7 +205,17 @@ def _make_search_recording_factory(numpy_net, examples, game_index_box, depth, p
     seat's factory within one game (mutable cells, not closures over a
     fresh int -- every seat's decision must advance the SAME ply clock,
     since "the first ~15 plies" means the game's own ply count, not this
-    seat's own decision count)."""
+    seat's own decision count).
+
+    `rollout_target_fraction`/`rollout_n`/`rollout_rng` (Phase 2.2,
+    parchis.az.rollouts): when > 0, a `rollout_target_fraction` random
+    subset of this factory's OWN recorded decisions also get an
+    independent rollout-based value estimate (stored as
+    'rollout_value', else None) -- see rollouts.py's own module
+    docstring for why this is deliberately sampled rather than applied to
+    every decision. `rollout_target_fraction=0.0` (the default) never
+    touches `rollout_rng`, preserving byte-identical behavior to before
+    this parameter existed for any caller that doesn't pass it."""
     evaluator = NetEvaluator(numpy_net)
 
     def factory(game, seat, roll_box):
@@ -239,9 +251,21 @@ def _make_search_recording_factory(numpy_net, examples, game_index_box, depth, p
             # -- exactly generate_games' hard-won fix (see module
             # docstring), applied from the start this time rather than
             # discovered as a bug later.
+            rollout_value = None
+            if rollout_target_fraction > 0 and rollout_rng.random() < rollout_target_fraction:
+                # search.search() never mutates `game` (its own guarantee),
+                # so it's still safe to snapshot AFTER calling it, at the
+                # same pre-move state `obs` was itself encoded from.
+                snap = game.snapshot()
+                rollout_value = rollouts.estimate_rollout_value(
+                    game, snap, mover_seat=seat, n_rollouts=rollout_n,
+                    rng=rollout_rng, max_turns=max_turns,
+                )
+
             examples.append({
                 'encoding': obs,
                 'root_value': np.roll(root_value_absolute, -seat),
+                'rollout_value': rollout_value,
                 'policy_target': targets.policy_target_from_move_values(
                     move_values, seat, tau_target=tau_target,
                 ),
@@ -282,7 +306,8 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
                           anneal_plies=targets.DEFAULT_ANNEAL_PLIES,
                           dirichlet_alpha=targets.DEFAULT_DIRICHLET_ALPHA,
                           dirichlet_epsilon=targets.DEFAULT_DIRICHLET_EPSILON,
-                          tuned_weights=None):
+                          recent_numpy_nets=(), tuned_weights=None,
+                          rollout_target_fraction=0.0, rollout_n=24):
     """
     Phase 3 self-play generation (Part 3 Phase 3's "Generate" bullet): the
     CURRENT CHAMPION (`champion_numpy_net`) always occupies one seat per
@@ -290,7 +315,8 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
     "randomize which seat" fairness convention -- guarantees every game
     yields at least one recorded seat). Every OTHER seat samples
     independently from parchis.az.champion_pool.build_pool's pool
-    (champion again, `promoted_numpy_nets`, tuned heuristic, random).
+    (champion again, `promoted_numpy_nets`, `recent_numpy_nets`, tuned
+    heuristic, random).
 
     Every decision made by a search-capable seat (the guaranteed champion
     seat, or a sampled opponent seat that also turned out to be net-backed)
@@ -310,14 +336,21 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
     order as generate_games' own (np.roll(absolute_outcome,
     -mover_seat)).
 
+    `rollout_target_fraction`/`rollout_n` (Phase 2.2, parchis.az.rollouts):
+    forwarded to _make_search_recording_factory -- see its own docstring.
+    0.0 (default) never spends any rollout compute.
+
     Returns:
         tuple(list[dict], dict): (examples, stats).
-        examples: [{'encoding', 'root_value' (mover-relative), 'policy_target'
-            (length-4 float32, from the UN-perturbed move values --
-            NOT what selected chosen_piece_id below), 'chosen_piece_id'
-            (diagnostic: the exploration-sampled move actually played),
-            'mover_seat', 'game_index', 'value_target' (mover-relative,
-            filled in on backfill)}, ...].
+        examples: [{'encoding', 'root_value' (mover-relative),
+            'rollout_value' (mover-relative, or None -- only set for the
+            rollout_target_fraction of decisions actually sampled),
+            'policy_target' (length-4 float32, from the UN-perturbed move
+            values -- NOT what selected chosen_piece_id below),
+            'chosen_piece_id' (diagnostic: the exploration-sampled move
+            actually played), 'mover_seat', 'game_index', 'value_target'
+            (mover-relative, filled in on backfill, from rollout_value
+            when set else root_value)}, ...].
         stats: {'n_games', 'n_recorded_decisions', 'n_total_plies'
             (every real choose_move call across every seat, recorded or
             not -- what the ply clock actually counted), 'n_truncated',
@@ -328,9 +361,17 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
     """
     rng = random.Random(seed)
     dirichlet_rng = np.random.default_rng(seed)
+    # Independent stream from `rng` (same seed value, different Random
+    # instance -- matching dirichlet_rng's own precedent just above): only
+    # ever consumed when rollout_target_fraction > 0 (short-circuit
+    # evaluation in the recording factory), so existing callers that don't
+    # pass rollout_target_fraction see byte-identical output to before
+    # this parameter existed.
+    rollout_rng = random.Random(seed)
     examples = []
     nets, anchor_factories = champion_pool.build_pool(
-        champion_numpy_net, promoted_numpy_nets, tuned_weights=tuned_weights,
+        champion_numpy_net, promoted_numpy_nets, recent_numpy_nets=recent_numpy_nets,
+        tuned_weights=tuned_weights,
     )
     # Every seat NOT holding the guaranteed champion samples uniformly from
     # this combined pool -- ('net', i) again lets champion-vs-champion (or
@@ -361,6 +402,8 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
                 agent_factories[seat] = _make_search_recording_factory(
                     nets[idx], examples, game_index_box, depth, ply_box, dirichlet_rng,
                     tau_start, tau_end, anneal_plies, tau_target, dirichlet_alpha, dirichlet_epsilon,
+                    rollout_target_fraction=rollout_target_fraction, rollout_n=rollout_n,
+                    rollout_rng=rollout_rng, max_turns=max_turns,
                 )
             else:
                 agent_factories[seat] = _make_ply_counting_factory(anchor_factories[idx], ply_box)
@@ -381,8 +424,14 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
         n_new = len(examples) - mark
         for example in examples[mark:]:
             outcome_relative = np.roll(absolute_outcome, -example['mover_seat'])
+            # Use the rollout-refined estimate as the bootstrap term when
+            # this decision was sampled for one (Phase 2.2); otherwise
+            # fall back to root_value, exactly as before this existed.
+            bootstrap_value = example['rollout_value']
+            if bootstrap_value is None:
+                bootstrap_value = example['root_value']
             example['value_target'] = targets.blend_value_target(
-                outcome_relative, example['root_value'], lam=lam,
+                outcome_relative, bootstrap_value, lam=lam,
             ).astype(np.float32)
 
         stats['n_games'] += 1

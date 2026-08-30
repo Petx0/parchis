@@ -132,8 +132,36 @@ class SelfPlayRoundConfig:
     # `escalate_after_failures` more attempts before escalating again
     # (not specified numerically by the plan; this is round_loop.py's own
     # documented choice -- see its module docstring).
+    #
+    # enable_escalation defaults True to preserve existing configs' exact
+    # historical behavior on load (dataclass field defaults fill in
+    # missing keys). It exists because the lineage's actual record is 0
+    # promotions from 16 escalated rounds across 68 rounds, while
+    # consuming ~79% of the first 40 rounds' wall-clock (see
+    # docs/AZ_DESIGN.md and .claude/plans/twinkly-marinating-hinton.md) --
+    # set False to skip escalation entirely and keep training at
+    # base_depth regardless of consecutive_failures.
     escalate_after_failures: int = 3
     escalation_depth: int = 2
+    enable_escalation: bool = True
+
+    # Rollout-refined value targets (Phase 2.2, parchis.az.rollouts):
+    # value_target_mode="root_value" (default, unchanged historical
+    # behavior) always uses search's own root_value as z_value's
+    # bootstrap term. "rollout" additionally spends rollout_n heuristic
+    # rollouts (parchis.az.rollouts.estimate_rollout_value) on a random
+    # rollout_target_fraction of recorded decisions per round, replacing
+    # root_value with the rollout estimate as the bootstrap term for
+    # exactly those decisions -- an A/B-able alternative (compare a few
+    # rounds of each mode via the ladder) rather than a change applied
+    # irreversibly to every decision, which would multiply generation
+    # cost by rollout_n. See .claude/plans/twinkly-marinating-hinton.md
+    # Phase 1.4 for the diagnostic that motivated this (root_value found
+    # to systematically overestimate the mover's own win probability by
+    # ~2.9 points relative to an independent rollout estimate, p<0.0001).
+    value_target_mode: str = "root_value"
+    rollout_target_fraction: float = 0.05
+    rollout_n: int = 24
 
     def save(self, runs_dir=DEFAULT_RUNS_DIR):
         """Writes runs/<run_name>/config.json. Returns the run directory."""

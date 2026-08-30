@@ -20,6 +20,11 @@ Phase 3, "the main event, continuous"). Each round:
   5. Escalate: after `escalate_after_failures` consecutive non-promotions
      at base_depth, the NEXT round alone GENERATES at escalation_depth
      instead (expert iteration -- stronger training data), then reverts.
+     Gated by cfg.enable_escalation (see the retirement note below).
+  6. Update pool history: every round's candidate is appended to the
+     "recent" FIFO regardless of outcome; promoted candidates are ALSO
+     appended to the separate "promoted" FIFO (see
+     parchis.az.champion_pool's module docstring for why both exist).
 
 Every round is checkpointed under runs/<run_name>/rounds/round_NNNN/,
 finishing with a done.json sentinel written only once every step above
@@ -44,6 +49,15 @@ base_depth, decoupling "what depth generated this round's data" from
 "what depth the promotion match itself runs at" -- a genuine improvement
 in the candidate's value/policy function should now show up as a win
 without the champion also getting a search-time boost to compensate.
+
+Escalation retired by default going forward (2026-08-29, see
+.claude/plans/twinkly-marinating-hinton.md Phase 2.1): even AFTER the fix
+above, the lineage's full record is 0 promotions from 16 escalated rounds
+across 68 rounds total, while still consuming a hugely disproportionate
+share of wall-clock (escalated rounds cost ~4-9x a base-depth round).
+cfg.enable_escalation (default True, so existing configs are unaffected
+on load) lets a run disable escalation entirely rather than deleting the
+mechanism -- see SelfPlayRoundConfig's own docstring.
 """
 
 import json
@@ -90,7 +104,8 @@ def find_resume_round(run_dir):
 
 def _champion_paths(run_dir):
     run_dir = Path(run_dir)
-    return run_dir / "champion.pt", run_dir / "champion_meta.json", run_dir / "promoted_history.json"
+    return (run_dir / "champion.pt", run_dir / "champion_meta.json",
+            run_dir / "promoted_history.json", run_dir / "recent_history.json")
 
 
 def load_champion_state(run_dir, cfg):
@@ -102,7 +117,7 @@ def load_champion_state(run_dir, cfg):
     practice (see run_continuous's `initial_champion_state_dict`), but
     this fallback keeps round_loop.py itself independently correct/
     testable without one."""
-    champion_path, meta_path, _history_path = _champion_paths(run_dir)
+    champion_path, meta_path, _promoted_path, _recent_path = _champion_paths(run_dir)
     if champion_path.exists():
         state_dict = torch.load(champion_path, map_location="cpu")
         with open(meta_path) as f:
@@ -114,7 +129,7 @@ def load_champion_state(run_dir, cfg):
 
 
 def _save_champion_state(run_dir, state_dict, meta):
-    champion_path, meta_path, _history_path = _champion_paths(run_dir)
+    champion_path, meta_path, _promoted_path, _recent_path = _champion_paths(run_dir)
     torch.save(state_dict, champion_path)
     with open(meta_path, "w") as f:
         json.dump(meta, f, indent=2)
@@ -134,19 +149,22 @@ def _gather_replay_buffer_shards(run_dir, round_num, this_round_shard_paths, rep
     return buffer_paths
 
 
-def run_round(round_num, champion_state, meta, promoted_history, cfg, run_dir):
+def run_round(round_num, champion_state, meta, promoted_history, recent_history, cfg, run_dir):
     """Runs ONE self-play round to completion (see module docstring for
-    the 5 steps). Returns (new_champion_state, new_meta,
-    new_promoted_history) -- the champion only actually changes if this
-    round promoted; otherwise all three are returned unchanged (by value,
-    not mutated in place) except meta['consecutive_failures'].
+    the 6 steps). Returns (new_champion_state, new_meta,
+    new_promoted_history, new_recent_history) -- the champion only
+    actually changes if this round promoted; otherwise all four are
+    returned unchanged (by value, not mutated in place) except
+    meta['consecutive_failures'] and recent_history, which grows every
+    round regardless of promotion (parchis.az.champion_pool's module
+    docstring explains why both histories exist).
     """
     run_dir = Path(run_dir)
     round_dir = _round_dir(run_dir, round_num)
     shards_dir = round_dir / "shards"
     shards_dir.mkdir(parents=True, exist_ok=True)
 
-    escalate = meta['consecutive_failures'] >= cfg.escalate_after_failures
+    escalate = cfg.enable_escalation and meta['consecutive_failures'] >= cfg.escalate_after_failures
     depth = cfg.escalation_depth if escalate else cfg.base_depth
 
     input_size = encoding.encoding_size(cfg.num_players)
@@ -158,6 +176,19 @@ def run_round(round_num, champion_state, meta, promoted_history, cfg, run_dir):
         champion_pool.load_numpy_net(p, input_size, cfg.num_players, cfg.hidden_sizes)
         for p in promoted_history
     ]
+    recent_numpy_nets = [
+        champion_pool.load_numpy_net(p, input_size, cfg.num_players, cfg.hidden_sizes)
+        for p in recent_history
+    ]
+
+    # Phase 2.2: value_target_mode="root_value" (default) forces the
+    # rollout fraction to 0 regardless of cfg.rollout_target_fraction's
+    # configured value -- a single round-level on/off switch for the A/B
+    # comparison (see SelfPlayRoundConfig's own docstring), independent
+    # of how the "how much, once enabled" knob happens to be set.
+    effective_rollout_fraction = (
+        cfg.rollout_target_fraction if cfg.value_target_mode == "rollout" else 0.0
+    )
 
     # --- 1. Generate (in shards, matching Phase 2's on-disk shape) ---
     n_shards = max(1, cfg.n_games_per_round // cfg.games_per_shard)
@@ -170,7 +201,8 @@ def run_round(round_num, champion_state, meta, promoted_history, cfg, run_dir):
             num_players=cfg.num_players, max_turns=cfg.max_turns, depth=depth, seed=seed,
             lam=cfg.lam, tau_target=cfg.tau_target, tau_start=cfg.tau_start, tau_end=cfg.tau_end,
             anneal_plies=cfg.anneal_plies, dirichlet_alpha=cfg.dirichlet_alpha,
-            dirichlet_epsilon=cfg.dirichlet_epsilon,
+            dirichlet_epsilon=cfg.dirichlet_epsilon, recent_numpy_nets=recent_numpy_nets,
+            rollout_target_fraction=effective_rollout_fraction, rollout_n=cfg.rollout_n,
         )
         X, policy_targets, value_targets = selfplay.round_examples_to_arrays(examples, cfg.num_players)
         shard_path = shards_dir / f"shard_{shard_i:03d}.npz"
@@ -264,12 +296,19 @@ def run_round(round_num, champion_state, meta, promoted_history, cfg, run_dir):
         # round if the escalated attempt ALSO failed to promote.
         new_meta['consecutive_failures'] = 0 if escalate else meta['consecutive_failures'] + 1
 
+    # --- 6. Update recent-candidate history: EVERY round, unconditionally
+    # (unlike promoted_history above) -- see parchis.az.champion_pool's
+    # module docstring for why non-promoted candidates are still worth
+    # keeping around as opponents.
+    new_recent_history = champion_pool.append_recent(list(recent_history), str(candidate_path))
+
     _save_champion_state(run_dir, new_state, new_meta)
     champion_pool.save_promoted_history(_champion_paths(run_dir)[2], new_promoted_history)
+    champion_pool.save_recent_history(_champion_paths(run_dir)[3], new_recent_history)
     with open(round_dir / "done.json", "w") as f:
         json.dump({'round': round_num, 'promoted': promoted}, f)
 
-    return new_state, new_meta, new_promoted_history
+    return new_state, new_meta, new_promoted_history, new_recent_history
 
 
 def run_continuous(cfg, runs_dir=config_module.DEFAULT_RUNS_DIR, max_rounds=None,
@@ -287,32 +326,35 @@ def run_continuous(cfg, runs_dir=config_module.DEFAULT_RUNS_DIR, max_rounds=None
     fresh run_dir is intentionally started without one (falls back to
     load_champion_state's own random-init default).
 
-    Returns: (final champion_state, final meta, final promoted_history).
+    Returns: (final champion_state, final meta, final promoted_history,
+    final recent_history).
     """
     run_dir = Path(runs_dir) / cfg.run_name
     run_dir.mkdir(parents=True, exist_ok=True)
     cfg.save(runs_dir=runs_dir)
 
-    champion_path, meta_path, history_path = _champion_paths(run_dir)
+    champion_path, meta_path, promoted_path, recent_path = _champion_paths(run_dir)
     if not champion_path.exists() and initial_champion_state_dict is not None:
         _save_champion_state(run_dir, initial_champion_state_dict, dict(_FRESH_META))
 
     champion_state, meta = load_champion_state(run_dir, cfg)
-    promoted_history = champion_pool.load_promoted_history(history_path)
+    promoted_history = champion_pool.load_promoted_history(promoted_path)
+    recent_history = champion_pool.load_recent_history(recent_path)
     round_num = find_resume_round(run_dir)
     print(f"round_loop starting at round {round_num} (champion last updated at round "
           f"{meta['round']}, {meta['promotions']} total promotions, "
           f"{len(promoted_history)} promoted checkpoints in pool, "
+          f"{len(recent_history)} recent checkpoints in pool, "
           f"{meta['consecutive_failures']} consecutive failures)", flush=True)
 
     while max_rounds is None or round_num < max_rounds:
         start = time.perf_counter()
-        champion_state, meta, promoted_history = run_round(
-            round_num, champion_state, meta, promoted_history, cfg, run_dir,
+        champion_state, meta, promoted_history, recent_history = run_round(
+            round_num, champion_state, meta, promoted_history, recent_history, cfg, run_dir,
         )
         elapsed = time.perf_counter() - start
         print(f"round {round_num} finished in {elapsed:.1f}s ({meta['promotions']} promotions so far)",
               flush=True)
         round_num += 1
 
-    return champion_state, meta, promoted_history
+    return champion_state, meta, promoted_history, recent_history

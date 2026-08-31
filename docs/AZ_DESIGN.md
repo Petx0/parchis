@@ -1665,13 +1665,55 @@ passed, up from 422). One test caught a real, useful nuance rather than a bug: a
 correctly returns the prior champion state completely unchanged by design — the migration is only
 observable by forcing a promotion in that specific test, not a flaw in `run_round` itself.
 
+### Aux-head result and final decision: stop iterating on this lineage (2026-08-31)
+
+Ran 15 rounds (118-132) with `aux_loss_weight=0.2`, `value_target_mode` reverted to `"root_value"`
+to keep the aux head isolated as the only new variable versus the prior 50-round test. Round 118's
+own warm-start was the first real (not just unit-tested) exercise of `load_state_dict_compat`,
+loading round 117's pre-aux-head champion into the new architecture — worked cleanly, no crash.
+`val_aux_loss` confirmed the head is genuinely learning (settling around 0.47-0.48 per round,
+comfortably below the ln(2)≈0.693 "no information" baseline for a 4-target BCE loss, and decreasing
+within each round's own training).
+
+**Result: 0/15 promoted (0/65 combined across all four interventions now run: escalation-off,
++pool-broadening, +rollout-targets, +aux-head).** At the historical ~4.4%/round base rate, P(exactly
+0 in 65 | no change at all) = 0.053 — a true improvement of even ~7%/round is now quite strongly
+disfavored (P=0.009); 10%+ is very strongly disfavored (P=0.001).
+
+**Fourth verification ladder** (round_0132 added to the running set of reference checkpoints):
+
+```
+round_0067                  0.729  [0.623, 0.814]   <- best of six
+round_0082                  0.701  [0.601, 0.769]
+round_0023_champion         0.698  [0.615, 0.795]
+round_0117                  0.698  [0.616, 0.771]
+round_0102                  0.663  [0.560, 0.731]
+round_0132                  0.617  [0.538, 0.676]   <- worst of six, and the MOST-trained candidate
+```
+
+Round 132 (65 rounds of fixes applied, the most cumulative training of any candidate in this whole
+program) is the single weakest of the six checkpoints tested, losing head-to-head to every other
+net-based candidate. Taken alone this could look like a regression, but every checkpoint in this
+program has now taken a turn near the top and near the bottom of some ladder (round 82: best, then
+mid-pack, then near-worst; round 102: worst, then mid-pack) with heavily overlapping CIs throughout
+— consistent with noise around a fixed strength level across the WHOLE 65-round program, not
+evidence any one intervention specifically hurt. The honest reading is the same as the 50-round
+checkpoint: no reliable improvement, from any of the four things tried.
+
+**Decision (explicitly asked, not assumed): stop iterating on this lineage.** Round 23's champion
+(`runs/selfplay_2p_v1_champion/`, weights unchanged and confirmed byte-identical throughout this
+entire 65-round program via checksum) remains the project's strongest 2-player agent and the one to
+keep using — the ladder work above confirms it is statistically indistinguishable from, not worse
+than, every later candidate tried. `champion_meta.json`'s `round`/`consecutive_failures` bookkeeping
+fields updated to 132/65 to keep the historical record accurate (the champion weights themselves are
+unaffected — this is the same "last round processed" bookkeeping correction this project has made
+before). No further training rounds are planned against this lineage; a capacity increase (Phase
+4.2) or a deliberate architecture/data-scale redesign ("v2") remain on the table as a DELIBERATE,
+separately-scoped future decision, not a next incremental step in this sequence.
+
 ### What's still open
 
-Testing the aux head is the immediate next step (a fresh round, `aux_loss_weight=0.2`,
-`value_target_mode` reverted to `"root_value"` so this stays an isolated test of the ONE new
-variable rather than compounding with rollout targets, which itself showed no clear signal). Beyond
-that: whether round 23's champion (or, per this section's finding, any of rounds 23-117, all
-roughly tied) is this architecture's practical ceiling regardless of aux-head results; a capacity
-increase (Phase 4.2, last resort — breaks warm-starting, forces a full retrain); and growing
-`my_puzzles.csv` toward 40-60, in parallel with all of the above, which every puzzle-based
-conclusion in this and the prior section remains gated on.
+With this lineage's iteration explicitly stopped, growing `my_puzzles.csv` toward 40-60 is the
+main remaining active thread — every puzzle-based conclusion in this document (the depth-accuracy
+sweep, the puzzles-2-and-4 blind spots, the per-piece_id bias lead) is gated on that sample growing,
+independent of anything else in this section.

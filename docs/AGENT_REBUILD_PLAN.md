@@ -76,10 +76,19 @@ lever: an auxiliary prediction head (Phase 4.1, `parchis/az/net.py`'s `aux_head`
 whether each own piece finishes by game end -- free supervision, no new generation cost), with
 backward-compatible loading for every existing pre-aux-head checkpoint
 (`AZNet.load_state_dict_compat`) and a shard-schema migration so old shards contribute zero aux
-gradient rather than a fabricated one. 433 tests passing (up from 422). Next: run a fresh round
-with `aux_loss_weight` turned on (isolated from the rollout-targets variable, which showed no clear
-signal) and judge the same way -- promotion rate + ladder verification, not a single round's CI.
-Nothing else is pending before 4p.
+gradient rather than a fabricated one. 433 tests passing (up from 422). Ran 15 rounds with it
+(118-132, `aux_loss_weight=0.2`): also 0 promotions (0/65 combined across all four interventions
+tried), and a fourth verification ladder shows the same noisy, no-trend pattern as every prior one
+-- round 132, the single most-trained candidate across the whole program, came out weakest of six
+checkpoints tested, with heavily overlapping confidence intervals throughout. **Explicitly decided
+(asked, not assumed): stop iterating on this lineage.** Round 23's champion remains the project's
+strongest 2-player agent (confirmed statistically indistinguishable from, not worse than, every
+later candidate) and stays in use; `champion_meta.json` bookkeeping corrected to reflect the final
+round count (132) -- the champion's own weights are unaffected, unchanged since round 23 throughout.
+A capacity increase or a deliberate "v2" redesign remain available as a separately-scoped future
+decision, not a next incremental step. Full numbers: `docs/AZ_DESIGN.md`'s "Aux-head result and
+final decision" entry. Nothing else is pending before 4p; puzzle-suite growth
+(`parchis/evaluation/puzzles/my_puzzles.csv` toward 40-60) is the main remaining active thread.
 
 ## How to use this document
 

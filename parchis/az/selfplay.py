@@ -350,7 +350,11 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
             'chosen_piece_id' (diagnostic: the exploration-sampled move
             actually played), 'mover_seat', 'game_index', 'value_target'
             (mover-relative, filled in on backfill, from rollout_value
-            when set else root_value)}, ...].
+            when set else root_value), 'aux_target' (Phase 4.1, filled in
+            on backfill: length-4 float32, 0.0/1.0 per own piece_id --
+            did that piece finish by game end, from the SAME game's own
+            arena.play_one_game(return_piece_status=True) call, free --
+            no extra generation cost, unlike rollout_value)}, ...].
         stats: {'n_games', 'n_recorded_decisions', 'n_total_plies'
             (every real choose_move call across every seat, recorded or
             not -- what the ply clock actually counted), 'n_truncated',
@@ -409,8 +413,9 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
                 agent_factories[seat] = _make_ply_counting_factory(anchor_factories[idx], ply_box)
 
         game_seed = rng.randrange(2**31)
-        winner_seat = arena.play_one_game(
+        winner_seat, piece_status = arena.play_one_game(
             agent_factories, num_players=num_players, max_turns=max_turns, seed=game_seed,
+            return_piece_status=True,
         )
 
         if winner_seat is not None:
@@ -433,6 +438,14 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
             example['value_target'] = targets.blend_value_target(
                 outcome_relative, bootstrap_value, lam=lam,
             ).astype(np.float32)
+            # Phase 4.1 aux target: did THIS decision's own mover's own 4
+            # pieces (piece_id-indexed, matching encoding._own_piece_features'
+            # convention -- never seat-rotated, since this is about "my own
+            # pieces" regardless of which seat I am) finish by game end?
+            # Free from this same game -- no extra generation cost.
+            example['aux_target'] = np.array(
+                piece_status[example['mover_seat']], dtype=np.float32,
+            )
 
         stats['n_games'] += 1
         stats['n_recorded_decisions'] += n_new
@@ -445,20 +458,24 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
 
 def round_examples_to_arrays(examples, num_players):
     """Stack generate_round_games' output into dense arrays for training:
-    (X, policy_targets, value_targets). Unlike examples_to_arrays (Phase
-    2), policy_targets here is a SOFT (n, 4) float32 distribution (§2.3's
-    z_policy), not a hard (n,) int64 class index -- parchis.az.train's
-    _forward_losses already handles either shape correctly, since
-    torch.nn.functional.cross_entropy dispatches on the target's own dtype/
-    shape, so no training-code change is needed, only this different
-    packing."""
+    (X, policy_targets, value_targets, aux_targets). Unlike
+    examples_to_arrays (Phase 2), policy_targets here is a SOFT (n, 4)
+    float32 distribution (§2.3's z_policy), not a hard (n,) int64 class
+    index -- parchis.az.train's _forward_losses already handles either
+    shape correctly, since torch.nn.functional.cross_entropy dispatches
+    on the target's own dtype/shape, so no training-code change is needed,
+    only this different packing. aux_targets (Phase 4.1) is (n, 4)
+    float32, one 0.0/1.0 per own piece_id -- see generate_round_games'
+    own docstring for how it's computed."""
     n = len(examples)
     input_size = encoding.encoding_size(num_players)
     X = np.empty((n, input_size), dtype=np.float32)
     policy_targets = np.empty((n, 4), dtype=np.float32)
     value_targets = np.empty((n, num_players), dtype=np.float32)
+    aux_targets = np.empty((n, 4), dtype=np.float32)
     for i, ex in enumerate(examples):
         X[i] = ex['encoding']
         policy_targets[i] = ex['policy_target']
         value_targets[i] = ex['value_target']
-    return X, policy_targets, value_targets
+        aux_targets[i] = ex['aux_target']
+    return X, policy_targets, value_targets, aux_targets

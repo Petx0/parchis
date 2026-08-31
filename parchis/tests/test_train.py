@@ -119,7 +119,7 @@ def test_bootstrap_train_reduces_loss_and_produces_usable_model():
     numpy_model = NumpyAZNet.from_torch(model)
     x = np.random.default_rng(0).standard_normal((4, model.input_size)).astype(np.float32)
     with _torch.no_grad():
-        t_policy, t_value = model(_torch.from_numpy(x))
+        t_policy, t_value, _t_aux = model(_torch.from_numpy(x))
     n_policy, n_value = numpy_model.forward(x)
     assert np.max(np.abs(t_policy.numpy() - n_policy)) < 1e-4
     assert np.max(np.abs(t_value.numpy() - n_value)) < 1e-4

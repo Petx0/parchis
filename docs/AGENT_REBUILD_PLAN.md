@@ -62,14 +62,24 @@ candidates statistically tied in strength with the champion back to round 10, an
 significant self-bias in `root_value` relative to independent rollouts (p<0.0001) -- pointing at a
 training-data/target-quality plateau rather than a search-depth problem or a dead end. Plan and
 full diagnostic numbers: `.claude/plans/twinkly-marinating-hinton.md` and
-`docs/AZ_DESIGN.md`'s "Strength-improvement plan" entry (2026-08-29/30). Implemented and tested:
-escalation retired by default (0/16 lifetime promotions, ~79% of wall-clock, not worth its cost);
-rollout-refined value targets (`parchis/az/rollouts.py`, opt-in, cost-controlled subsampling); the
-self-play pool broadened with a "recent" (every round, not just promoted) checkpoint history
-alongside the existing "last-4-promoted" one; and the Part 4 depth/parallelism table corrected to
-match actual practice. Next: launch a continuation under all three changes and judge by promotion
-*rate* over 15-20 rounds (not any single round's CI); auxiliary-head/architecture work and any
-capacity increase are deliberately sequenced after that. Nothing else is pending before 4p.
+`docs/AZ_DESIGN.md`'s "Strength-improvement plan" entry (2026-08-29/30). Implemented, tested, AND
+run for 50 rounds combined (68-117): escalation retired by default (0/16 lifetime promotions, ~79%
+of wall-clock, not worth its cost); rollout-refined value targets (`parchis/az/rollouts.py`,
+opt-in, cost-controlled subsampling -- caught and fixed a real 100x-oversized cost mistake on the
+first attempt, see `docs/AZ_DESIGN.md`); the self-play pool broadened with a "recent" (every round,
+not just promoted) checkpoint history; and the Part 4 depth/parallelism table corrected to match
+actual practice. **Result: none of the three moved the needle** -- 0 promotions across all 50
+rounds, and three successive verification ladders show the same candidates bouncing around a fixed
+strength band with no trend, not a lineage building on itself (full numbers in
+`docs/AZ_DESIGN.md`'s "Result: 50 rounds... no detectable improvement" entry). Moved to the next
+lever: an auxiliary prediction head (Phase 4.1, `parchis/az/net.py`'s `aux_head`, predicting
+whether each own piece finishes by game end -- free supervision, no new generation cost), with
+backward-compatible loading for every existing pre-aux-head checkpoint
+(`AZNet.load_state_dict_compat`) and a shard-schema migration so old shards contribute zero aux
+gradient rather than a fabricated one. 433 tests passing (up from 422). Next: run a fresh round
+with `aux_loss_weight` turned on (isolated from the rollout-targets variable, which showed no clear
+signal) and judge the same way -- promotion rate + ladder verification, not a single round's CI.
+Nothing else is pending before 4p.
 
 ## How to use this document
 

@@ -12,6 +12,7 @@ import pytest
 import torch
 
 from parchis.az import encoding, selfplay, train
+from parchis.az import net as net_module
 
 
 def _write_shards(tmp_path, n_shards, games_per_shard, num_players=2, seed=0):
@@ -36,6 +37,129 @@ def _write_shards(tmp_path, n_shards, games_per_shard, num_players=2, seed=0):
                   game_indices=game_indices, mover_seats=mover_seats)
         paths.append(path)
     return paths
+
+
+def _write_shards_with_aux(tmp_path, n_shards, games_per_shard, num_players=2, seed=0):
+    """Like _write_shards, but built on generate_round_games/
+    round_examples_to_arrays (Phase 3's pipeline, which computes real
+    aux_targets -- see selfplay.py's module docstring) instead of Phase
+    2's generate_games, whose examples have no aux_target at all. For
+    testing bootstrap_train_sharded's aux-loss path against shards that
+    actually carry the 'aux_targets' key, unlike _write_shards' output
+    (which is exactly the pre-Phase-4.1 shard format this whole migration
+    path exists to keep working)."""
+    from parchis.az.net import AZNet, NumpyAZNet
+
+    paths = []
+    for i in range(n_shards):
+        torch.manual_seed(seed * 1000 + i)
+        input_size = encoding.encoding_size(num_players)
+        model = AZNet(input_size, num_players, hidden_sizes=(8, 8))
+        model.eval()
+        net = NumpyAZNet.from_torch(model)
+        examples, _stats = selfplay.generate_round_games(
+            net, [], n_games=games_per_shard, num_players=num_players,
+            max_turns=300, depth=1, seed=seed * 1000 + i,
+        )
+        X, policy_targets, value_targets, aux_targets = selfplay.round_examples_to_arrays(
+            examples, num_players,
+        )
+        path = tmp_path / f"aux_shard_{i:03d}.npz"
+        np.savez(path, X=X, policy_targets=policy_targets, value_targets=value_targets,
+                  aux_targets=aux_targets)
+        paths.append(path)
+    return paths
+
+
+def test_load_shard_synthesizes_zero_aux_for_old_format_shards(tmp_path):
+    """A shard written before the aux head existed (no 'aux_targets' key
+    at all -- exactly _write_shards' own output) must load without
+    crashing, with an all-zero aux_targets array and an all-zero
+    aux_weights mask (so it contributes zero aux gradient, not a
+    fabricated one -- see train._load_shard's own docstring)."""
+    print("\nTesting _load_shard synthesizes zero aux data for an old-format shard...")
+    paths = _write_shards(tmp_path, n_shards=1, games_per_shard=10, seed=50)
+    X, policy_targets, value_targets, aux_targets, aux_weights = train._load_shard(paths[0])
+
+    n = X.shape[0]
+    assert aux_targets.shape == (n, 4)
+    assert aux_weights.shape == (n,)
+    assert np.all(aux_targets == 0.0)
+    assert np.all(aux_weights == 0.0)
+    print(f"✓ old-format shard ({n} rows): aux_targets and aux_weights both all-zero")
+
+
+def test_load_shard_reads_real_aux_targets_when_present(tmp_path):
+    """A shard written WITH the aux head (has 'aux_targets') must load
+    its real data, with an all-ones aux_weights mask -- every recorded
+    decision has a real aux target (computed free at game end), unlike
+    the sampled subset rollout_value uses."""
+    print("\nTesting _load_shard reads real aux_targets when the key is present...")
+    paths = _write_shards_with_aux(tmp_path, n_shards=1, games_per_shard=10, seed=51)
+    saved = np.load(paths[0])
+    X, policy_targets, value_targets, aux_targets, aux_weights = train._load_shard(paths[0])
+
+    assert np.array_equal(aux_targets, saved["aux_targets"])
+    assert np.all(aux_weights == 1.0)
+    assert set(np.unique(aux_targets).tolist()) <= {0.0, 1.0}
+    print(f"✓ new-format shard ({X.shape[0]} rows): real aux_targets loaded, aux_weights all-ones")
+
+
+def test_bootstrap_train_sharded_aux_loss_decreases_with_real_aux_data(tmp_path):
+    """With real aux_targets and aux_loss_weight > 0, the aux head must
+    actually learn -- train_aux_loss should decrease, mirroring this
+    file's own train_loss-decreases convention for the other two heads."""
+    print("\nTesting bootstrap_train_sharded's aux loss decreases with real aux data...")
+    paths = _write_shards_with_aux(tmp_path, n_shards=6, games_per_shard=25, seed=52)
+    train_paths, val_paths, _test_paths = train.split_shards(paths, train_frac=0.6, val_frac=0.2, seed=0)
+
+    model, history = train.bootstrap_train_sharded(
+        train_paths, val_paths, num_players=2, hidden_sizes=(32, 32),
+        max_epochs=8, patience=8, batch_size=256, seed=0, log_every=0,
+        aux_loss_weight=0.3,
+    )
+
+    assert 'train_aux_loss' in history[0] and 'val_aux_loss' in history[0]
+    assert history[-1]['train_aux_loss'] < history[0]['train_aux_loss'], (
+        f"Expected aux loss to decrease: {history[0]['train_aux_loss']:.4f} -> "
+        f"{history[-1]['train_aux_loss']:.4f}"
+    )
+    print(f"✓ train_aux_loss {history[0]['train_aux_loss']:.4f} -> "
+          f"{history[-1]['train_aux_loss']:.4f} over {len(history)} epochs")
+
+
+def test_bootstrap_train_sharded_old_format_shards_leave_aux_head_untouched(tmp_path):
+    """The other direction: training exclusively on old-format shards
+    (no aux_targets at all) with aux_loss_weight > 0 must leave aux_head
+    COMPLETELY unchanged from its fresh init -- aux_weights of all 0.0
+    means aux_loss is a constant 0 with zero GRADIENT, so nothing should
+    ever update aux_head's parameters via backprop, however many epochs
+    run. weight_decay=0.0 here isolates exactly that claim: AdamW's own
+    decoupled weight decay would otherwise shrink EVERY parameter
+    (including a zero-gradient one) a little each step regardless of this
+    property, which would be a real but unrelated effect, not evidence
+    aux_loss leaked a gradient into aux_head."""
+    print("\nTesting old-format shards leave aux_head byte-identical to its fresh init...")
+    paths = _write_shards(tmp_path, n_shards=4, games_per_shard=15, seed=53)
+    train_paths, val_paths = train.split_shards_train_val(paths, val_frac=0.25, seed=0)
+
+    seed = 0
+    torch.manual_seed(seed)
+    reference_model = net_module.AZNet(encoding.encoding_size(2), 2, hidden_sizes=(16, 16))
+    reference_aux_weight = reference_model.aux_head.weight.detach().clone()
+    reference_aux_bias = reference_model.aux_head.bias.detach().clone()
+
+    model, history = train.bootstrap_train_sharded(
+        train_paths, val_paths, num_players=2, hidden_sizes=(16, 16),
+        max_epochs=3, patience=3, batch_size=256, seed=seed, log_every=0,
+        aux_loss_weight=0.3, weight_decay=0.0,
+    )
+
+    assert torch.equal(model.aux_head.weight, reference_aux_weight)
+    assert torch.equal(model.aux_head.bias, reference_aux_bias)
+    assert all(entry['train_aux_loss'] == 0.0 for entry in history)
+    print(f"✓ aux_head byte-identical to fresh init after {len(history)} epochs; "
+          f"train_aux_loss stayed exactly 0.0 throughout")
 
 
 def test_split_shards_no_leakage_and_covers_every_shard():
@@ -121,7 +245,7 @@ def test_bootstrap_train_sharded_matches_arrays_path_behavior(tmp_path):
     numpy_model = NumpyAZNet.from_torch(model)
     x = np.random.default_rng(0).standard_normal((4, model.input_size)).astype(np.float32)
     with _torch.no_grad():
-        t_policy, t_value = model(_torch.from_numpy(x))
+        t_policy, t_value, _t_aux = model(_torch.from_numpy(x))
     n_policy, n_value = numpy_model.forward(x)
     assert np.max(np.abs(t_policy.numpy() - n_policy)) < 1e-4
     assert np.max(np.abs(t_value.numpy() - n_value)) < 1e-4

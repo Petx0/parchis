@@ -144,6 +144,38 @@ def test_build_pool_anchor_factories_are_callable_arena_factories():
     print(f"✓ all {len(anchors)} anchor factories are 3-arg callables")
 
 
+def test_load_numpy_net_tolerates_a_pre_aux_head_checkpoint(tmp_path):
+    """Every promoted/recent checkpoint saved before the aux head existed
+    (Phase 4.1) must still load correctly as a pool member -- load_numpy_net
+    uses AZNet.load_state_dict_compat rather than a raw load_state_dict
+    specifically so this doesn't start raising RuntimeError the moment
+    AZNet grows a new head. NumpyAZNet never reads aux_head weights
+    anyway (see net.py's module docstring), so the resulting forward pass
+    must be byte-identical to loading the same weights directly."""
+    print("\nTesting load_numpy_net loads an old, aux-head-less checkpoint...")
+    torch.manual_seed(3)
+    input_size, num_players, hidden_sizes = 12, 2, (8, 8)
+    old_model = AZNet(input_size, num_players, hidden_sizes=hidden_sizes)
+    old_model.eval()
+    pre_aux_head_state = {k: v for k, v in old_model.state_dict().items()
+                           if not k.startswith("aux_head.")}
+
+    model_path = tmp_path / "old_model.pt"
+    torch.save(pre_aux_head_state, model_path)
+
+    numpy_net = champion_pool.load_numpy_net(model_path, input_size, num_players, hidden_sizes)
+    x = np.random.default_rng(3).standard_normal((5, input_size)).astype(np.float32)
+    numpy_policy, numpy_value = numpy_net.forward(x)
+
+    with torch.no_grad():
+        expected_policy, expected_value, _expected_aux = old_model(torch.from_numpy(x))
+    assert np.max(np.abs(expected_policy.numpy() - numpy_policy)) < 1e-6
+    assert np.max(np.abs(expected_value.numpy() - numpy_value)) < 1e-6
+    print("✓ load_numpy_net loads an old checkpoint's trunk/policy/value exactly, aux_head "
+          "difference (present in the fresh AZNet, absent from the old checkpoint) is irrelevant "
+          "to NumpyAZNet's output")
+
+
 def test_load_numpy_net_matches_saved_weights(tmp_path):
     print("\nTesting load_numpy_net reproduces a saved checkpoint's forward pass...")
     torch.manual_seed(0)

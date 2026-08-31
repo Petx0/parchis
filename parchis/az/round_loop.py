@@ -169,7 +169,7 @@ def run_round(round_num, champion_state, meta, promoted_history, recent_history,
 
     input_size = encoding.encoding_size(cfg.num_players)
     champion_model = AZNet(input_size, cfg.num_players, hidden_sizes=cfg.hidden_sizes)
-    champion_model.load_state_dict(champion_state)
+    champion_model.load_state_dict_compat(champion_state)
     champion_model.eval()
     champion_numpy_net = NumpyAZNet.from_torch(champion_model)
     promoted_numpy_nets = [
@@ -204,9 +204,12 @@ def run_round(round_num, champion_state, meta, promoted_history, recent_history,
             dirichlet_epsilon=cfg.dirichlet_epsilon, recent_numpy_nets=recent_numpy_nets,
             rollout_target_fraction=effective_rollout_fraction, rollout_n=cfg.rollout_n,
         )
-        X, policy_targets, value_targets = selfplay.round_examples_to_arrays(examples, cfg.num_players)
+        X, policy_targets, value_targets, aux_targets = selfplay.round_examples_to_arrays(
+            examples, cfg.num_players,
+        )
         shard_path = shards_dir / f"shard_{shard_i:03d}.npz"
-        np.savez(shard_path, X=X, policy_targets=policy_targets, value_targets=value_targets)
+        np.savez(shard_path, X=X, policy_targets=policy_targets, value_targets=value_targets,
+                 aux_targets=aux_targets)
         this_round_shard_paths.append(str(shard_path))
         print(f"round {round_num} shard {shard_i}/{n_shards}: {stats['n_games']} games, "
               f"{stats['n_recorded_decisions']} recorded decisions "
@@ -228,7 +231,8 @@ def run_round(round_num, champion_state, meta, promoted_history, recent_history,
         train_paths, val_paths, num_players=cfg.num_players, hidden_sizes=cfg.hidden_sizes,
         learning_rate=cfg.learning_rate, weight_decay=cfg.weight_decay, batch_size=cfg.batch_size,
         max_epochs=cfg.warm_start_max_epochs, patience=cfg.warm_start_patience,
-        value_loss_weight=cfg.value_loss_weight, seed=cfg.train_seed, log_every=1,
+        value_loss_weight=cfg.value_loss_weight, aux_loss_weight=cfg.aux_loss_weight,
+        seed=cfg.train_seed, log_every=1,
         init_state_dict=champion_state,
     )
     with open(round_dir / "metrics.jsonl", "w") as f:

@@ -163,6 +163,18 @@ class SelfPlayRoundConfig:
     rollout_target_fraction: float = 0.05
     rollout_n: int = 24
 
+    # Auxiliary head (Phase 4.1, parchis.az.net.AZNet.aux_head): predicts
+    # whether each of the mover's own pieces finishes by game end, free
+    # supervision from games already generated (see
+    # parchis.az.selfplay.generate_round_games' module docstring). Added
+    # after escalation retirement + pool broadening + rollout-refined
+    # targets ran 50 rounds combined with no detectable strength
+    # improvement (docs/AZ_DESIGN.md's "Strength-improvement plan" entry).
+    # Default 0.0 (off) preserves existing configs' behavior on load; the
+    # aux head still EXISTS in the network either way (AZNet always has
+    # one now) but contributes nothing to the loss until this is raised.
+    aux_loss_weight: float = 0.0
+
     def save(self, runs_dir=DEFAULT_RUNS_DIR):
         """Writes runs/<run_name>/config.json. Returns the run directory."""
         run_dir = Path(runs_dir) / self.run_name

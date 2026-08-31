@@ -207,6 +207,44 @@ def test_escalation_disabled_when_enable_escalation_false(tmp_path, monkeypatch)
           f"consecutive_failures={failures_after} (keeps climbing)")
 
 
+def test_run_round_warm_starts_from_a_pre_aux_head_champion_state(tmp_path, monkeypatch):
+    """The real-world transition this project is actually about to go
+    through: round_loop.py's warm-start must handle a champion_state
+    saved before the aux head existed (Phase 4.1) without crashing.
+    Forces promotion=True so new_state reflects the actual trained
+    candidate (a non-promoted round correctly returns the OLD
+    champion_state completely unchanged, by design -- see
+    test_champion_unchanged_on_forced_non_promotion -- which wouldn't
+    demonstrate the migration this test is actually checking)."""
+    print("\nTesting run_round warm-starts correctly from a pre-aux-head champion_state...")
+    cfg = _tiny_cfg(tmp_path, run_name="pre_aux_migration", aux_loss_weight=0.2)
+    run_dir = tmp_path / "runs" / cfg.run_name
+    run_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(round_loop.duplicate, "play_duplicate_match",
+                         lambda *a, **k: _forced_promotion_result(True))
+
+    from parchis.az import encoding
+    from parchis.az.net import AZNet
+    input_size = encoding.encoding_size(cfg.num_players)
+    old_model = AZNet(input_size, cfg.num_players, hidden_sizes=cfg.hidden_sizes)
+    pre_aux_head_champion_state = {k: v for k, v in old_model.state_dict().items()
+                                    if not k.startswith("aux_head.")}
+    meta = {'round': -1, 'promotions': 0, 'consecutive_failures': 0}
+
+    new_state, new_meta, _history, _recent = round_loop.run_round(
+        0, pre_aux_head_champion_state, meta, [], [], cfg, run_dir,
+    )
+
+    assert new_meta['promotions'] == 1
+    assert "aux_head.weight" in new_state and "aux_head.bias" in new_state, (
+        "The promoted candidate must be the NEW architecture (has an aux_head), "
+        "even though it warm-started from an old champion that didn't"
+    )
+    print("✓ run_round completed cleanly from a pre-aux-head champion_state, "
+          "promoted candidate has the new aux_head")
+
+
 def test_gather_replay_buffer_shards_respects_the_recency_window(tmp_path):
     print("\nTesting _gather_replay_buffer_shards only includes the recent window...")
     run_dir = tmp_path / "runs" / "buffer_test"

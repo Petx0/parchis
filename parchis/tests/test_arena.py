@@ -50,6 +50,41 @@ def test_play_one_game_with_dummy_agents_returns_a_valid_winner_seat():
     print(f"✓ Game completed, winner seat={winner_seat}")
 
 
+def test_play_one_game_return_piece_status_matches_the_actual_winner():
+    """return_piece_status=True (Phase 4.1's aux-target source,
+    parchis.az.selfplay) must give every seat's own final piece-finished
+    flags -- and since Player.has_won() requires ALL 4 pieces finished,
+    the winning seat's own 4 flags must be all True."""
+    print("\nTesting play_one_game(return_piece_status=True) against the real winner...")
+    for seed in range(5):
+        winner_seat, piece_status = arena.play_one_game(
+            {0: _always_first_legal_move_factory, 1: _always_first_legal_move_factory},
+            num_players=2, seed=seed, return_piece_status=True,
+        )
+        assert set(piece_status) == {0, 1}
+        for seat, flags in piece_status.items():
+            assert len(flags) == 4 and all(isinstance(f, bool) for f in flags)
+        if winner_seat is not None:
+            assert all(piece_status[winner_seat]), (
+                f"seed={seed}: the winner must have all 4 pieces finished, got {piece_status}"
+            )
+    print("✓ piece_status shape is correct and the winner always has all 4 pieces finished")
+
+
+def test_play_one_game_default_return_is_unaffected_by_return_piece_status_existing():
+    """The default (return_piece_status omitted) must still return a bare
+    winner_seat -- every existing caller of play_one_game (play_match,
+    duplicate.py, ladder.py, selfplay.generate_games, etc.) depends on
+    this NOT becoming a tuple just because the parameter now exists."""
+    print("\nTesting play_one_game's default return is still a bare winner_seat...")
+    result = arena.play_one_game(
+        {0: _always_first_legal_move_factory, 1: _always_first_legal_move_factory},
+        num_players=2, seed=0,
+    )
+    assert result is None or isinstance(result, int)
+    print(f"✓ default return is a bare value ({result!r}), not a tuple")
+
+
 def test_play_match_win_rate_and_ci_are_well_formed():
     print("\nTesting play_match() produces a well-formed win rate + CI...")
     result = arena.play_match(

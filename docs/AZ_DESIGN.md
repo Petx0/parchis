@@ -1561,13 +1561,117 @@ is almost entirely `shards/` (raw self-play game arrays, ~667MB/round) — regen
 not needed by any diagnostic or by Phase 3.1's forward-looking pool-broadening (which only needs
 candidate *weights*, not the games that produced them).
 
+### Result: 50 rounds (68-117), three configurations, no detectable improvement (2026-08-30/31)
+
+Ran the plan's own success criterion: 15 rounds of escalation-off + pool-broadening (68-82), then
+20 more of the same (83-102) for more statistical power, then 15 with rollout-refined targets
+additionally turned on (103-117, `value_target_mode="rollout"`). Verified after each batch via both
+the promotion gate and an exploratory ladder (300 pairs/pairing) comparing that batch's final
+candidate against the actual champion (round 23) and prior batches' candidates.
+
+**Promotion gate**: 0 promotions across all 50 rounds. At the historical ~4.4%/round rate, P(exactly
+0 in 50 | no change at all) = 0.105; P(0 in 50 | true rate 10%) = 0.005 — large improvements are now
+fairly strongly disfavored by this alone, though a small one (~5%) remains plausible.
+
+**Ladder verification (the more decisive evidence)**: three successive ladders, each adding the
+latest batch's final candidate:
+
+| Candidate | Ladder 1 (after round 82) | Ladder 2 (after round 102) | Ladder 3 (after round 117) |
+|---|---|---|---|
+| round_0023 (champion) | 0.733 | 0.816 | 0.816 |
+| round_0067 | 0.686 | 0.737 | 0.737 |
+| round_0082 | **0.757** (top) | 0.813 | 0.686 |
+| round_0102 | -- | **0.674** (bottom) | 0.634 |
+| round_0117 | -- | -- | 0.725 |
+
+(Bradley-Terry ratings, each ladder's own independent fit — not directly comparable across columns
+in absolute terms, but the *within-ladder ranking* is.) Round 82 initially looked like the best
+candidate of its ladder; by the next ladder it had fallen to roughly mid-pack while round 102 (far
+more trained) was the *worst*; round 117 (the most-trained candidate of the whole 50-round program)
+landed in the middle again, not at the top. Ordering strictly by round number across all three
+ladders (23→67→82→102→117: 0.816→0.737→0.813→0.674→0.725) shows no trend in either direction —
+the signature of noise around a roughly fixed strength level, not runs that are gradually building
+on each other.
+
+**Honest conclusion**: none of the three training-loop-level fixes (escalation retirement, pool
+broadening, rollout-refined targets) produced a reproducible strength improvement over this window.
+This doesn't retroactively make them bad changes — escalation's removal is justified independent of
+this result (0/16 lifetime, ~79% of wall-clock, for a mechanism this test now shows isn't needed to
+avoid a *regression* either), and pool broadening is sound bookkeeping regardless. But the plateau
+itself did not move. One real caveat on the rollout-targets leg specifically: after fixing a severe
+timing bug (see below), the corrected dose (`rollout_target_fraction=0.0005`) touched only ~0.05% of
+all decisions across the 15-round test — it's plausible the mechanism is sound but the dose was too
+conservative to detect an effect, not that the underlying idea is wrong.
+
+**A real bug, caught by checking on the run rather than assuming it was fine**: the first
+rollout-targets attempt used `rollout_target_fraction=0.05`, sized against a diagnostic script that
+sampled 400 decisions total — not against real round scale (~300,000+ recorded decisions *per
+shard*, 3 shards/round). Round 103's first shard alone took 45 minutes (vs. ~3 minutes normally)
+before being caught and stopped. Corrected to `0.0005` (100x smaller) after computing the actual
+per-continuation cost from the failed attempt's own timing data; the retry's first shard confirmed
+the fix (back to ~3-4 minutes) before letting the remaining 14 rounds run. Lesson recorded here
+because it's a specific, avoidable instance of a more general one: a parameter sized against a
+small-scale test needs to be re-derived against the actual production scale it will run at, not
+assumed to carry over — checking the first unit of real work before committing to the rest of a
+long-running job is cheap insurance against exactly this class of mistake.
+
+### Phase 4.1 — Auxiliary head (2026-08-31)
+
+With three training-loop-level fixes showing no detectable effect over 50 rounds, moved to the
+plan's next lever: an auxiliary prediction head (KataGo's ownership-head idea), predicting whether
+each of the mover's own 4 pieces finishes by game end — free supervision from games already being
+generated, no new data-generation cost, denser gradient signal into the shared trunk than the
+existing policy/value heads alone provide.
+
+**Architecture** (`parchis/az/net.py`): `AZNet` gains `aux_head = nn.Linear(prev, 4)`; `forward()`
+now returns a 3-tuple `(policy_logits, value_logits, aux_logits)`. `NumpyAZNet` deliberately does
+**not** grow a matching path — the aux head only shapes training gradients on the shared trunk;
+search never consults it, so `numpy_weights()`/inference stay exactly as they were.
+
+**Backward-compatible checkpoint loading**: every existing checkpoint in this project (round 23's
+champion, all of rounds 68-117's candidates) was saved before the aux head existed, so a plain
+`load_state_dict` would now raise on a missing key the moment any of them gets loaded into the new
+architecture — which happens on literally the next round's warm-start, and every pool load
+(`champion_pool.load_numpy_net`). Added `AZNet.load_state_dict_compat`: loads normally if the
+aux head is present; if the *only* discrepancy is a missing aux_head, loads everything else and
+leaves the aux head at its own fresh random init; any other mismatch still raises exactly like
+`strict=True` would, so this can't silently mask an unrelated bug. Used at every checkpoint-loading
+call site (`round_loop.py`, `champion_pool.py`, both of `train.py`'s bootstrap functions).
+
+**Target computation** (`parchis/evaluation/arena.py`, `parchis/az/selfplay.py`): `play_one_game`
+gains an opt-in `return_piece_status=False` parameter (every existing caller unaffected) that
+additionally returns each seat's own final piece-finished flags. `generate_round_games` uses this to
+backfill `aux_target` (piece-id-indexed, never seat-rotated — "my own pieces" needs no rotation)
+onto every recorded example, for free.
+
+**Loss & shard migration** (`parchis/az/train.py`): `aux_loss_weight` (default 0.0, off) weights a
+BCE loss on the aux head, combined with the existing policy/value losses. `_load_shard` treats a
+shard's missing `aux_targets` key (every shard on disk right now) as "no aux data for this shard" —
+synthesized as an all-zero array with an all-zero per-row weight mask, so old rows contribute
+*exactly* zero aux gradient rather than training against a fabricated target. Verified precisely:
+training exclusively on old-format shards with `aux_loss_weight=0.3` (nonzero) leaves `aux_head`'s
+weights byte-identical to a fresh, untrained init (confirmed with `weight_decay=0` to isolate this
+from AdamW's own unrelated, expected decay of every parameter); training on shards that DO carry
+real `aux_targets` shows `train_aux_loss` decreasing normally.
+
+**Config**: `SelfPlayRoundConfig.aux_loss_weight: float = 0.0` — off by default (existing configs
+unaffected on load), matching this project's established pattern for every experimental toggle
+added this cycle (`enable_escalation`, `value_target_mode`).
+
+11 new tests added across `test_net.py`, `test_arena.py`, `test_selfplay_round.py`,
+`test_train_sharded.py`, `test_champion_pool.py`, `test_round_loop.py` — full suite green (433
+passed, up from 422). One test caught a real, useful nuance rather than a bug: a first draft assumed
+`run_round`'s returned state always reflects the trained candidate, but a *non-promoted* round
+correctly returns the prior champion state completely unchanged by design — the migration is only
+observable by forcing a promotion in that specific test, not a flaw in `run_round` itself.
+
 ### What's still open
 
-Per the plan's own deferred-decisions list: whether round 23's champion is this lineage's ceiling
-(revisit once the next 15-20 rounds run under Phases 2.1/2.2/3.1 combined — judge by *promotion
-rate over that window*, not any single round's CI, since rounds 24-67 already established
-0.47-0.52 as the noise floor for a single round's comparison); Phase 4's auxiliary head and any
-capacity increase (deliberately sequenced after this round of changes gets a chance to move the
-needle on cheaper, lower-risk levers first); and growing `my_puzzles.csv` toward 40-60, in parallel
-with the above, which every puzzle-based conclusion in this and the prior section remains gated on.
-edge-of-sample artifacts.
+Testing the aux head is the immediate next step (a fresh round, `aux_loss_weight=0.2`,
+`value_target_mode` reverted to `"root_value"` so this stays an isolated test of the ONE new
+variable rather than compounding with rollout targets, which itself showed no clear signal). Beyond
+that: whether round 23's champion (or, per this section's finding, any of rounds 23-117, all
+roughly tied) is this architecture's practical ceiling regardless of aux-head results; a capacity
+increase (Phase 4.2, last resort — breaks warm-starting, forces a full retrain); and growing
+`my_puzzles.csv` toward 40-60, in parallel with all of the above, which every puzzle-based
+conclusion in this and the prior section remains gated on.

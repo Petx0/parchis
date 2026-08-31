@@ -115,9 +115,13 @@ def load_numpy_net(model_path, input_size, num_players, hidden_sizes):
     time). `input_size`/`num_players`/`hidden_sizes` must match what the
     checkpoint was actually trained with -- every checkpoint in one Phase 3
     lineage shares the same shape, so round_loop.py passes its own config's
-    values down for every load, never per-checkpoint metadata."""
+    values down for every load, never per-checkpoint metadata. Uses
+    load_state_dict_compat rather than a raw load_state_dict: every
+    promoted/recent checkpoint saved before the aux head existed (Phase
+    4.1) is still a perfectly valid pool member -- NumpyAZNet never reads
+    aux_head weights anyway (see net.py's module docstring)."""
     model = AZNet(input_size, num_players, hidden_sizes=hidden_sizes)
-    model.load_state_dict(torch.load(model_path, map_location="cpu"))
+    model.load_state_dict_compat(torch.load(model_path, map_location="cpu"))
     model.eval()
     return NumpyAZNet.from_torch(model)
 

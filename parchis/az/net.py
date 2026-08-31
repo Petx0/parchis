@@ -2,13 +2,28 @@
 Dual-head value/policy net (docs/AGENT_REBUILD_PLAN.md §2.2): an MLP trunk
 feeding a value head (softmax over num_players -- P(each seat wins) from
 the encoding's observer) and a policy head (4 logits, one per piece_id,
-masked to legal actions by the caller).
+masked to legal actions by the caller). A third, auxiliary head (Phase
+4.1, .claude/plans/twinkly-marinating-hinton.md) was added after three
+training-loop-level fixes (escalation retirement, opponent-pool
+broadening, rollout-refined targets) ran for 50 rounds combined with no
+detectable strength improvement -- see docs/AZ_DESIGN.md's
+"Strength-improvement plan" entry for the full experimental record. The
+aux head predicts, for each of the mover's own 4 pieces, whether it goes
+on to finish by game end (a KataGo-ownership-head analogue: free extra
+supervision from games already being generated, no new data-generation
+cost) -- see parchis.az.selfplay's module docstring for how the target
+is computed, and parchis.az.train for how its loss is combined with the
+existing two.
 
 Two forward paths compute the SAME function from the SAME weights:
 - AZNet (torch): autodiff, MPS on the M4 -- used for the training step.
 - NumpyAZNet: no torch call/dispatch overhead -- used for search's batched
   leaf evaluation, where inference batches are 50-1000 rows of a small MLP
   and per-call overhead dominates raw FLOPs more than matmul size does.
+  Deliberately does NOT grow an aux-head path: the aux head only shapes
+  training gradients on the shared trunk, search never consults it, so
+  NumpyAZNet's forward() keeps its original 2-tuple (policy, value)
+  contract unchanged -- see numpy_weights() below.
 
 See parchis/tests/test_net.py::test_numpy_and_torch_forward_agree for the
 cross-check that both paths agree to the tolerance Part 3 item 7 asks for
@@ -23,13 +38,17 @@ import torch.nn as nn
 
 DEFAULT_HIDDEN_SIZES = (256, 256)
 NUM_ACTIONS = 4  # Discrete(4): which piece to move, fixed slot by piece_id
+NUM_AUX_TARGETS = 4  # one per own piece_id -- numerically the same as NUM_ACTIONS
+                      # (every piece has exactly one associated action in this game),
+                      # kept as its own name since the two represent different things.
 LAYER_NORM_EPS = 1e-5  # torch.nn.LayerNorm's own default -- NumpyAZNet must match exactly
 
 
 class AZNet(nn.Module):
     """MLP trunk ([256, 256] by default) + ReLU + LayerNorm per layer, then
-    two linear heads. See module docstring for why raw logits are
-    returned, not probabilities."""
+    three linear heads (policy, value, aux). See module docstring for why
+    raw logits are returned, not probabilities, and for the aux head's
+    purpose."""
 
     def __init__(self, input_size, num_players, hidden_sizes=DEFAULT_HIDDEN_SIZES):
         super().__init__()
@@ -47,13 +66,35 @@ class AZNet(nn.Module):
         self.trunk = nn.Sequential(*layers)
         self.policy_head = nn.Linear(prev, NUM_ACTIONS)
         self.value_head = nn.Linear(prev, num_players)
+        self.aux_head = nn.Linear(prev, NUM_AUX_TARGETS)
 
     def forward(self, x):
         """x: (batch, input_size) float32 tensor.
-        Returns (policy_logits (batch, 4), value_logits (batch, num_players)),
-        both raw (no softmax)."""
+        Returns (policy_logits (batch, 4), value_logits (batch, num_players),
+        aux_logits (batch, 4)), all raw (no softmax/sigmoid)."""
         h = self.trunk(x)
-        return self.policy_head(h), self.value_head(h)
+        return self.policy_head(h), self.value_head(h), self.aux_head(h)
+
+    def load_state_dict_compat(self, state_dict):
+        """Loads `state_dict` into this model, tolerating a checkpoint
+        saved before the aux head existed (missing 'aux_head.weight'/
+        'aux_head.bias') by leaving the aux head at its own fresh random
+        init in that one, specific, understood case -- the aux head only
+        shapes training gradients (search never consults it), so an old
+        checkpoint's warm-start doesn't need to carry it forward; it
+        starts learning from the very next round's data instead. This is
+        a NARROW migration path for exactly that transition, not a
+        blanket strict=False: any OTHER mismatch (a real bug, a genuine
+        shape error) still goes through strict=True and raises its usual,
+        detailed error, so this can't silently mask something unrelated.
+        """
+        own_keys = set(self.state_dict().keys())
+        aux_keys = {k for k in own_keys if k.startswith("aux_head.")}
+        is_exactly_missing_aux_head = set(state_dict.keys()) == own_keys - aux_keys
+        if is_exactly_missing_aux_head:
+            self.load_state_dict(state_dict, strict=False)
+        else:
+            self.load_state_dict(state_dict)
 
     def numpy_weights(self):
         """Extract this model's CURRENT weights as the plain-array bundle

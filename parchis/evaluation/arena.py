@@ -44,7 +44,8 @@ def _install_roll_recorder(game):
     return box
 
 
-def play_one_game(agent_factories, num_players=2, max_turns=DEFAULT_MAX_TURNS, seed=None):
+def play_one_game(agent_factories, num_players=2, max_turns=DEFAULT_MAX_TURNS, seed=None,
+                   return_piece_status=False):
     """
     agent_factories: {seat_index: factory(game, seat, roll_box) -> choose_move_fn}.
         A seat not present keeps Player.choose_move's own default (random).
@@ -52,10 +53,19 @@ def play_one_game(agent_factories, num_players=2, max_turns=DEFAULT_MAX_TURNS, s
         (which itself rolls dice for color/starting-player determination --
         see Game.__init__) and for the whole game's dice sequence. Pass
         None to use whatever ambient random state already exists.
+    return_piece_status: False (default) preserves this function's
+        original single-value return exactly, for every existing caller.
+        True additionally returns each seat's own final piece-finished
+        status (parchis.az.selfplay's aux-target computation, Phase 4.1 --
+        see its module docstring); no other caller needs this.
 
     Returns: the winning seat's index (int), or None if max_turns was hit
         without a winner (extremely unlikely at max_turns=1000 given real
         games run ~150-300 turns; a safety cap, not an expected outcome).
+        If return_piece_status=True, returns
+        (winner_seat_or_None, piece_status) instead, where piece_status is
+        {seat: [bool, bool, bool, bool]} (piece_id-indexed, True = that
+        piece finished by the time the game ended or max_turns was hit).
     """
     if seed is not None:
         random.seed(seed)
@@ -69,9 +79,14 @@ def play_one_game(agent_factories, num_players=2, max_turns=DEFAULT_MAX_TURNS, s
         game.play_turn()
         turns += 1
 
-    if game.winner is None:
-        return None
-    return game.players.index(game.winner)
+    winner_seat = None if game.winner is None else game.players.index(game.winner)
+    if not return_piece_status:
+        return winner_seat
+    piece_status = {
+        seat: [piece.finished for piece in player.pieces]
+        for seat, player in enumerate(game.players)
+    }
+    return winner_seat, piece_status
 
 
 def play_match(agent_a_factory, agent_b_factory, n_games, num_players=2,

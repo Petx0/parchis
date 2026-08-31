@@ -93,6 +93,49 @@ def test_root_value_is_mover_relative_not_absolute(monkeypatch):
           f"movers {sorted(checked_seats)}")
 
 
+def test_aux_target_matches_the_recording_seats_own_final_piece_status(monkeypatch):
+    """Phase 4.1: aux_target must be exactly THIS decision's own mover's
+    own final piece-finished flags (piece_id-indexed, never seat-rotated
+    -- 'my own pieces' has no rotation to apply, unlike root_value/
+    outcome), from the SAME game's arena.play_one_game(
+    return_piece_status=True) call. Controlled via a monkeypatched
+    play_one_game so the expected per-seat status is known exactly,
+    rather than inferred from a real game's actual outcome."""
+    print("\nTesting aux_target matches the recording seat's own final piece status...")
+    fixed_piece_status = {0: [True, True, False, True], 1: [False, False, False, True]}
+    original_play_one_game = selfplay.arena.play_one_game
+
+    def fake_play_one_game(*args, **kwargs):
+        assert kwargs.get("return_piece_status") is True, (
+            "generate_round_games must ask for return_piece_status=True"
+        )
+        # Let the REAL game actually play out (so choose_move/recording
+        # happens normally) -- only substitute a KNOWN piece_status for
+        # the assertion below, discarding the real (unpredictable) one.
+        real_winner_seat, _real_piece_status = original_play_one_game(*args, **kwargs)
+        return real_winner_seat, fixed_piece_status
+
+    monkeypatch.setattr(selfplay.arena, "play_one_game", fake_play_one_game)
+
+    net = _tiny_numpy_net(num_players=2)
+    examples, _stats = selfplay.generate_round_games(
+        net, [], n_games=5, num_players=2, max_turns=300, depth=1, seed=30,
+    )
+    assert examples
+    seats_seen = set()
+    for ex in examples:
+        expected = np.array(fixed_piece_status[ex['mover_seat']], dtype=np.float32)
+        assert np.array_equal(ex['aux_target'], expected), (
+            f"mover_seat={ex['mover_seat']}: expected aux_target={expected}, got {ex['aux_target']}"
+        )
+        seats_seen.add(ex['mover_seat'])
+    assert seats_seen, "Test setup error: no examples recorded"
+
+    monkeypatch.setattr(selfplay.arena, "play_one_game", original_play_one_game)
+    print(f"✓ aux_target matched fixed_piece_status[mover_seat] for all {len(examples)} "
+          f"decisions, movers seen: {sorted(seats_seen)}")
+
+
 def test_policy_target_matches_independently_recomputed_softmax(monkeypatch):
     print("\nTesting recorded policy_target matches policy_target_from_move_values on the "
           "same captured move_values...")
@@ -239,17 +282,23 @@ def test_round_examples_to_arrays_shapes_and_row_sums():
     examples, _stats = selfplay.generate_round_games(
         net, [], n_games=15, num_players=2, max_turns=300, depth=1, seed=8,
     )
-    X, policy_targets, value_targets = selfplay.round_examples_to_arrays(examples, num_players=2)
+    X, policy_targets, value_targets, aux_targets = selfplay.round_examples_to_arrays(
+        examples, num_players=2,
+    )
 
     n = len(examples)
     assert X.shape == (n, encoding.encoding_size(2))
     assert policy_targets.shape == (n, 4)
     assert value_targets.shape == (n, 2)
+    assert aux_targets.shape == (n, 4)
     assert X.dtype == np.float32 and policy_targets.dtype == np.float32 and value_targets.dtype == np.float32
+    assert aux_targets.dtype == np.float32
     assert np.allclose(policy_targets.sum(axis=1), 1.0, atol=1e-4)
     assert np.allclose(value_targets.sum(axis=1), 1.0, atol=1e-4)
+    assert set(np.unique(aux_targets).tolist()) <= {0.0, 1.0}, "aux_targets must be 0.0/1.0 flags"
     print(f"✓ X={X.shape}, policy_targets={policy_targets.shape} (rows sum to 1), "
-          f"value_targets={value_targets.shape} (rows sum to 1)")
+          f"value_targets={value_targets.shape} (rows sum to 1), aux_targets={aux_targets.shape} "
+          f"(0.0/1.0 flags)")
 
 
 def test_promoted_nets_can_occupy_the_non_champion_seat(monkeypatch):

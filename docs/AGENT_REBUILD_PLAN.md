@@ -90,6 +90,8 @@ decision, not a next incremental step. Full numbers: `docs/AZ_DESIGN.md`'s "Aux-
 final decision" entry. Nothing else is pending before 4p; puzzle-suite growth
 (`parchis/evaluation/puzzles/my_puzzles.csv` toward 40-60) is the main remaining active thread.
 
+**2026-10-31 review**: a full re-review of this program found that the plateau was structural, not a ceiling -- the self-play acting temperature/Dirichlet constants were on AlphaZero's visit-count scale and made the generator play at random strength (36% agreement with its own best move; 5% win rate vs its greedy self), the policy targets were uniform for the same reason, and the promotion gate (2.5% false-positive rate) kept the generator frozen for 109 rounds. Depth-2 play beats depth-1 play 57% with the same net. Diagnosis, literature comparison and the v2 plan: `docs/V2_PLAN.md`; measurements: `docs/AZ_DESIGN.md`'s 2026-10-31 entry and `scripts/diagnostics/`.
+
 ## How to use this document
 
 Open the repo in VS Code with Claude Code and work Part 3 top to bottom. Each phase ends in a

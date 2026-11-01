@@ -79,7 +79,7 @@ def test_load_shard_synthesizes_zero_aux_for_old_format_shards(tmp_path):
     fabricated one -- see train._load_shard's own docstring)."""
     print("\nTesting _load_shard synthesizes zero aux data for an old-format shard...")
     paths = _write_shards(tmp_path, n_shards=1, games_per_shard=10, seed=50)
-    X, policy_targets, value_targets, aux_targets, aux_weights = train._load_shard(paths[0])
+    X, policy_targets, value_targets, aux_targets, aux_weights, _pw = train._load_shard(paths[0])
 
     n = X.shape[0]
     assert aux_targets.shape == (n, 4)
@@ -97,12 +97,74 @@ def test_load_shard_reads_real_aux_targets_when_present(tmp_path):
     print("\nTesting _load_shard reads real aux_targets when the key is present...")
     paths = _write_shards_with_aux(tmp_path, n_shards=1, games_per_shard=10, seed=51)
     saved = np.load(paths[0])
-    X, policy_targets, value_targets, aux_targets, aux_weights = train._load_shard(paths[0])
+    X, policy_targets, value_targets, aux_targets, aux_weights, _pw = train._load_shard(paths[0])
 
     assert np.array_equal(aux_targets, saved["aux_targets"])
     assert np.all(aux_weights == 1.0)
     assert set(np.unique(aux_targets).tolist()) <= {0.0, 1.0}
     print(f"✓ new-format shard ({X.shape[0]} rows): real aux_targets loaded, aux_weights all-ones")
+
+
+def test_load_shard_defaults_policy_weights_to_one_and_reads_them_when_present(tmp_path):
+    print("\nTesting _load_shard's policy_weights default/read...")
+    paths = _write_shards(tmp_path, n_shards=1, games_per_shard=2)
+    *_rest, pw = train._load_shard(paths[0])
+    assert pw.shape == (_rest[0].shape[0],) and pw.dtype == np.float32 and np.all(pw == 1.0)
+    d = dict(np.load(paths[0]))
+    d["policy_weights"] = np.zeros(d["X"].shape[0], dtype=np.float32)
+    d["policy_weights"][0] = 1.0
+    np.savez(tmp_path / "pw_shard.npz", **d)
+    *_rest, pw2 = train._load_shard(tmp_path / "pw_shard.npz")
+    assert pw2[0] == 1.0 and np.all(pw2[1:] == 0.0)
+    print("✓ missing key -> all ones; present key -> read back")
+
+
+def test_policy_loss_ignores_zero_weight_rows():
+    """docs/V2_PLAN.md C3: afterstate rows carry policy weight 0 and an
+    all-zero target; the weighted policy loss must equal the loss computed
+    on the weighted rows alone, whatever the zero-weight rows contain."""
+    print("\nTesting the weighted policy loss ignores zero-weight rows...")
+    torch.manual_seed(0)
+    input_size = encoding.encoding_size(2)
+    model = net_module.AZNet(input_size, 2, hidden_sizes=(8, 8))
+    X = torch.rand(6, input_size)
+    policy = torch.tensor([[1, 0, 0, 0], [0, .5, .5, 0], [0, 0, 1, 0],
+                           [0, 0, 0, 0], [.25, .25, .25, .25], [0, 0, 0, 1]], dtype=torch.float32)
+    value = torch.tensor([[1, 0]] * 6, dtype=torch.float32)
+    weights = torch.tensor([1, 1, 1, 0, 0, 0], dtype=torch.float32)
+    p_w, v_w, _ = train._forward_losses(model, X, policy, value, policy_weights=weights)
+    p_sub, v_sub, _ = train._forward_losses(model, X[:3], policy[:3], value[:3])
+    assert torch.allclose(p_w, p_sub, atol=1e-6), (p_w.item(), p_sub.item())
+    p_all, _, _ = train._forward_losses(model, X[:3], policy[:3], value[:3],
+                                        policy_weights=torch.ones(3))
+    assert torch.allclose(p_all, p_sub, atol=1e-6), "all-ones weights must equal the plain mean"
+    assert v_w.shape == () and torch.isfinite(p_w)
+    print("✓ weighted policy loss == loss on the weighted rows alone; all-ones == plain mean")
+
+
+def test_bootstrap_train_sharded_trains_on_shards_with_afterstate_rows(tmp_path):
+    print("\nTesting bootstrap_train_sharded on shards carrying policy_weights (afterstate rows)...")
+    from parchis.az.net import AZNet, NumpyAZNet
+    paths = []
+    for i in range(2):
+        torch.manual_seed(100 + i)
+        model = AZNet(encoding.encoding_size(2), 2, hidden_sizes=(8, 8)); model.eval()
+        examples, stats = selfplay.generate_round_games(
+            NumpyAZNet.from_torch(model), [], n_games=3, num_players=2, max_turns=200, depth=1,
+            seed=100 + i, afterstate_rows=True,
+        )
+        assert stats['n_afterstate_rows'] > 0
+        X, pt, vt, at = selfplay.round_examples_to_arrays(examples, 2)
+        pw = selfplay.round_examples_policy_weights(examples)
+        path = tmp_path / f"after_{i}.npz"
+        np.savez(path, X=X, policy_targets=pt, value_targets=vt, aux_targets=at, policy_weights=pw)
+        paths.append(path)
+    model, history = train.bootstrap_train_sharded(
+        [paths[0]], [paths[1]], num_players=2, hidden_sizes=(8, 8), batch_size=64, max_epochs=2,
+        patience=5, aux_loss_weight=0.2, log_every=0,
+    )
+    assert len(history) == 2 and all(np.isfinite(h['val_policy_loss']) for h in history)
+    print(f"✓ trained 2 epochs on shards with afterstate rows; val_policy_loss={history[-1]['val_policy_loss']:.3f}")
 
 
 def test_bootstrap_train_sharded_aux_loss_decreases_with_real_aux_data(tmp_path):

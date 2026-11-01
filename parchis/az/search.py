@@ -207,6 +207,33 @@ class _Collector:
         return self._results[index]
 
 
+def afterstate_context(game, move_info, roll, pending_bonus, consecutive_sixes):
+    """The (observer_seat, roll, pending_bonus, consecutive_sixes) a depth-1
+    search hands the evaluator right after `move_info` was executed on
+    `game` -- see _evaluate_immediately below for the three cases. MUTATES
+    `game` (game.next_player()) in the turn-ends case; the caller owns the
+    surrounding snapshot/restore, exactly as _expand_decision does.
+
+    Public because parchis.az.selfplay.generate_round_games records this
+    same leaf (encoded with exactly these arguments) as an AFTERSTATE
+    training row for the move actually played (docs/V2_PLAN.md C3), so the
+    states search evaluates at its leaves are states the value head was
+    trained on. Keeping one function for both guarantees they never drift.
+    """
+    if move_info.captured:
+        return (game.current_player_idx, None,
+                {'type': 'capture_bonus', 'squares': CAPTURE_BONUS_SQUARES}, consecutive_sixes)
+    if move_info.new_position == Board.FINAL_POSITION:
+        return (game.current_player_idx, None,
+                {'type': 'finish_bonus', 'squares': FINISH_BONUS_SQUARES}, consecutive_sixes)
+
+    six_again = (pending_bonus is None and roll == BONUS_TURN_ROLL)
+    if not six_again:
+        game.next_player()
+        return game.current_player_idx, None, None, 0
+    return game.current_player_idx, None, None, consecutive_sixes
+
+
 def _evaluate_immediately(game, collector, move_info, roll, pending_bonus, consecutive_sixes):
     """Depth has run out right after a move: hand the evaluator the
     IMMEDIATE post-move state without resolving whatever would normally
@@ -231,20 +258,10 @@ def _evaluate_immediately(game, collector, move_info, roll, pending_bonus, conse
         perspective; the six-streak feature (consecutive_sixes) at least
         signals a reroll is more likely here than the base rate.
     """
-    if move_info.captured:
-        return collector.request(game, game.current_player_idx, None,
-                                  {'type': 'capture_bonus', 'squares': CAPTURE_BONUS_SQUARES},
-                                  consecutive_sixes)
-    if move_info.new_position == Board.FINAL_POSITION:
-        return collector.request(game, game.current_player_idx, None,
-                                  {'type': 'finish_bonus', 'squares': FINISH_BONUS_SQUARES},
-                                  consecutive_sixes)
-
-    six_again = (pending_bonus is None and roll == BONUS_TURN_ROLL)
-    if not six_again:
-        game.next_player()
-        return collector.request(game, game.current_player_idx, None, None, 0)
-    return collector.request(game, game.current_player_idx, None, None, consecutive_sixes)
+    observer_seat, leaf_roll, leaf_bonus, leaf_sixes = afterstate_context(
+        game, move_info, roll, pending_bonus, consecutive_sixes,
+    )
+    return collector.request(game, observer_seat, leaf_roll, leaf_bonus, leaf_sixes)
 
 
 def _resolve_turn_continuation(game, roll, pending_bonus, consecutive_sixes,

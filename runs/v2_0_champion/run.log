@@ -1,0 +1,267 @@
+round_loop starting at round 0 (champion last updated at round -1, 0 total promotions, 0 promoted checkpoints in pool, 0 recent checkpoints in pool, 0 consecutive failures)
+round 0 shard 0/3: 2000 games, 213334 recorded decisions (63.5% of plies), depth=1, deep_decisions=0
+round 0 shard 1/3: 2000 games, 213722 recorded decisions (63.5% of plies), depth=1, deep_decisions=0
+round 0 shard 2/3: 2000 games, 214445 recorded decisions (63.7% of plies), depth=1, deep_decisions=0
+round 0: replay buffer = 3 shards (2 train / 1 val)
+Loading 1 validation shards...
+Validation set: 214445 decisions
+epoch 0: train_loss=1.7350 val_loss=1.5884 (value=0.5040 policy=0.5804 aux=0.3875)
+epoch 1: train_loss=1.6594 val_loss=1.5738 (value=0.5025 policy=0.5687 aux=0.3625)
+epoch 2: train_loss=1.6453 val_loss=1.5699 (value=0.5024 policy=0.5651 aux=0.3559)
+epoch 3: train_loss=1.6380 val_loss=1.5687 (value=0.5029 policy=0.5629 aux=0.3537)
+epoch 4: train_loss=1.6333 val_loss=1.5668 (value=0.5022 policy=0.5623 aux=0.3527)
+round 0: win_rate_a=0.4900 CI=[0.4216, 0.5588] generation_depth=1 eval_depth=1 -> PROMOTED
+round 0 finished in 373.9s (1 promotions so far)
+round 1 shard 0/3: 2000 games, 261106 recorded decisions (76.7% of plies), depth=1, deep_decisions=0
+round 1 shard 1/3: 2000 games, 263230 recorded decisions (76.9% of plies), depth=1, deep_decisions=0
+round 1 shard 2/3: 2000 games, 260186 recorded decisions (76.0% of plies), depth=1, deep_decisions=0
+round 1: replay buffer = 6 shards (5 train / 1 val)
+Loading 1 validation shards...
+Validation set: 213334 decisions
+epoch 0: train_loss=1.6990 val_loss=1.5700 (value=0.5110 policy=0.5479 aux=0.3425)
+epoch 1: train_loss=1.6892 val_loss=1.5897 (value=0.5153 policy=0.5591 aux=0.3408)
+epoch 2: train_loss=1.6825 val_loss=1.5890 (value=0.5150 policy=0.5590 aux=0.3395)
+Early stopping at epoch 2 (best val_loss=1.5700)
+round 1: win_rate_a=0.5500 CI=[0.4808, 0.6174] generation_depth=1 eval_depth=1 -> PROMOTED
+round 1 finished in 440.0s (2 promotions so far)
+round 2 shard 0/3: 2000 games, 282964 recorded decisions (82.4% of plies), depth=1, deep_decisions=0
+round 2 shard 1/3: 2000 games, 280554 recorded decisions (81.7% of plies), depth=1, deep_decisions=0
+round 2 shard 2/3: 2000 games, 279374 recorded decisions (81.5% of plies), depth=1, deep_decisions=0
+round 2: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 263230 decisions
+epoch 0: train_loss=1.6890 val_loss=1.6514 (value=0.5433 policy=0.5647 aux=0.3842)
+epoch 1: train_loss=1.6825 val_loss=1.6477 (value=0.5431 policy=0.5615 aux=0.3827)
+epoch 2: train_loss=1.6773 val_loss=1.6609 (value=0.5468 policy=0.5673 aux=0.3849)
+epoch 3: train_loss=1.6747 val_loss=1.6387 (value=0.5430 policy=0.5527 aux=0.3818)
+epoch 4: train_loss=1.6743 val_loss=1.6524 (value=0.5463 policy=0.5598 aux=0.3834)
+round 2: win_rate_a=0.5300 CI=[0.4609, 0.5980] generation_depth=1 eval_depth=1 -> PROMOTED
+round 2 finished in 491.6s (3 promotions so far)
+round 3 shard 0/3: 2000 games, 292370 recorded decisions (84.7% of plies), depth=1, deep_decisions=0
+round 3 shard 1/3: 2000 games, 293217 recorded decisions (84.4% of plies), depth=1, deep_decisions=0
+round 3 shard 2/3: 2000 games, 295494 recorded decisions (85.2% of plies), depth=1, deep_decisions=0
+round 3: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 280554 decisions
+epoch 0: train_loss=1.7255 val_loss=1.6333 (value=0.5502 policy=0.5329 aux=0.3951)
+epoch 1: train_loss=1.7212 val_loss=1.6300 (value=0.5500 policy=0.5300 aux=0.3941)
+epoch 2: train_loss=1.7171 val_loss=1.6263 (value=0.5499 policy=0.5266 aux=0.3943)
+epoch 3: train_loss=1.7145 val_loss=1.6254 (value=0.5498 policy=0.5257 aux=0.3939)
+epoch 4: train_loss=1.7127 val_loss=1.6272 (value=0.5497 policy=0.5278 aux=0.3934)
+round 3: win_rate_a=0.5250 CI=[0.4560, 0.5931] generation_depth=1 eval_depth=1 -> PROMOTED
+round 3 finished in 512.9s (4 promotions so far)
+round 4 shard 0/3: 2000 games, 299361 recorded decisions (85.9% of plies), depth=1, deep_decisions=0
+round 4 shard 1/3: 2000 games, 301159 recorded decisions (87.0% of plies), depth=1, deep_decisions=0
+round 4 shard 2/3: 2000 games, 301557 recorded decisions (86.8% of plies), depth=1, deep_decisions=0
+round 4: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 293217 decisions
+epoch 0: train_loss=1.7321 val_loss=1.6772 (value=0.5630 policy=0.5513 aux=0.3961)
+epoch 1: train_loss=1.7288 val_loss=1.6898 (value=0.5649 policy=0.5601 aux=0.3987)
+epoch 2: train_loss=1.7259 val_loss=1.6846 (value=0.5637 policy=0.5571 aux=0.3975)
+Early stopping at epoch 2 (best val_loss=1.6772)
+round 4: win_rate_a=0.5050 CI=[0.4363, 0.5735] generation_depth=1 eval_depth=1 -> PROMOTED
+round 4 finished in 505.6s (5 promotions so far)
+round 5 shard 0/3: 2000 games, 306779 recorded decisions (87.3% of plies), depth=1, deep_decisions=0
+round 5 shard 1/3: 2000 games, 304944 recorded decisions (86.9% of plies), depth=1, deep_decisions=0
+round 5 shard 2/3: 2000 games, 306923 recorded decisions (87.6% of plies), depth=1, deep_decisions=0
+round 5: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 301159 decisions
+epoch 0: train_loss=1.7681 val_loss=1.6800 (value=0.5574 policy=0.5651 aux=0.4041)
+epoch 1: train_loss=1.7645 val_loss=1.6787 (value=0.5576 policy=0.5635 aux=0.4041)
+epoch 2: train_loss=1.7610 val_loss=1.6778 (value=0.5578 policy=0.5622 aux=0.4038)
+epoch 3: train_loss=1.7586 val_loss=1.6756 (value=0.5575 policy=0.5606 aux=0.4037)
+epoch 4: train_loss=1.7572 val_loss=1.6745 (value=0.5572 policy=0.5601 aux=0.4032)
+round 5: win_rate_a=0.5150 CI=[0.4461, 0.5833] generation_depth=1 eval_depth=1 -> PROMOTED
+round 5 finished in 535.8s (6 promotions so far)
+round 6 shard 0/3: 2000 games, 306481 recorded decisions (87.3% of plies), depth=1, deep_decisions=0
+round 6 shard 1/3: 2000 games, 307672 recorded decisions (87.7% of plies), depth=1, deep_decisions=0
+round 6 shard 2/3: 2000 games, 306214 recorded decisions (87.6% of plies), depth=1, deep_decisions=0
+round 6: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 304944 decisions
+epoch 0: train_loss=1.7837 val_loss=1.7072 (value=0.5633 policy=0.5806 aux=0.4093)
+epoch 1: train_loss=1.7809 val_loss=1.7080 (value=0.5639 policy=0.5802 aux=0.4092)
+epoch 2: train_loss=1.7781 val_loss=1.7023 (value=0.5634 policy=0.5754 aux=0.4095)
+epoch 3: train_loss=1.7758 val_loss=1.7042 (value=0.5633 policy=0.5776 aux=0.4088)
+epoch 4: train_loss=1.7745 val_loss=1.7029 (value=0.5632 policy=0.5765 aux=0.4085)
+Early stopping at epoch 4 (best val_loss=1.7023)
+round 6: win_rate_a=0.5250 CI=[0.4560, 0.5931] generation_depth=1 eval_depth=1 -> PROMOTED
+round 6 finished in 539.3s (7 promotions so far)
+round 7 shard 0/3: 2000 games, 316352 recorded decisions (89.0% of plies), depth=1, deep_decisions=0
+round 7 shard 1/3: 2000 games, 309911 recorded decisions (87.3% of plies), depth=1, deep_decisions=0
+round 7 shard 2/3: 2000 games, 313673 recorded decisions (88.4% of plies), depth=1, deep_decisions=0
+round 7: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 307672 decisions
+epoch 0: train_loss=1.8039 val_loss=1.7385 (value=0.5680 policy=0.6024 aux=0.4119)
+epoch 1: train_loss=1.8011 val_loss=1.7377 (value=0.5682 policy=0.6014 aux=0.4117)
+epoch 2: train_loss=1.7985 val_loss=1.7371 (value=0.5682 policy=0.6007 aux=0.4119)
+epoch 3: train_loss=1.7962 val_loss=1.7355 (value=0.5683 policy=0.5989 aux=0.4119)
+epoch 4: train_loss=1.7949 val_loss=1.7366 (value=0.5679 policy=0.6009 aux=0.4117)
+round 7: win_rate_a=0.4650 CI=[0.3972, 0.5341] generation_depth=1 eval_depth=1 -> PROMOTED
+round 7 finished in 550.1s (8 promotions so far)
+round 8 shard 0/3: 2000 games, 314349 recorded decisions (88.7% of plies), depth=1, deep_decisions=0
+round 8 shard 1/3: 2000 games, 314872 recorded decisions (88.8% of plies), depth=1, deep_decisions=0
+round 8 shard 2/3: 2000 games, 315001 recorded decisions (89.3% of plies), depth=1, deep_decisions=0
+round 8: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 309911 decisions
+epoch 0: train_loss=1.8208 val_loss=1.7453 (value=0.5713 policy=0.6026 aux=0.4184)
+epoch 1: train_loss=1.8181 val_loss=1.7458 (value=0.5715 policy=0.6028 aux=0.4185)
+epoch 2: train_loss=1.8154 val_loss=1.7450 (value=0.5715 policy=0.6021 aux=0.4184)
+epoch 3: train_loss=1.8131 val_loss=1.7440 (value=0.5713 policy=0.6013 aux=0.4181)
+epoch 4: train_loss=1.8118 val_loss=1.7419 (value=0.5709 policy=0.6001 aux=0.4178)
+round 8: win_rate_a=0.5200 CI=[0.4510, 0.5882] generation_depth=1 eval_depth=1 -> PROMOTED
+round 8 finished in 555.0s (9 promotions so far)
+round 9 shard 0/3: 2000 games, 313671 recorded decisions (88.7% of plies), depth=1, deep_decisions=0
+round 9 shard 1/3: 2000 games, 311812 recorded decisions (88.5% of plies), depth=1, deep_decisions=0
+round 9 shard 2/3: 2000 games, 315606 recorded decisions (89.3% of plies), depth=1, deep_decisions=0
+round 9: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 314872 decisions
+epoch 0: train_loss=1.8314 val_loss=1.7465 (value=0.5671 policy=0.6123 aux=0.4133)
+epoch 1: train_loss=1.8289 val_loss=1.7485 (value=0.5679 policy=0.6127 aux=0.4145)
+epoch 2: train_loss=1.8265 val_loss=1.7460 (value=0.5675 policy=0.6111 aux=0.4141)
+epoch 3: train_loss=1.8247 val_loss=1.7452 (value=0.5672 policy=0.6107 aux=0.4138)
+epoch 4: train_loss=1.8231 val_loss=1.7438 (value=0.5671 policy=0.6096 aux=0.4134)
+round 9: win_rate_a=0.4900 CI=[0.4216, 0.5588] generation_depth=1 eval_depth=1 -> PROMOTED
+round 9 finished in 553.4s (10 promotions so far)
+== 10 rounds done in 84 min
+LADDER round10 latest vs champ23: 0.544 [0.523, 0.566] n=2000
+LADDER round10 latest vs heuristic: 0.692 [0.671, 0.712] n=2000
+round_loop starting at round 10 (champion last updated at round 9, 10 total promotions, 4 promoted checkpoints in pool, 8 recent checkpoints in pool, 0 consecutive failures)
+round 10 shard 0/3: 2000 games, 313577 recorded decisions (88.4% of plies), depth=1, deep_decisions=0
+round 10 shard 1/3: 2000 games, 312986 recorded decisions (88.9% of plies), depth=1, deep_decisions=0
+round 10 shard 2/3: 2000 games, 314475 recorded decisions (89.0% of plies), depth=1, deep_decisions=0
+round 10: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 311812 decisions
+epoch 0: train_loss=1.8444 val_loss=1.7561 (value=0.5665 policy=0.6231 aux=0.4155)
+epoch 1: train_loss=1.8419 val_loss=1.7556 (value=0.5671 policy=0.6215 aux=0.4158)
+epoch 2: train_loss=1.8396 val_loss=1.7545 (value=0.5666 policy=0.6214 aux=0.4154)
+epoch 3: train_loss=1.8372 val_loss=1.7535 (value=0.5665 policy=0.6206 aux=0.4153)
+epoch 4: train_loss=1.8359 val_loss=1.7519 (value=0.5663 policy=0.6193 aux=0.4152)
+round 10: win_rate_a=0.5150 CI=[0.4461, 0.5833] generation_depth=1 eval_depth=1 -> PROMOTED
+round 10 finished in 555.2s (11 promotions so far)
+round 11 shard 0/3: 2000 games, 313784 recorded decisions (88.7% of plies), depth=1, deep_decisions=0
+round 11 shard 1/3: 2000 games, 314601 recorded decisions (88.8% of plies), depth=1, deep_decisions=0
+round 11 shard 2/3: 2000 games, 317070 recorded decisions (89.6% of plies), depth=1, deep_decisions=0
+round 11: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 312986 decisions
+epoch 0: train_loss=1.8510 val_loss=1.7785 (value=0.5719 policy=0.6348 aux=0.4234)
+epoch 1: train_loss=1.8482 val_loss=1.7784 (value=0.5719 policy=0.6345 aux=0.4240)
+epoch 2: train_loss=1.8458 val_loss=1.7777 (value=0.5718 policy=0.6342 aux=0.4233)
+epoch 3: train_loss=1.8439 val_loss=1.7775 (value=0.5720 policy=0.6334 aux=0.4241)
+epoch 4: train_loss=1.8423 val_loss=1.7748 (value=0.5717 policy=0.6314 aux=0.4233)
+round 11: win_rate_a=0.5100 CI=[0.4412, 0.5784] generation_depth=1 eval_depth=1 -> PROMOTED
+round 11 finished in 557.2s (12 promotions so far)
+round 12 shard 0/3: 2000 games, 315492 recorded decisions (89.0% of plies), depth=1, deep_decisions=0
+round 12 shard 1/3: 2000 games, 314903 recorded decisions (88.9% of plies), depth=1, deep_decisions=0
+round 12 shard 2/3: 2000 games, 313928 recorded decisions (88.3% of plies), depth=1, deep_decisions=0
+round 12: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 314601 decisions
+epoch 0: train_loss=1.8604 val_loss=1.7858 (value=0.5729 policy=0.6399 aux=0.4278)
+epoch 1: train_loss=1.8581 val_loss=1.7854 (value=0.5735 policy=0.6384 aux=0.4282)
+epoch 2: train_loss=1.8555 val_loss=1.7856 (value=0.5734 policy=0.6388 aux=0.4283)
+epoch 3: train_loss=1.8534 val_loss=1.7850 (value=0.5735 policy=0.6380 aux=0.4283)
+epoch 4: train_loss=1.8523 val_loss=1.7833 (value=0.5730 policy=0.6372 aux=0.4278)
+round 12: win_rate_a=0.4550 CI=[0.3875, 0.5242] generation_depth=1 eval_depth=1 -> PROMOTED
+round 12 finished in 558.6s (13 promotions so far)
+round 13 shard 0/3: 2000 games, 316090 recorded decisions (88.8% of plies), depth=1, deep_decisions=0
+round 13 shard 1/3: 2000 games, 312956 recorded decisions (88.6% of plies), depth=1, deep_decisions=0
+round 13 shard 2/3: 2000 games, 313103 recorded decisions (88.3% of plies), depth=1, deep_decisions=0
+round 13: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 314903 decisions
+epoch 0: train_loss=1.8646 val_loss=1.7919 (value=0.5710 policy=0.6499 aux=0.4277)
+epoch 1: train_loss=1.8623 val_loss=1.7920 (value=0.5710 policy=0.6500 aux=0.4276)
+epoch 2: train_loss=1.8597 val_loss=1.7905 (value=0.5712 policy=0.6482 aux=0.4275)
+epoch 3: train_loss=1.8577 val_loss=1.7901 (value=0.5711 policy=0.6479 aux=0.4278)
+epoch 4: train_loss=1.8563 val_loss=1.7883 (value=0.5706 policy=0.6471 aux=0.4272)
+round 13: win_rate_a=0.5500 CI=[0.4808, 0.6174] generation_depth=1 eval_depth=1 -> PROMOTED
+round 13 finished in 558.8s (14 promotions so far)
+round 14 shard 0/3: 2000 games, 312405 recorded decisions (88.6% of plies), depth=1, deep_decisions=0
+round 14 shard 1/3: 2000 games, 314726 recorded decisions (88.4% of plies), depth=1, deep_decisions=0
+round 14 shard 2/3: 2000 games, 316051 recorded decisions (89.2% of plies), depth=1, deep_decisions=0
+round 14: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 312956 decisions
+epoch 0: train_loss=1.8695 val_loss=1.7824 (value=0.5666 policy=0.6492 aux=0.4202)
+epoch 1: train_loss=1.8668 val_loss=1.7815 (value=0.5666 policy=0.6483 aux=0.4198)
+epoch 2: train_loss=1.8648 val_loss=1.7821 (value=0.5667 policy=0.6488 aux=0.4206)
+epoch 3: train_loss=1.8625 val_loss=1.7810 (value=0.5664 policy=0.6482 aux=0.4198)
+epoch 4: train_loss=1.8613 val_loss=1.7795 (value=0.5663 policy=0.6469 aux=0.4195)
+round 14: win_rate_a=0.4200 CI=[0.3537, 0.4893] generation_depth=1 eval_depth=1 -> PROMOTED
+round 14 finished in 557.8s (15 promotions so far)
+round 15 shard 0/3: 2000 games, 316974 recorded decisions (89.2% of plies), depth=1, deep_decisions=0
+round 15 shard 1/3: 2000 games, 315459 recorded decisions (88.6% of plies), depth=1, deep_decisions=0
+round 15 shard 2/3: 2000 games, 315018 recorded decisions (88.2% of plies), depth=1, deep_decisions=0
+round 15: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 314726 decisions
+epoch 0: train_loss=1.8698 val_loss=1.7927 (value=0.5732 policy=0.6463 aux=0.4205)
+epoch 1: train_loss=1.8678 val_loss=1.7939 (value=0.5736 policy=0.6467 aux=0.4206)
+epoch 2: train_loss=1.8653 val_loss=1.7913 (value=0.5733 policy=0.6446 aux=0.4214)
+epoch 3: train_loss=1.8630 val_loss=1.7903 (value=0.5732 policy=0.6439 aux=0.4204)
+epoch 4: train_loss=1.8618 val_loss=1.7895 (value=0.5732 policy=0.6431 aux=0.4208)
+round 15: win_rate_a=0.5000 CI=[0.4314, 0.5686] generation_depth=1 eval_depth=1 -> PROMOTED
+round 15 finished in 562.7s (16 promotions so far)
+round 16 shard 0/3: 2000 games, 316785 recorded decisions (88.7% of plies), depth=1, deep_decisions=0
+round 16 shard 1/3: 2000 games, 315442 recorded decisions (88.8% of plies), depth=1, deep_decisions=0
+round 16 shard 2/3: 2000 games, 317465 recorded decisions (88.7% of plies), depth=1, deep_decisions=0
+round 16: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 315459 decisions
+epoch 0: train_loss=1.8739 val_loss=1.7949 (value=0.5696 policy=0.6557 aux=0.4214)
+epoch 1: train_loss=1.8719 val_loss=1.7935 (value=0.5702 policy=0.6531 aux=0.4223)
+epoch 2: train_loss=1.8689 val_loss=1.7935 (value=0.5699 policy=0.6537 aux=0.4218)
+epoch 3: train_loss=1.8669 val_loss=1.7925 (value=0.5698 policy=0.6530 aux=0.4217)
+epoch 4: train_loss=1.8658 val_loss=1.7918 (value=0.5697 policy=0.6525 aux=0.4212)
+round 16: win_rate_a=0.5150 CI=[0.4461, 0.5833] generation_depth=1 eval_depth=1 -> PROMOTED
+round 16 finished in 562.6s (17 promotions so far)
+round 17 shard 0/3: 2000 games, 317515 recorded decisions (89.1% of plies), depth=1, deep_decisions=0
+round 17 shard 1/3: 2000 games, 312282 recorded decisions (88.1% of plies), depth=1, deep_decisions=0
+round 17 shard 2/3: 2000 games, 315238 recorded decisions (88.9% of plies), depth=1, deep_decisions=0
+round 17: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 315442 decisions
+epoch 0: train_loss=1.8800 val_loss=1.7899 (value=0.5657 policy=0.6584 aux=0.4235)
+epoch 1: train_loss=1.8776 val_loss=1.7893 (value=0.5655 policy=0.6583 aux=0.4238)
+epoch 2: train_loss=1.8752 val_loss=1.7883 (value=0.5656 policy=0.6572 aux=0.4235)
+epoch 3: train_loss=1.8734 val_loss=1.7875 (value=0.5656 policy=0.6563 aux=0.4234)
+epoch 4: train_loss=1.8719 val_loss=1.7868 (value=0.5655 policy=0.6558 aux=0.4232)
+round 17: win_rate_a=0.5300 CI=[0.4609, 0.5980] generation_depth=1 eval_depth=1 -> PROMOTED
+round 17 finished in 561.8s (18 promotions so far)
+round 18 shard 0/3: 2000 games, 316828 recorded decisions (89.1% of plies), depth=1, deep_decisions=0
+round 18 shard 1/3: 2000 games, 316721 recorded decisions (89.2% of plies), depth=1, deep_decisions=0
+round 18 shard 2/3: 2000 games, 314525 recorded decisions (88.9% of plies), depth=1, deep_decisions=0
+round 18: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 312282 decisions
+epoch 0: train_loss=1.8816 val_loss=1.8010 (value=0.5693 policy=0.6623 aux=0.4238)
+epoch 1: train_loss=1.8785 val_loss=1.8019 (value=0.5699 policy=0.6621 aux=0.4242)
+epoch 2: train_loss=1.8768 val_loss=1.8009 (value=0.5696 policy=0.6617 aux=0.4241)
+epoch 3: train_loss=1.8745 val_loss=1.7991 (value=0.5695 policy=0.6601 aux=0.4237)
+epoch 4: train_loss=1.8735 val_loss=1.7987 (value=0.5695 policy=0.6597 aux=0.4236)
+round 18: win_rate_a=0.4800 CI=[0.4118, 0.5490] generation_depth=1 eval_depth=1 -> PROMOTED
+round 18 finished in 562.7s (19 promotions so far)
+round 19 shard 0/3: 2000 games, 313866 recorded decisions (88.6% of plies), depth=1, deep_decisions=0
+round 19 shard 1/3: 2000 games, 314792 recorded decisions (88.8% of plies), depth=1, deep_decisions=0
+round 19 shard 2/3: 2000 games, 315438 recorded decisions (88.9% of plies), depth=1, deep_decisions=0
+round 19: replay buffer = 9 shards (8 train / 1 val)
+Loading 1 validation shards...
+Validation set: 316721 decisions
+epoch 0: train_loss=1.8859 val_loss=1.8029 (value=0.5702 policy=0.6624 aux=0.4279)
+epoch 1: train_loss=1.8833 val_loss=1.8024 (value=0.5704 policy=0.6616 aux=0.4282)
+epoch 2: train_loss=1.8810 val_loss=1.8019 (value=0.5704 policy=0.6610 aux=0.4288)
+epoch 3: train_loss=1.8788 val_loss=1.8007 (value=0.5703 policy=0.6601 aux=0.4279)
+epoch 4: train_loss=1.8778 val_loss=1.7995 (value=0.5698 policy=0.6599 aux=0.4275)
+round 19: win_rate_a=0.4600 CI=[0.3923, 0.5292] generation_depth=1 eval_depth=1 -> PROMOTED
+round 19 finished in 562.4s (20 promotions so far)
+== 20 rounds done in 93 min
+LADDER round20 latest vs champ23: 0.544 [0.522, 0.566] n=2000
+LADDER round20 latest vs heuristic: 0.693 [0.672, 0.713] n=2000

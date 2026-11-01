@@ -47,6 +47,23 @@ def _capture_search_calls(monkeypatch):
     return calls
 
 
+def _capture_search_depths(monkeypatch):
+    """Like _capture_search_calls, but records only the `depth` kwarg each
+    search.search() call actually received, in call order -- a separate,
+    single-purpose helper (rather than widening _capture_search_calls'
+    3-tuple, which every existing caller unpacks positionally) for testing
+    deep_fraction's per-decision depth gate (Phase 2.3)."""
+    depths = []
+    original_search = selfplay.search.search
+
+    def recording_search(game, **kwargs):
+        depths.append(kwargs["depth"])
+        return original_search(game, **kwargs)
+
+    monkeypatch.setattr(selfplay.search, "search", recording_search)
+    return depths
+
+
 def test_champion_seat_is_always_recorded():
     print("\nTesting generate_round_games records at least the champion seat every game...")
     net = _tiny_numpy_net(num_players=2)
@@ -256,6 +273,167 @@ def test_non_champion_anchor_seats_reduce_recorded_fraction():
           f"(< 100%, confirming anchor-seat plies are excluded)")
 
 
+def _count_anchor_uses(monkeypatch):
+    """Wraps champion_pool.build_pool (as seen from selfplay) so each anchor
+    factory counts how many times it is instantiated for a seat -- i.e. how
+    many non-champion seats landed on that anchor across a
+    generate_round_games call. Anchor order is build_pool's contract:
+    index 0 = tuned heuristic, index 1 (if present) = random."""
+    uses = {'heuristic': 0, 'random': 0}
+    original_build_pool = selfplay.champion_pool.build_pool
+
+    def counting_build_pool(*args, **kwargs):
+        nets, anchors = original_build_pool(*args, **kwargs)
+        names = ['heuristic', 'random'][:len(anchors)]
+
+        def wrap(factory, name):
+            def counting_factory(game, seat, roll_box):
+                uses[name] += 1
+                return factory(game, seat, roll_box)
+            return counting_factory
+
+        return nets, tuple(wrap(f, n) for f, n in zip(anchors, names))
+
+    monkeypatch.setattr(selfplay.champion_pool, "build_pool", counting_build_pool)
+    return uses
+
+
+def test_build_pool_random_anchor_flag_controls_anchor_count():
+    print("\nTesting build_pool's random_anchor flag...")
+    from parchis.az import champion_pool
+    net = _tiny_numpy_net(num_players=2)
+    _nets, default_anchors = champion_pool.build_pool(net, [])
+    _nets, no_random = champion_pool.build_pool(net, [], random_anchor=False)
+    assert len(default_anchors) == 2, "historical default: (heuristic, random)"
+    assert len(no_random) == 1, "random_anchor=False: (heuristic,) only"
+    print("✓ 2 anchors by default, 1 with random_anchor=False")
+
+
+def test_heuristic_fraction_one_puts_the_heuristic_in_every_non_champion_seat(monkeypatch):
+    print("\nTesting heuristic_fraction=1.0 with no random anchor...")
+    uses = _count_anchor_uses(monkeypatch)
+    net = _tiny_numpy_net(num_players=2)
+    _examples, stats = selfplay.generate_round_games(
+        net, [], n_games=20, num_players=2, max_turns=200, depth=1, seed=3,
+        random_anchor=False, heuristic_fraction=1.0,
+    )
+    assert uses['heuristic'] == stats['n_games'] == 20, uses
+    assert uses['random'] == 0, uses
+    print(f"✓ heuristic seated in all {uses['heuristic']} games, random never")
+
+
+def test_heuristic_fraction_zero_without_random_anchor_is_pure_self_play(monkeypatch):
+    print("\nTesting heuristic_fraction=0.0 with no random anchor never seats an anchor...")
+    uses = _count_anchor_uses(monkeypatch)
+    net = _tiny_numpy_net(num_players=2)
+    _examples, stats = selfplay.generate_round_games(
+        net, [], n_games=20, num_players=2, max_turns=200, depth=1, seed=3,
+        random_anchor=False, heuristic_fraction=0.0,
+    )
+    assert uses == {'heuristic': 0, 'random': 0}, uses
+    assert stats['n_games'] == 20
+    print("✓ no anchor seated in 20 games")
+
+
+def test_heuristic_fraction_half_seats_the_heuristic_about_half_the_time(monkeypatch):
+    print("\nTesting heuristic_fraction=0.5 lands near 50% of non-champion seats...")
+    uses = _count_anchor_uses(monkeypatch)
+    net = _tiny_numpy_net(num_players=2)
+    n_games = 200
+    selfplay.generate_round_games(
+        net, [], n_games=n_games, num_players=2, max_turns=60, depth=1, seed=11,
+        random_anchor=False, heuristic_fraction=0.5,
+    )
+    # Binomial(200, 0.5): mean 100, sd ~7.1; +-30 is > 4 sd.
+    assert 70 <= uses['heuristic'] <= 130, uses
+    assert uses['random'] == 0, uses
+    print(f"✓ heuristic seated in {uses['heuristic']}/{n_games} games")
+
+
+def test_heuristic_fraction_none_and_random_anchor_true_match_omitting_the_params():
+    print("\nTesting the pool defaults are byte-identical to omitting the new params...")
+    net = _tiny_numpy_net(num_players=2)
+    a, stats_a = selfplay.generate_round_games(net, [], n_games=12, num_players=2, max_turns=200, depth=1, seed=5)
+    b, stats_b = selfplay.generate_round_games(net, [], n_games=12, num_players=2, max_turns=200, depth=1, seed=5,
+                                               random_anchor=True, heuristic_fraction=None)
+    assert stats_a == stats_b
+    assert len(a) == len(b)
+    for ex_a, ex_b in zip(a, b):
+        assert np.array_equal(ex_a['encoding'], ex_b['encoding'])
+        assert ex_a['chosen_piece_id'] == ex_b['chosen_piece_id']
+    print(f"✓ {len(a)} identical examples either way")
+
+
+def test_heuristic_fraction_out_of_range_raises():
+    import pytest
+    net = _tiny_numpy_net(num_players=2)
+    with pytest.raises(ValueError):
+        selfplay.generate_round_games(net, [], n_games=1, num_players=2, max_turns=10, depth=1, seed=0,
+                                      heuristic_fraction=1.5)
+
+
+def test_afterstate_rows_false_is_byte_identical_to_default():
+    print("\nTesting afterstate_rows=False matches omitting the parameter...")
+    net = _tiny_numpy_net(num_players=2)
+    a, sa = selfplay.generate_round_games(net, [], n_games=10, num_players=2, max_turns=200, depth=1, seed=21)
+    b, sb = selfplay.generate_round_games(net, [], n_games=10, num_players=2, max_turns=200, depth=1, seed=21,
+                                          afterstate_rows=False)
+    assert sa == sb and len(a) == len(b)
+    assert all(not ex['is_afterstate'] and ex['policy_weight'] == 1.0 for ex in a)
+    print(f"✓ {len(a)} decision rows, no afterstate rows, identical stats")
+
+
+def test_afterstate_rows_record_the_depth1_leaf_of_the_played_move():
+    """docs/V2_PLAN.md C3. Three properties: (1) decision rows are
+    byte-identical with afterstate rows on or off (no RNG consumed);
+    (2) at depth 1 an afterstate row's root_value is the net's OWN
+    evaluation of that very row (so it IS the leaf search evaluated for
+    the played move); (3) policy target zero with weight 0, backfilled
+    value target = blend of the game outcome (rotated to the observer)
+    and that root_value."""
+    print("\nTesting afterstate rows are the depth-1 leaves of the played moves...")
+    from parchis.az.net import value_probs
+    net = _tiny_numpy_net(num_players=2)
+    plain, s_plain = selfplay.generate_round_games(net, [], n_games=12, num_players=2, max_turns=200,
+                                                   depth=1, seed=22)
+    both, s_both = selfplay.generate_round_games(net, [], n_games=12, num_players=2, max_turns=200,
+                                                 depth=1, seed=22, afterstate_rows=True)
+    decisions = [ex for ex in both if not ex['is_afterstate']]
+    afters = [ex for ex in both if ex['is_afterstate']]
+    assert len(decisions) == len(plain) == s_both['n_recorded_decisions']
+    for ex_p, ex_d in zip(plain, decisions):
+        assert np.array_equal(ex_p['encoding'], ex_d['encoding'])
+        assert ex_p['chosen_piece_id'] == ex_d['chosen_piece_id']
+        assert np.array_equal(ex_p['value_target'], ex_d['value_target'])
+    assert len(afters) == s_both['n_afterstate_rows'] > 0
+    # Every non-winning decision has an afterstate; at most one winning move per game.
+    assert len(decisions) - s_both['n_games'] <= len(afters) <= len(decisions)
+    for ex in afters:
+        assert ex['policy_weight'] == 0.0 and not ex['policy_target'].any() and ex['chosen_piece_id'] == -1
+        _p, v = net.forward(ex['encoding'][None, :])
+        own_eval = value_probs(v)[0]
+        assert np.allclose(own_eval, ex['root_value'], atol=1e-5), (own_eval, ex['root_value'])
+        residual = ex['value_target'] - 0.5 * ex['root_value']  # = 0.5 * outcome_relative
+        assert np.allclose(residual.sum(), 0.5, atol=1e-5)
+        assert all(abs(r) < 1e-5 or abs(r - 0.5) < 1e-5 or abs(r - 0.25) < 1e-5 for r in residual)
+        assert ex['aux_target'].shape == (4,)
+    print(f"✓ {len(decisions)} decision rows unchanged; {len(afters)} afterstate rows are the net's own "
+          f"leaf evaluations with policy weight 0 and a correctly rotated outcome blend")
+
+
+def test_round_examples_policy_weights_marks_afterstate_rows():
+    print("\nTesting round_examples_policy_weights...")
+    net = _tiny_numpy_net(num_players=2)
+    examples, stats = selfplay.generate_round_games(net, [], n_games=6, num_players=2, max_turns=200,
+                                                    depth=1, seed=23, afterstate_rows=True)
+    pw = selfplay.round_examples_policy_weights(examples)
+    assert pw.dtype == np.float32 and pw.shape == (len(examples),)
+    assert int((pw == 0.0).sum()) == stats['n_afterstate_rows']
+    assert int((pw == 1.0).sum()) == stats['n_recorded_decisions']
+    assert selfplay.round_examples_policy_weights([{'encoding': None}]).tolist() == [1.0], "legacy rows -> 1.0"
+    print(f"✓ {int((pw == 0).sum())} zero weights == afterstate rows, rest 1.0")
+
+
 def test_truncated_round_game_value_target_outcome_component_is_draw():
     print("\nTesting a truncated round game's value_target degenerates to the draw vector "
           "at lam=0.0 (isolating the outcome component from the root_value blend)...")
@@ -389,6 +567,65 @@ def test_rollout_value_used_as_bootstrap_term_changes_value_target():
           f"confirming rollout_value is actually used as the bootstrap term when sampled")
 
 
+def test_deep_fraction_zero_never_calls_search_at_deep_depth(monkeypatch):
+    print("\nTesting deep_fraction=0.0 (default) never escalates a decision's search depth...")
+    depths = _capture_search_depths(monkeypatch)
+    net = _tiny_numpy_net(num_players=2)
+    examples, stats = selfplay.generate_round_games(
+        net, [], n_games=20, num_players=2, max_turns=300, depth=1, seed=23,
+    )
+    assert examples
+    assert depths, "Expected at least one search.search() call"
+    assert all(d == 1 for d in depths), (
+        f"Expected every search.search() call to use base_depth=1 with deep_fraction=0.0, "
+        f"got depths={set(depths)}"
+    )
+    assert stats['n_deep_decisions'] == 0
+    print(f"✓ all {len(depths)} search.search() calls used depth=1, n_deep_decisions=0")
+
+
+def test_deep_fraction_one_always_calls_search_at_deep_depth(monkeypatch):
+    print("\nTesting deep_fraction=1.0 escalates every recorded decision's search depth...")
+    depths = _capture_search_depths(monkeypatch)
+    net = _tiny_numpy_net(num_players=2)
+    examples, stats = selfplay.generate_round_games(
+        net, [], n_games=6, num_players=2, max_turns=150, depth=1, seed=24,
+        deep_fraction=1.0, deep_depth=3,
+    )
+    assert examples
+    assert depths
+    assert all(d == 3 for d in depths), (
+        f"Expected every search.search() call to use deep_depth=3 with deep_fraction=1.0, "
+        f"got depths={set(depths)}"
+    )
+    assert stats['n_deep_decisions'] == stats['n_recorded_decisions'] == len(examples)
+    print(f"✓ all {len(depths)} search.search() calls used depth=3, "
+          f"n_deep_decisions={stats['n_deep_decisions']}")
+
+
+def test_deep_fraction_zero_is_byte_identical_to_omitting_the_params():
+    print("\nTesting deep_fraction=0.0 (explicit) matches omitting deep_fraction/deep_depth entirely...")
+    net = _tiny_numpy_net(num_players=2)
+    kwargs = dict(n_games=15, num_players=2, max_turns=300, depth=1, seed=25)
+
+    examples_omitted, stats_omitted = selfplay.generate_round_games(net, [], **kwargs)
+    examples_explicit, stats_explicit = selfplay.generate_round_games(
+        net, [], deep_fraction=0.0, deep_depth=2, **kwargs,
+    )
+
+    assert len(examples_omitted) == len(examples_explicit)
+    assert stats_omitted['n_recorded_decisions'] == stats_explicit['n_recorded_decisions']
+    for a, b in zip(examples_omitted, examples_explicit):
+        assert np.allclose(a['value_target'], b['value_target'], atol=0), (
+            "Expected byte-identical value_targets between omitted and explicit-zero deep_fraction"
+        )
+        assert np.allclose(a['policy_target'], b['policy_target'], atol=0), (
+            "Expected byte-identical policy_targets between omitted and explicit-zero deep_fraction"
+        )
+    print(f"✓ {len(examples_omitted)} examples byte-identical with deep_fraction omitted vs. "
+          f"explicitly 0.0")
+
+
 if __name__ == '__main__':
     test_champion_seat_is_always_recorded()
     test_anchor_wrapper_never_records_and_still_counts_plies()
@@ -398,4 +635,84 @@ if __name__ == '__main__':
     test_rollout_target_fraction_zero_never_sets_rollout_value()
     test_rollout_target_fraction_one_sets_rollout_value_for_every_decision()
     test_rollout_value_used_as_bootstrap_term_changes_value_target()
+    test_deep_fraction_zero_is_byte_identical_to_omitting_the_params()
     print("\n(remaining tests need monkeypatch -- run via pytest)")
+
+
+def _run(net, **kw):
+    base = dict(n_games=6, num_players=2, max_turns=500, depth=1, seed=3,
+                tau_start=0.03, tau_end=0.005, dirichlet_epsilon=0.0, tau_target=0.015,
+                random_anchor=False, heuristic_fraction=0.0)
+    base.update(kw)
+    return selfplay.generate_round_games(net, [], **base)
+
+
+def test_deep_targets_false_is_byte_identical_to_omitting_it():
+    net = _tiny_numpy_net(2)
+    a, sa = _run(net, deep_fraction=0.5, deep_depth=2)
+    b, sb = _run(net, deep_fraction=0.5, deep_depth=2, deep_targets=False)
+    assert sa == sb and len(a) == len(b)
+    for ea, eb in zip(a, b):
+        assert np.array_equal(ea['encoding'], eb['encoding'])
+        assert np.array_equal(ea['value_target'], eb['value_target'])
+        assert ea['policy_weight'] == eb['policy_weight'] == 1.0
+        assert ea['use_bootstrap'] is True
+
+
+def test_deep_targets_requires_deep_fraction():
+    import pytest
+    with pytest.raises(ValueError):
+        _run(_tiny_numpy_net(2), deep_fraction=0.0, deep_targets=True)
+
+
+def test_deep_targets_cheap_rows_are_outcome_only_and_deep_rows_blend(monkeypatch):
+    """C2: with deep_targets, a decision searched at base depth records
+    policy weight 0 and value_target == outcome (lam 0); a deep decision
+    records weight 1 and value_target == blend(outcome, root, lam). The
+    outcome is recovered from the cheap rows of the same game."""
+    print("\nTesting deep_targets: cheap rows outcome-only, deep rows blended...")
+    depths = _capture_search_depths(monkeypatch)
+    lam = 0.5
+    examples, stats = _run(_tiny_numpy_net(2), deep_fraction=0.5, deep_depth=2, deep_targets=True, lam=lam)
+    decisions = [e for e in examples if not e['is_afterstate']]
+    assert len(depths) == len(decisions)
+    n_deep = sum(1 for e in decisions if e['use_bootstrap'])
+    assert n_deep == stats['n_deep_decisions'] == sum(1 for d in depths if d == 2)
+    assert 0 < n_deep < len(decisions)
+    for e, d in zip(decisions, depths):
+        assert e['use_bootstrap'] == (d == 2)
+        assert e['policy_weight'] == (1.0 if d == 2 else 0.0)
+    # Recover each game's absolute outcome from any cheap row, then check both kinds of row.
+    outcome_by_game = {}
+    for e in decisions:
+        if not e['use_bootstrap']:
+            vt = e['value_target']
+            assert set(np.unique(vt)).issubset({0.0, 0.5, 1.0}), vt
+            outcome_by_game.setdefault(e['game_index'], np.roll(vt, e['mover_seat']))
+    n_checked = 0
+    for e in decisions:
+        if e['use_bootstrap'] and e['game_index'] in outcome_by_game:
+            outcome_rel = np.roll(outcome_by_game[e['game_index']], -e['mover_seat'])
+            expected = targets.blend_value_target(outcome_rel, e['root_value'], lam=lam).astype(np.float32)
+            assert np.allclose(e['value_target'], expected, atol=1e-6), (e['value_target'], expected)
+            n_checked += 1
+    assert n_checked > 0
+    print(f"✓ {len(decisions)} decisions: {n_deep} deep (blended, weight 1), "
+          f"{len(decisions) - n_deep} cheap (outcome only, weight 0)")
+
+
+def test_deep_targets_afterstate_rows_inherit_their_decisions_bootstrap_flag():
+    examples, stats = _run(_tiny_numpy_net(2), deep_fraction=0.5, deep_depth=2, deep_targets=True,
+                           afterstate_rows=True)
+    n_after = 0
+    for prev, e in zip(examples, examples[1:]):
+        if e['is_afterstate']:
+            assert not prev['is_afterstate']
+            assert e['use_bootstrap'] == prev['use_bootstrap']
+            assert e['policy_weight'] == 0.0
+            if not e['use_bootstrap']:
+                assert set(np.unique(e['value_target'])).issubset({0.0, 0.5, 1.0})
+            n_after += 1
+    assert n_after == stats['n_afterstate_rows'] > 0
+    weights = selfplay.round_examples_policy_weights(examples)
+    assert set(np.unique(weights)) == {0.0, 1.0}

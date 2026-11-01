@@ -72,10 +72,12 @@ class NetEvaluator:
         batch, which is the entire point of this method existing."""
         _policy_logits, value_logits = self.numpy_net.forward(rows)
         relative_probs = value_probs(value_logits)
-        return np.stack([
-            np.roll(relative_probs[i], observer_seats[i])
-            for i in range(len(observer_seats))
-        ])
+        # One gather instead of a per-row np.roll (C6): np.roll(v, s)[j] is
+        # v[(j - s) % P], so index each row by (seat_index - observer_seat).
+        n_rows, n_seats = relative_probs.shape
+        seats = np.asarray(observer_seats, dtype=np.intp).reshape(n_rows, 1)
+        cols = (np.arange(n_seats, dtype=np.intp)[None, :] - seats) % n_seats
+        return relative_probs[np.arange(n_rows, dtype=np.intp)[:, None], cols]
 
 
 def heuristic_position_evaluator(game, observer_seat=None, roll=None, pending_bonus=None,

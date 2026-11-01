@@ -159,30 +159,28 @@ def _capture_threat_scores(game, observer_player):
     from parchis.game.constants import CAPTURE_BONUS_SQUARES, FINISH_BONUS_SQUARES
 
     hit_counts = {piece.piece_id: 0 for piece in observer_player.pieces}
+    rules = game.rules
+    summary = rules.capture_and_finish_summary  # C6(c): get_legal_moves + would_capture, fused
 
     for opponent in game.players:
         if opponent is observer_player:
             continue
 
-        moves_by_roll = {v: game.get_legal_moves(opponent, v) for v in range(1, 7)}
-        direct_targets_by_roll = {
-            v: {p for m in moves for p in game.would_capture(m)}
-            for v, moves in moves_by_roll.items()
-        }
-        capture_rolls = {v for v, targets in direct_targets_by_roll.items() if targets}
-        finish_rolls = {
-            v for v, moves in moves_by_roll.items()
-            if any(move_type == 'finish' for (_p, _pos, move_type) in moves)
-        }
+        direct_targets_by_roll = {}
+        capture_rolls = set()
+        finish_rolls = set()
+        for v in range(1, 7):
+            targets, has_finish = summary(opponent, v)
+            direct_targets_by_roll[v] = targets
+            if targets:
+                capture_rolls.add(v)
+            if has_finish:
+                finish_rolls.add(v)
+        if not capture_rolls and not finish_rolls:
+            continue  # nothing can hit: no direct capture, no bonus move
 
-        bonus20_targets = set()
-        if capture_rolls:
-            bonus20_moves = game.get_legal_moves(opponent, CAPTURE_BONUS_SQUARES)
-            bonus20_targets = {p for m in bonus20_moves for p in game.would_capture(m)}
-        bonus10_targets = set()
-        if finish_rolls:
-            bonus10_moves = game.get_legal_moves(opponent, FINISH_BONUS_SQUARES)
-            bonus10_targets = {p for m in bonus10_moves for p in game.would_capture(m)}
+        bonus20_targets = summary(opponent, CAPTURE_BONUS_SQUARES)[0] if capture_rolls else set()
+        bonus10_targets = summary(opponent, FINISH_BONUS_SQUARES)[0] if finish_rolls else set()
 
         for piece in observer_player.pieces:
             for v in range(1, 7):
@@ -202,7 +200,7 @@ def _own_piece_features(game, observer_player, observer_start):
     (fixed slot, matching parchis/rl/env.py's own convention and this
     project's Discrete(4) action space) -- see OWN_PIECE_FEATURE_NAMES."""
     features = np.zeros((4, NUM_OWN_PIECE_FEATURES), dtype=np.float32)
-    blockades = game.get_blockades()
+    blockades = game.board.blockades  # live cached set, read only (C6(b))
     legal_on_6 = game.get_legal_moves(observer_player, BONUS_TURN_ROLL)
     forced_on_6_ids = {p.piece_id for p, _np, _mt in legal_on_6}
     threat_hits = _capture_threat_scores(game, observer_player)
@@ -260,21 +258,39 @@ def _relative_piece_progress(piece, owner_start):
     return _own_path_step(piece, owner_start) / _PATH_LENGTH
 
 
-def _per_seat_scalars(player, owner_start):
-    """(NUM_PER_SEAT_SCALARS,) for one seat -- see PER_SEAT_SCALAR_NAMES."""
+def _per_seat_scalars(player, owner_start, board=None):
+    """(NUM_PER_SEAT_SCALARS,) for one seat -- see PER_SEAT_SCALAR_NAMES.
+
+    `board` (the game's Board, C6(b)): when given, own_blockades_on_track is
+    read off Board's cached blockade set instead of rescanning the 12 safe
+    squares against the player's pieces -- the same count, since a blockade
+    is exactly two same-colour on-board pieces on a safe square and
+    Board.positions is the one source of truth for where pieces stand."""
     scalars = np.zeros(NUM_PER_SEAT_SCALARS, dtype=np.float32)
-    scalars[0] = len(player.get_pieces_in_base()) / 4.0
-    scalars[1] = len(player.get_pieces_on_board()) / 4.0
-    scalars[2] = len(player.get_finished_pieces()) / 4.0
+    n_base = n_board = n_finished = 0
+    for p in player.pieces:
+        if p.in_base:
+            n_base += 1
+        elif p.finished:
+            n_finished += 1
+        else:
+            n_board += 1
+    scalars[0] = n_base / 4.0
+    scalars[1] = n_board / 4.0
+    scalars[2] = n_finished / 4.0
     piece_progresses = [_relative_piece_progress(p, owner_start) for p in player.pieces]
     scalars[3] = sum(piece_progresses) / 4.0
     scalars[4] = max(piece_progresses)
 
-    own_blockade_squares = sum(
-        1 for sq in Board.SAFE_SQUARES
-        if len(player_pieces_at := [p for p in player.pieces
-                                     if not p.in_base and not p.finished and p.position == sq]) == 2
-    )
+    if board is None:
+        own_blockade_squares = sum(
+            1 for sq in Board.SAFE_SQUARES
+            if len([p for p in player.pieces
+                    if not p.in_base and not p.finished and p.position == sq]) == 2
+        )
+    else:
+        color = player.color
+        own_blockade_squares = sum(1 for sq in board.blockades if board.positions[sq][0].color == color)
     scalars[5] = own_blockade_squares / 2.0
     return scalars
 
@@ -345,7 +361,7 @@ def encode(game, observer_seat, roll=None, pending_bonus=None, consecutive_sixes
     for channel, seat in enumerate(ordered_seats):
         seat_player = game.players[seat]
         seat_start = Board.STARTING_POSITIONS[seat_player.color]
-        per_seat[channel] = _per_seat_scalars(seat_player, seat_start)
+        per_seat[channel] = _per_seat_scalars(seat_player, seat_start, game.board)
 
     # --- turn_context: NUM_TURN_CONTEXT_FEATURES ---
     turn = out[offsets["turn_context"]:offsets["total"]]

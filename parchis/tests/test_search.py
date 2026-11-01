@@ -564,3 +564,77 @@ if __name__ == '__main__':
     test_batched_and_eager_search_agree()
     test_net_evaluator_batched_matches_eager_call_path()
     print("\nAll search tests passed!")
+
+
+def test_afterstate_context_matches_the_three_depth1_leaf_cases():
+    """search.afterstate_context is the single source of truth for what a
+    depth-1 leaf looks like (used by _evaluate_immediately AND by
+    selfplay's afterstate rows -- docs/V2_PLAN.md C3)."""
+    from types import SimpleNamespace
+    from parchis.game.constants import CAPTURE_BONUS_SQUARES, FINISH_BONUS_SQUARES
+    game = Game(num_players=2)
+    mover = game.current_player_idx
+    plain = SimpleNamespace(captured=False, new_position=10)
+
+    # capture -> same mover, capture bonus pending, streak kept
+    snap = game.snapshot()
+    obs, roll, bonus, sixes = search.afterstate_context(
+        game, SimpleNamespace(captured=True, new_position=10), 3, None, 1)
+    assert (obs, roll, bonus, sixes) == (mover, None, {'type': 'capture_bonus', 'squares': CAPTURE_BONUS_SQUARES}, 1)
+    assert game.current_player_idx == mover
+    game.restore(snap)
+
+    # finish -> same mover, finish bonus pending
+    snap = game.snapshot()
+    obs, roll, bonus, sixes = search.afterstate_context(
+        game, SimpleNamespace(captured=False, new_position=Board.FINAL_POSITION), 3, None, 0)
+    assert (obs, roll, bonus, sixes) == (mover, None, {'type': 'finish_bonus', 'squares': FINISH_BONUS_SQUARES}, 0)
+    game.restore(snap)
+
+    # turn ends -> NEXT player, pre-roll, streak reset (mutates game; caller restores)
+    snap = game.snapshot()
+    obs, roll, bonus, sixes = search.afterstate_context(game, plain, 3, None, 2)
+    assert obs == (mover + 1) % 2 == game.current_player_idx and (roll, bonus, sixes) == (None, None, 0)
+    game.restore(snap)
+    assert game.current_player_idx == mover
+
+    # six again (no bonus pending) -> same mover, pre-roll, streak kept
+    snap = game.snapshot()
+    obs, roll, bonus, sixes = search.afterstate_context(game, plain, 6, None, 1)
+    assert (obs, roll, bonus, sixes) == (mover, None, None, 1)
+    game.restore(snap)
+
+    # a bonus move is never a six-again: the turn ends
+    snap = game.snapshot()
+    obs, roll, bonus, sixes = search.afterstate_context(
+        game, plain, None, {'type': 'capture_bonus', 'squares': CAPTURE_BONUS_SQUARES}, 0)
+    assert obs == (mover + 1) % 2 and (roll, bonus, sixes) == (None, None, 0)
+    game.restore(snap)
+    print("✓ afterstate_context: capture / finish / turn-ends / six-again / bonus-move cases")
+
+
+def test_evaluate_batch_gather_matches_per_row_roll():
+    """C6: NetEvaluator.evaluate_batch rotates each row's seat-relative
+    value vector into absolute seat order with one gather; it must equal the
+    per-row np.roll it replaced, for every (num_players, observer_seat)."""
+    import numpy as np
+    from parchis.az.agent import NetEvaluator
+    from parchis.az.net import value_probs
+
+    class _FakeNet:
+        def __init__(self, n_seats):
+            self.n_seats = n_seats
+
+        def forward(self, rows):
+            rng = np.random.default_rng(len(rows) * 31 + self.n_seats)
+            return rng.normal(size=(len(rows), 4)), rng.normal(size=(len(rows), self.n_seats))
+
+    for n_seats in (2, 3, 4):
+        for n_rows in (1, 5, 17):
+            evaluator = NetEvaluator(_FakeNet(n_seats))
+            seats = list(np.random.default_rng(n_rows).integers(0, n_seats, size=n_rows))
+            rows = np.zeros((n_rows, 8), dtype=np.float32)
+            got = evaluator.evaluate_batch(rows, seats)
+            _p, vl = evaluator.numpy_net.forward(rows)
+            expected = np.stack([np.roll(value_probs(vl)[i], seats[i]) for i in range(n_rows)])
+            assert got.shape == expected.shape and np.array_equal(got, expected), (n_seats, n_rows)

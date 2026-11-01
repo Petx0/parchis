@@ -1717,3 +1717,136 @@ With this lineage's iteration explicitly stopped, growing `my_puzzles.csv` towar
 main remaining active thread — every puzzle-based conclusion in this document (the depth-accuracy
 sweep, the puzzles-2-and-4 blind spots, the per-piece_id bias lead) is gated on that sample growing,
 independent of anything else in this section.
+
+## 2026-10-31 review: measurements behind `docs/V2_PLAN.md`
+
+A fresh review of the whole program (approach, literature, models, experiment design) after the
+2026-08-31 decision to stop iterating on the round-23 lineage. Full diagnosis and plan:
+`docs/V2_PLAN.md`. Scripts: `scripts/diagnostics/` (run from the repo root with
+`/opt/anaconda3/bin/python`). All numbers against `runs/selfplay_2p_v1_champion/`, 2 players.
+
+| measurement | result |
+|---|---|
+| generation, 1 process, depth 1 | 6.8–7.1 games/s; 645 recorded decisions/s |
+| profile | `encoding.encode` 58% of time (`_capture_threat_scores` 36%); `rules.get_legal_moves` 42% (~38 calls/decision); `get_blockades` 18%; net forward 11% |
+| 1 / 4 / 8 / 10 spawn workers | 7.1 / 24.4 / 35.3 / 27.1 games/s wall-clock (24-game shards, startup included); ~65 games/s steady-state at 8 |
+| self-play acting policy (τ=0.25, Dirichlet ε=0.25) | played == greedy move 36.2% (uniform random 33.7%); exploring vs greedy champion 5.0–6.2% win rate; uniform random vs greedy 2.7% |
+| acting policy at τ=0.05/0 · 0.03/0.1 · 0.02/0 · 0.01/0 | greedy agreement 50% · 59% · 70% · 81%; win rate vs greedy 19.6% · 31.2% · 42.1% · 42.9% |
+| policy target at τ_target=0.25 | normalised entropy median 0.996 (uniform = 1.0); max prob 0.386 vs 0.371 uniform; best-vs-second value gap median 0.024 |
+| V(pre-roll leaf) vs mean over 6 rolls V(post-roll) | bias −0.009, mean abs 0.015, p90 0.033, corr 0.997; roll spread (max−min) 0.059 |
+| depth-1 root − depth-2 root, mover channel | +0.018 mean (maximisation bias), mean abs 0.045 |
+| champion @depth 2 vs @depth 1 | 57.1% [53.7%, 60.5%], 400 duplicate pairs (800 games), 63s on 8 workers |
+| promotion gate (600 pairs) | needs ≥634/1200 = 52.8%; P(promote) at true 50/51/52/53/55% = 2.5/10/28/55/93% |
+| test suite with the uncommitted `deep_fraction` change | 437 passed |
+
+**Reading**: the self-play generator played at random strength for all 132 rounds (temperature and
+Dirichlet constants copied from AlphaZero's visit-count scale and applied to win probabilities
+whose move-to-move gaps are ~0.02), the policy targets were uniform for the same reason, the
+depth-1 bootstrap term is the net's own max-biased estimate, and the promotion gate (2.5%
+false-positive rate; 3 promotions in 132 rounds) kept the generator frozen so rounds 24–132 were
+one experiment repeated. Depth-2 play is worth ~7pp today and was never used in any gate or ladder.
+None of the 2026-08-29/31 interventions could have shown an effect inside that loop. Plan:
+`docs/V2_PLAN.md` §5 (V2.0 is a one-day go/no-go test; V2.1–V2.3 follow).
+
+## 2026-10-31 V2.0 go/no-go run: passed, weakly
+
+`docs/V2_PLAN.md` §5 V2.0 as specified: 20 ungated rounds from the round-23 champion with
+τ 0.03→0.015, no Dirichlet, τ_target 0.015, λ 0.5, aux 0.2, 6,000 games/round (93 min, one
+process). Artifacts: `runs/v2_0_champion/` (final net, round-9 net, config, ladders, per-round
+metrics, log). Full analysis and the revised plan: `docs/V2_PLAN.md` §10.
+
+| ladder (1,000 duplicate pairs, depth 1) | vs round-23 champion | vs tuned heuristic |
+|---|---|---|
+| round 10 | 54.4% [52.3, 56.6] | 69.2% [67.1, 71.2] |
+| round 20 | 54.4% [52.2, 56.6] | 69.3% [67.2, 71.3] |
+
+**Reading**: the generator fix moved the loop (calibration ECE 0.050→0.005, depth-1/2 inconsistency
+4.5→2.7pp, informative policy targets) and in five rounds produced the first strength gain in 109
+rounds, but the gain is lineage-specific (no gain vs the heuristic) and the loop is stationary from
+round ~5: successive champions disagree on a third of multi-move decisions, all near-ties, and are
+equally strong. Binding now: the 1.6pp pre-roll leaf inconsistency equals the 1.3pp median move gap
+(→ C3 first), τ_end 0.015 costs the generator 11pp vs its greedy self (→ 0.005), round 0's pool was
+1/3 random mover (→ drop it), AdamW restarts at 1e-3 every round (→ 3e-4). λ = 0.5 is not implicated.
+Next: V2.0b control run + V2.1a (C3) per §10.3.
+
+**Follow-up (same day).** Pool options (`pool_random_anchor`, `pool_heuristic_fraction`), the
+gate-off promoted-history fix, and C3 afterstate rows (`afterstate_rows`, `search.afterstate_context`,
+per-row `policy_weights` in shards and the policy loss) are implemented with tests. V2.0b (control,
+`scripts/v2/run_v2_0b.py`) and V2.1a (C3, `scripts/v2/run_v2_1a.py`) run from the V2.0 champion into
+`~/parchis_training_archive/`; results go into `docs/V2_PLAN.md` §10.4 when they land.
+
+## 2026-10-31 V2.0b (config control) and V2.1a (C3 afterstate rows): config wins, C3 null
+
+Both 10 ungated rounds from the V2.0 champion, 6,000 games/round, run concurrently on the M4
+(`scripts/v2/run_v2_0b.py`, `run_v2_1a.py`; 102 and 123 min). V2.0b = V2.0 with τ_end 0.015 → 0.005,
+warm-start lr 1e-3 → 3e-4, no random-mover anchor, tuned heuristic at 1 seat in 15. V2.1a = V2.0b +
+`afterstate_rows=True` (the depth-1 leaf of the played move recorded as a value/aux row, policy
+weight 0). Artifacts: `runs/v2_0b_champion/`, `runs/v2_1a_champion/`. Full analysis:
+`docs/V2_PLAN.md` §10.4.
+
+| ladder, depth 1, 1,000 pairs | vs heuristic | vs round 23 | vs V2.0 champion | vs V2.0b champion |
+|---|---|---|---|---|
+| V2.0 (round 20) | 69.3% | 54.4% | — | — |
+| **V2.0b round 10** | **72.0% [70.0, 73.9]** | **56.9% [54.7, 59.1]** | **54.4% [52.3, 56.6]** | — |
+| V2.1a round 10 | 70.1% [68.0, 72.0] | 55.4% [53.2, 57.6] | 55.7% [53.5, 57.9] | 51.1% [49.6, 52.6] (4,000 games) |
+
+**Reading.** The config changes alone produced a gain that shows on every anchor, including the
+heuristic (the generalisation metric), and the run was still moving between rounds 5 and 10
+(68.6 → 72.0% vs heuristic). Successive nets now agree on 80% of multi-move decisions (V2.0: 66–68%)
+and early stopping triggers in half the rounds: at 3e-4 each round nudges the net instead of
+re-fitting it. C3 added nothing over the control (51.1% head to head) and missed its leaf gate
+(pre-roll/post-roll inconsistency 1.6 → 1.2pp, gate < 0.5pp): the afterstate row's bootstrap half is
+the net's own value of the same state, so the row is a half-weight outcome-only target and enforces
+no consistency; a chance-resolved target (mean of the six post-roll values) would, and moves to C2
+(V2.1c). Root-value log-loss/ECE do not separate the three nets although the ladder does — strength
+sits in the ranking of near-tied siblings. Telemetry at 100 pairs/round pointed the wrong way for
+V2.0b (217:254 decisive pairs) while its ladder climbed.
+
+**Decisions.** `afterstate_rows` stays False by default. Deployable best-so-far:
+`runs/v2_0b_champion/model.pt` (added to the ladder anchors). Variants are gated head to head against
+their control (≥ 2,000 pairs) from here. Proposed next, not launched: V2.0c — 20 more rounds of the
+V2.0b config from its champion (step or slope?), then V2.1b (C6 throughput), V2.1c (C2 incl. the
+chance-resolved afterstate target), V2.1d. `scripts/diagnostics/round_summary.py` now excludes
+afterstate rows from its columns.
+
+## 2026-11-01 C6 throughput (V2.1b): 8-worker generation, cached blockades, fused threat scorer
+
+`docs/V2_PLAN.md` §10.5. Depth-1 self-play generation 10.7 → ~18 games/s per process and
+77 games/s steady-state on 8 spawn workers (gate ≥ 50 met; measured alongside V2.0c), byte-identical
+output throughout. `SelfPlayRoundConfig.generation_workers` (default 1) drives
+`round_loop._generate_shards`, a spawn pool with one shard per task and per-shard seeds (shards
+identical to the sequential run). `Board.blockades` is a cache kept exact by `add_piece`/
+`remove_piece` and rebuilt by `Game.restore`; `calculate_new_position`/`path_crosses_blockade` are
+closed-form; `get_legal_moves` is single-pass; `RuleEngine.capture_and_finish_summary` fuses
+get_legal_moves + would_capture for the encoder's threat feature; `evaluate_batch` gathers instead
+of rolling per row. Reference copies of the old rules code live in `tests/test_rules_fast.py` and
+are checked on 100k random states (2.9M `get_legal_moves` calls). Depth-2 targets now cost
+5.1 games/s per process at `deep_fraction` 0.25 (≈ 35–40 on 8 workers), 1.8 at full depth 2.
+
+## 2026-11-01 C2 deep targets implemented (V2.1c code, run pending)
+
+`docs/V2_PLAN.md` §10.4 item 3. `SelfPlayRoundConfig.deep_targets` (default False) changes what a
+row is trained on, not what is played: with `deep_fraction` > 0, decisions searched at `deep_depth`
+keep the blended value target and a policy target of weight 1; decisions searched at base depth get
+the outcome alone as value target (λ = 0) and policy weight 0 (`'use_bootstrap'` on every row, read
+by `generate_round_games`' backfill). An afterstate row (C3) inherits the flag, so on a deep decision
+it bootstraps from the depth-2 value of the played move -- chance node and reply resolved -- which is
+the consistency target C3's half-weight outcome row could not provide, for free. Byte-identical with
+the flag off (test); cheap rows verified to equal the outcome exactly and deep rows the blend;
+`scripts/v2/run_v2_1c.py` runs it from the V2.0b champion with the same start and length as the V2.0c
+control. Both C6 and C2 were built in a git worktree while V2.0c ran and ported back once it ended.
+
+## 2026-11-01 V2.0c (20 more rounds of the V2.0b recipe): a step, not a slope; C6 + C2 merged
+
+`docs/V2_PLAN.md` §10.6. Twenty more rounds of the V2.0b configuration from the V2.0b champion (201
+min, gate off, 20/20 promotions) ended level with V2.0b: 49.5 / 49.6 / 49.5 / 50.1% head to head at
+rounds 5/10/15/20 (8,000 games pooled 49.7% [48.6, 50.8]); 70–72% vs the heuristic, 53–54% vs V2.0,
+exactly where V2.0b was. Validation losses, sibling gaps, P(best) and calibration did not move to the
+second decimal across the 20 rounds; the candidate-vs-previous telemetry summed to 439:404 while the
+ladder was flat (it summed 217:254 for V2.0b while its ladder climbed), so it is logged, not read.
+Conclusion: more depth-1 self-play of this kind is saturated; the next gain has to come from target
+quality (C2, V2.1c) or capacity (C10). Decisions: `runs/v2_0b_champion/model.pt` stays best-so-far;
+the V2.0c endpoint `runs/v2_0c_champion/model.pt` is the control for V2.1c and ladder anchor `v2_0c`.
+With V2.0c finished, the C6 and C2 worktree was merged into the main tree (twelve files, trees
+identical) and the clean throughput number taken: 14.9 games/s for one process, 80.3 games/s on
+8 workers for a 6,000-game round including spawn.

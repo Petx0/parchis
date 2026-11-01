@@ -121,21 +121,29 @@ def _aux_loss(aux_logits, aux_targets, aux_weights):
     return (per_row * aux_weights).sum() / weight_sum
 
 
-def _forward_losses(model, X, policy_targets, value_targets, aux_targets=None, aux_weights=None):
+def _forward_losses(model, X, policy_targets, value_targets, aux_targets=None, aux_weights=None,
+                    policy_weights=None):
     """policy_targets: (batch,) int64 class indices. value_targets:
     (batch, num_players) class-PROBABILITY targets (one-hot or a draw
     vector) -- see module docstring. aux_targets/aux_weights: see
     _aux_loss; both None (the default) reproduces this function's
-    original two-loss behavior exactly, for Phase 2's bootstrap path."""
+    original two-loss behavior exactly, for Phase 2's bootstrap path.
+    policy_weights: optional (batch,) per-row weights for the policy loss
+    (docs/V2_PLAN.md C3: afterstate rows carry 0.0 -- they have no roll
+    and so no policy target); None means every row counts equally."""
     policy_logits, value_logits, aux_logits = model(X)
-    policy_loss = F.cross_entropy(policy_logits, policy_targets)
+    if policy_weights is None:
+        policy_loss = F.cross_entropy(policy_logits, policy_targets)
+    else:
+        per_row = F.cross_entropy(policy_logits, policy_targets, reduction='none')
+        policy_loss = (per_row * policy_weights).sum() / policy_weights.sum().clamp(min=1.0)
     value_loss = F.cross_entropy(value_logits, value_targets)
     aux_loss = _aux_loss(aux_logits, aux_targets, aux_weights)
     return policy_loss, value_loss, aux_loss
 
 
 def _train_step(model, optimizer, xb, pb, vb, value_loss_weight, aux_targets=None,
-                 aux_weights=None, aux_loss_weight=0.0):
+                 aux_weights=None, aux_loss_weight=0.0, policy_weights=None):
     """One gradient step on a single batch already on the right device.
     Returns (loss, value_loss, policy_loss, aux_loss) as plain floats.
     Shared by bootstrap_train_arrays and bootstrap_train_sharded so the
@@ -144,7 +152,8 @@ def _train_step(model, optimizer, xb, pb, vb, value_loss_weight, aux_targets=Non
     bootstrap_train_arrays never passes aux_targets/aux_weights/
     aux_loss_weight, so its own combined loss is completely unaffected by
     this function having grown these parameters."""
-    policy_loss, value_loss, aux_loss = _forward_losses(model, xb, pb, vb, aux_targets, aux_weights)
+    policy_loss, value_loss, aux_loss = _forward_losses(model, xb, pb, vb, aux_targets, aux_weights,
+                                                        policy_weights=policy_weights)
     loss = policy_loss + value_loss_weight * value_loss + aux_loss_weight * aux_loss
 
     optimizer.zero_grad()
@@ -155,7 +164,7 @@ def _train_step(model, optimizer, xb, pb, vb, value_loss_weight, aux_targets=Non
 
 
 def _validate(model, X_val_t, policy_val_t, value_val_t, value_loss_weight,
-               aux_val_t=None, aux_weights_val_t=None):
+               aux_val_t=None, aux_weights_val_t=None, policy_weights_val_t=None):
     """Returns (val_loss, val_value_loss, val_policy_loss, val_aux_loss)
     as plain floats, model.eval()'d and under no_grad. Shared by both
     training loops for the same reason as _train_step. val_loss itself
@@ -168,6 +177,7 @@ def _validate(model, X_val_t, policy_val_t, value_val_t, value_loss_weight,
     with torch.no_grad():
         val_policy_loss, val_value_loss, val_aux_loss = _forward_losses(
             model, X_val_t, policy_val_t, value_val_t, aux_val_t, aux_weights_val_t,
+            policy_weights=policy_weights_val_t,
         )
         val_loss = (val_policy_loss + value_loss_weight * val_value_loss).item()
         return val_loss, val_value_loss.item(), val_policy_loss.item(), val_aux_loss.item()
@@ -314,7 +324,7 @@ def bootstrap_train_arrays(X_train, policy_train, value_train, X_val, policy_val
 
 def _load_shard(path):
     """Loads one shard file's (X, policy_targets, value_targets,
-    aux_targets, aux_weights) -- ignores game_indices/mover_seats, which
+    aux_targets, aux_weights, policy_weights) -- ignores game_indices/mover_seats, which
     split_shards/callers already used to decide train/val/test membership
     before this is called.
 
@@ -327,29 +337,37 @@ def _load_shard(path):
     fabricated 0.0 target as if it were real. A shard THAT DOES have the
     key gets aux_weights of all 1.0 -- every recorded decision has a real
     aux target (it's computed for free at game end, unlike the sampled
-    rollout_value), so there's no partial-shard case to handle."""
+    rollout_value), so there's no partial-shard case to handle.
+
+    policy_weights (docs/V2_PLAN.md C3): per-row policy-loss weight,
+    `policy_weights` in the shard when present (0.0 on afterstate rows),
+    else all 1.0 -- every pre-C3 shard holds decision rows only."""
     data = np.load(path)
     n = data["X"].shape[0]
+    policy_weights = (data["policy_weights"].astype(np.float32) if "policy_weights" in data
+                      else np.ones(n, dtype=np.float32))
     if "aux_targets" in data:
         aux_targets = data["aux_targets"]
         aux_weights = np.ones(n, dtype=np.float32)
     else:
         aux_targets = np.zeros((n, 4), dtype=np.float32)
         aux_weights = np.zeros(n, dtype=np.float32)
-    return data["X"], data["policy_targets"], data["value_targets"], aux_targets, aux_weights
+    return (data["X"], data["policy_targets"], data["value_targets"], aux_targets, aux_weights,
+            policy_weights)
 
 
 def _load_and_concat_shards(paths):
-    Xs, ps, vs, aux_ts, aux_ws = [], [], [], [], []
+    Xs, ps, vs, aux_ts, aux_ws, pws = [], [], [], [], [], []
     for path in paths:
-        X, p, v, aux_t, aux_w = _load_shard(path)
+        X, p, v, aux_t, aux_w, pw = _load_shard(path)
         Xs.append(X)
         ps.append(p)
         vs.append(v)
         aux_ts.append(aux_t)
         aux_ws.append(aux_w)
+        pws.append(pw)
     return (np.concatenate(Xs), np.concatenate(ps), np.concatenate(vs),
-            np.concatenate(aux_ts), np.concatenate(aux_ws))
+            np.concatenate(aux_ts), np.concatenate(aux_ws), np.concatenate(pws))
 
 
 def split_shards(shard_paths, train_frac=0.8, val_frac=0.1, seed=0):
@@ -460,13 +478,16 @@ def bootstrap_train_sharded(train_shard_paths, val_shard_paths, num_players,
     device = _device()
 
     print(f"Loading {len(val_shard_paths)} validation shards...", flush=True)
-    X_val, policy_val, value_val, aux_val, aux_weights_val = _load_and_concat_shards(val_shard_paths)
+    (X_val, policy_val, value_val, aux_val, aux_weights_val,
+     policy_weights_val) = _load_and_concat_shards(val_shard_paths)
     X_val_t = torch.from_numpy(X_val).to(device)
     policy_val_t = torch.from_numpy(policy_val).to(device)
     value_val_t = torch.from_numpy(value_val).to(device)
     aux_val_t = torch.from_numpy(aux_val).to(device)
     aux_weights_val_t = torch.from_numpy(aux_weights_val).to(device)
-    print(f"Validation set: {X_val.shape[0]} decisions", flush=True)
+    policy_weights_val_t = torch.from_numpy(policy_weights_val).to(device)
+    n_afterstate_val = int((policy_weights_val == 0.0).sum())
+    print(f"Validation set: {X_val.shape[0]} rows ({n_afterstate_val} afterstate rows)", flush=True)
 
     model = AZNet(X_val.shape[1], num_players, hidden_sizes=hidden_sizes).to(device)
     if init_state_dict is not None:
@@ -487,9 +508,8 @@ def bootstrap_train_sharded(train_shard_paths, val_shard_paths, num_players,
         n_batches = 0
 
         for shard_i in shard_order:
-            X_shard, policy_shard, value_shard, aux_shard, aux_weights_shard = _load_shard(
-                train_shard_paths[shard_i],
-            )
+            (X_shard, policy_shard, value_shard, aux_shard, aux_weights_shard,
+             policy_weights_shard) = _load_shard(train_shard_paths[shard_i])
             n_shard = X_shard.shape[0]
             perm = rng.permutation(n_shard)
             X_shard_t = torch.from_numpy(X_shard)
@@ -497,6 +517,7 @@ def bootstrap_train_sharded(train_shard_paths, val_shard_paths, num_players,
             value_shard_t = torch.from_numpy(value_shard)
             aux_shard_t = torch.from_numpy(aux_shard)
             aux_weights_shard_t = torch.from_numpy(aux_weights_shard)
+            policy_weights_shard_t = torch.from_numpy(policy_weights_shard)
 
             for start in range(0, n_shard, batch_size):
                 idx = perm[start:start + batch_size]
@@ -505,10 +526,12 @@ def bootstrap_train_sharded(train_shard_paths, val_shard_paths, num_players,
                 vb = value_shard_t[idx].to(device)
                 ab = aux_shard_t[idx].to(device)
                 awb = aux_weights_shard_t[idx].to(device)
+                pwb = policy_weights_shard_t[idx].to(device)
 
                 loss, value_loss, policy_loss, aux_loss = _train_step(
                     model, optimizer, xb, pb, vb, value_loss_weight,
                     aux_targets=ab, aux_weights=awb, aux_loss_weight=aux_loss_weight,
+                    policy_weights=pwb,
                 )
                 loss_sum += loss
                 value_loss_sum += value_loss
@@ -516,13 +539,15 @@ def bootstrap_train_sharded(train_shard_paths, val_shard_paths, num_players,
                 aux_loss_sum += aux_loss
                 n_batches += 1
 
-            del (X_shard, policy_shard, value_shard, aux_shard, aux_weights_shard,
-                 X_shard_t, policy_shard_t, value_shard_t, aux_shard_t, aux_weights_shard_t)
+            del (X_shard, policy_shard, value_shard, aux_shard, aux_weights_shard, policy_weights_shard,
+                 X_shard_t, policy_shard_t, value_shard_t, aux_shard_t, aux_weights_shard_t,
+                 policy_weights_shard_t)
 
         scheduler.step()
         val_loss, val_value_loss, val_policy_loss, val_aux_loss = _validate(
             model, X_val_t, policy_val_t, value_val_t, value_loss_weight,
             aux_val_t=aux_val_t, aux_weights_val_t=aux_weights_val_t,
+            policy_weights_val_t=policy_weights_val_t,
         )
 
         entry = {

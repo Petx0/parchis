@@ -163,6 +163,22 @@ class SelfPlayRoundConfig:
     rollout_target_fraction: float = 0.05
     rollout_n: int = 24
 
+    # Playout-depth randomization (Phase 2.3, parchis.az.selfplay): a
+    # random deep_fraction of recorded decisions per round use search at
+    # deep_depth instead of the round's fixed generation depth --
+    # expert-iteration-style extra-strength data injected cheaply, without
+    # escalation's proven-bad cost profile of paying for depth on EVERY
+    # decision of a round (0/16 promotions, ~79% of early wall-clock; see
+    # escalate_after_failures' comment above and
+    # .claude/plans/twinkly-marinating-hinton.md). Added after Phases
+    # 2.1/3.1/2.2/4.1 combined (65 rounds) showed no detectable strength
+    # improvement -- the cheapest untried lever from the original plan.
+    # Default 0.0 (off) preserves existing configs' behavior on load; the
+    # promotion-gate evaluation is unaffected either way (it always runs
+    # at base_depth via a separate code path in round_loop.py).
+    deep_fraction: float = 0.0
+    deep_depth: int = 2
+
     # Auxiliary head (Phase 4.1, parchis.az.net.AZNet.aux_head): predicts
     # whether each of the mover's own pieces finishes by game end, free
     # supervision from games already generated (see
@@ -174,6 +190,59 @@ class SelfPlayRoundConfig:
     # aux head still EXISTS in the network either way (AZNet always has
     # one now) but contributes nothing to the loss until this is raised.
     aux_loss_weight: float = 0.0
+
+    # Promotion gate (docs/V2_PLAN.md C4): True (default) = historical
+    # behavior, the generator only changes on a CI-confirmed win. False =
+    # the latest candidate ALWAYS becomes the generator (AlphaZero/KataGo
+    # style); the candidate-vs-previous match still runs, as telemetry only,
+    # and promoted_history is NOT appended (every candidate is already in
+    # recent_history; appending both would double-weight the last four
+    # nets in the opponent pool -- docs/V2_PLAN.md §10.1 item 5).
+    gate_enabled: bool = True
+
+    # Opponent pool (docs/V2_PLAN.md §10.2). pool_random_anchor=True
+    # (default, historical) keeps the uniformly-random mover as a pool
+    # member; False drops it (V2.0's round 0 drew it for 1/3 of opponent
+    # seats -- data about beating a random mover, not about strong play).
+    # pool_heuristic_fraction=None (default, historical) samples the
+    # opponent seat uniformly over {nets, anchors}; a float in [0, 1] is the
+    # probability that the opponent seat is the tuned heuristic, the rest
+    # uniform over the other entries -- a fixed small share that does not
+    # depend on how many nets the histories currently hold.
+    pool_random_anchor: bool = True
+    pool_heuristic_fraction: float = None
+
+    # Afterstate rows (docs/V2_PLAN.md C3, parchis.az.selfplay): True also
+    # records, for every non-winning decision, the depth-1 search leaf of
+    # the move actually played (pre-roll, from the next-to-decide seat's
+    # perspective) as a value/aux-only training row with policy weight 0.
+    # Makes search's leaf states in-distribution for the value head (V2.0
+    # measured a 1.6pp pre-roll/post-roll inconsistency against a 1.3pp
+    # median move gap). Roughly doubles rows per round. Default False
+    # preserves existing configs' behavior on load.
+    afterstate_rows: bool = False
+
+    # Generation workers (docs/V2_PLAN.md C6(a), parchis.az.round_loop).
+    # 1 (default, historical): every shard is generated in-process, one
+    # after another. N > 1: up to N shards at a time in spawned worker
+    # processes. Each shard keeps its own seed, so the shards a round
+    # produces are byte-identical to the sequential run -- only the
+    # wall-clock changes. Set games_per_shard = n_games_per_round / N so
+    # every worker gets exactly one shard.
+    generation_workers: int = 1
+
+    # Deep targets (docs/V2_PLAN.md C2, parchis.az.selfplay). Requires
+    # deep_fraction > 0. Every decision still plays its own search's move;
+    # what changes is the TRAINING TARGET each row carries: a deep decision
+    # (searched at deep_depth) keeps the blended value target
+    # (1-lam)*outcome + lam*root and a policy target with weight 1; a cheap
+    # decision (base_depth) gets the outcome alone (lam = 0 -- the depth-1
+    # root is the max-biased quantity being removed) and policy weight 0.
+    # Afterstate rows (afterstate_rows=True) follow their decision: the
+    # deep search's chance-resolved value of the played move as bootstrap,
+    # or the outcome alone. KataGo's playout-cap randomisation. Default
+    # False preserves existing configs' behavior on load.
+    deep_targets: bool = False
 
     def save(self, runs_dir=DEFAULT_RUNS_DIR):
         """Writes runs/<run_name>/config.json. Returns the run directory."""

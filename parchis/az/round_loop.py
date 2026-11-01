@@ -61,7 +61,10 @@ mechanism -- see SelfPlayRoundConfig's own docstring.
 """
 
 import json
+import multiprocessing as mp
+import os
 import time
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -149,6 +152,76 @@ def _gather_replay_buffer_shards(run_dir, round_num, this_round_shard_paths, rep
     return buffer_paths
 
 
+# BLAS/OpenMP thread caps for C6(a)'s generation workers: N single-threaded
+# processes, not N processes each spinning up every core.
+_THREAD_ENV = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "VECLIB_MAXIMUM_THREADS")
+
+
+def _generation_kwargs(cfg, depth, effective_rollout_fraction):
+    """The generate_round_games keyword arguments every shard of one round shares."""
+    return dict(
+        num_players=cfg.num_players, max_turns=cfg.max_turns, depth=depth,
+        lam=cfg.lam, tau_target=cfg.tau_target, tau_start=cfg.tau_start, tau_end=cfg.tau_end,
+        anneal_plies=cfg.anneal_plies, dirichlet_alpha=cfg.dirichlet_alpha,
+        dirichlet_epsilon=cfg.dirichlet_epsilon,
+        rollout_target_fraction=effective_rollout_fraction, rollout_n=cfg.rollout_n,
+        deep_fraction=cfg.deep_fraction, deep_depth=cfg.deep_depth,
+        random_anchor=cfg.pool_random_anchor, heuristic_fraction=cfg.pool_heuristic_fraction,
+        afterstate_rows=cfg.afterstate_rows, deep_targets=cfg.deep_targets,
+    )
+
+
+def _generate_shard(champion_numpy_net, promoted_numpy_nets, recent_numpy_nets, n_games, seed,
+                    shard_path, gen_kwargs):
+    """Generates one shard to `shard_path` (npz) and returns its stats: the
+    unit of work for both the sequential path and C6(a)'s worker pool."""
+    examples, stats = selfplay.generate_round_games(
+        champion_numpy_net, promoted_numpy_nets, n_games=n_games, seed=seed,
+        recent_numpy_nets=recent_numpy_nets, **gen_kwargs,
+    )
+    X, policy_targets, value_targets, aux_targets = selfplay.round_examples_to_arrays(
+        examples, gen_kwargs['num_players'],
+    )
+    policy_weights = selfplay.round_examples_policy_weights(examples)
+    np.savez(shard_path, X=X, policy_targets=policy_targets, value_targets=value_targets,
+             aux_targets=aux_targets, policy_weights=policy_weights)
+    return stats
+
+
+def _generate_shard_task(args):
+    """Spawn-worker entry for _generate_shard (one positional tuple, for executor.map)."""
+    return _generate_shard(*args)
+
+
+def _generate_shards(cfg, champion_numpy_net, promoted_numpy_nets, recent_numpy_nets, jobs,
+                     gen_kwargs):
+    """Runs every (n_games, seed, shard_path) job, yielding each job's stats
+    in job order. cfg.generation_workers > 1 (docs/V2_PLAN.md C6(a)) spreads
+    the jobs over that many spawned processes; every job keeps its own seed,
+    so the shards are byte-identical to the sequential run. The nets travel
+    to the workers pickled (NumpyAZNet is plain numpy arrays, ~0.5 MB
+    each), and each worker's BLAS is capped to one thread for the duration."""
+    n_workers = min(cfg.generation_workers, len(jobs))
+    if n_workers <= 1:
+        for n_games, seed, shard_path in jobs:
+            yield _generate_shard(champion_numpy_net, promoted_numpy_nets, recent_numpy_nets,
+                                  n_games, seed, shard_path, gen_kwargs)
+        return
+    tasks = [(champion_numpy_net, promoted_numpy_nets, recent_numpy_nets, n_games, seed, shard_path,
+              gen_kwargs) for n_games, seed, shard_path in jobs]
+    saved_env = {key: os.environ.get(key) for key in _THREAD_ENV}
+    os.environ.update({key: "1" for key in _THREAD_ENV})
+    try:
+        with ProcessPoolExecutor(n_workers, mp_context=mp.get_context("spawn")) as executor:
+            yield from executor.map(_generate_shard_task, tasks)
+    finally:
+        for key, value in saved_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
 def run_round(round_num, champion_state, meta, promoted_history, recent_history, cfg, run_dir):
     """Runs ONE self-play round to completion (see module docstring for
     the 6 steps). Returns (new_champion_state, new_meta,
@@ -193,28 +266,22 @@ def run_round(round_num, champion_state, meta, promoted_history, recent_history,
     # --- 1. Generate (in shards, matching Phase 2's on-disk shape) ---
     n_shards = max(1, cfg.n_games_per_round // cfg.games_per_shard)
     games_per_shard = cfg.n_games_per_round // n_shards
+    gen_kwargs = _generation_kwargs(cfg, depth, effective_rollout_fraction)
+    jobs = [
+        (games_per_shard, cfg.generation_seed + round_num * 1000 + shard_i,
+         str(shards_dir / f"shard_{shard_i:03d}.npz"))
+        for shard_i in range(n_shards)
+    ]
     this_round_shard_paths = []
-    for shard_i in range(n_shards):
-        seed = cfg.generation_seed + round_num * 1000 + shard_i
-        examples, stats = selfplay.generate_round_games(
-            champion_numpy_net, promoted_numpy_nets, n_games=games_per_shard,
-            num_players=cfg.num_players, max_turns=cfg.max_turns, depth=depth, seed=seed,
-            lam=cfg.lam, tau_target=cfg.tau_target, tau_start=cfg.tau_start, tau_end=cfg.tau_end,
-            anneal_plies=cfg.anneal_plies, dirichlet_alpha=cfg.dirichlet_alpha,
-            dirichlet_epsilon=cfg.dirichlet_epsilon, recent_numpy_nets=recent_numpy_nets,
-            rollout_target_fraction=effective_rollout_fraction, rollout_n=cfg.rollout_n,
-        )
-        X, policy_targets, value_targets, aux_targets = selfplay.round_examples_to_arrays(
-            examples, cfg.num_players,
-        )
-        shard_path = shards_dir / f"shard_{shard_i:03d}.npz"
-        np.savez(shard_path, X=X, policy_targets=policy_targets, value_targets=value_targets,
-                 aux_targets=aux_targets)
-        this_round_shard_paths.append(str(shard_path))
+    shard_stats = _generate_shards(cfg, champion_numpy_net, promoted_numpy_nets, recent_numpy_nets,
+                                   jobs, gen_kwargs)
+    for shard_i, ((_n_games, _seed, shard_path), stats) in enumerate(zip(jobs, shard_stats)):
+        this_round_shard_paths.append(shard_path)
         print(f"round {round_num} shard {shard_i}/{n_shards}: {stats['n_games']} games, "
               f"{stats['n_recorded_decisions']} recorded decisions "
+              f"(+{stats.get('n_afterstate_rows', 0)} afterstate rows) "
               f"({stats['n_recorded_decisions'] / max(stats['n_total_plies'], 1):.1%} of plies), "
-              f"depth={depth}", flush=True)
+              f"depth={depth}, deep_decisions={stats.get('n_deep_decisions', 0)}", flush=True)
 
     # --- 2. Replay buffer ---
     buffer_shard_paths = _gather_replay_buffer_shards(
@@ -269,13 +336,15 @@ def run_round(round_num, champion_state, meta, promoted_history, recent_history,
     # own float (so json.dump handles lower/upper directly just fine),
     # but numpy.bool_ does NOT subclass Python's bool, so the bare
     # comparison's result would fail json.dump below without this cast.
-    promoted = bool(lower >= 0.5)
+    gate_confirmed = bool(lower >= 0.5)
+    promoted = gate_confirmed or not cfg.gate_enabled
     with open(round_dir / "promotion_result.json", "w") as f:
         json.dump({
             'win_rate_a': result['win_rate_a'], 'win_rate_a_ci': [lower, upper],
             'wins_a': result['wins_a'], 'n_games': result['n_games'],
             'pair_record': result['pair_record'], 'promoted': promoted,
             'generation_depth': depth, 'eval_depth': eval_depth,
+            'gate_enabled': cfg.gate_enabled,
         }, f, indent=2)
     print(f"round {round_num}: win_rate_a={result['win_rate_a']:.4f} CI=[{lower:.4f}, {upper:.4f}] "
           f"generation_depth={depth} eval_depth={eval_depth} -> "
@@ -287,7 +356,12 @@ def run_round(round_num, champion_state, meta, promoted_history, recent_history,
     new_promoted_history = list(promoted_history)
     if promoted:
         new_state = candidate_model.state_dict()
-        new_promoted_history = champion_pool.append_promoted(new_promoted_history, str(candidate_path))
+        # With the gate off every candidate is adopted; it is already in
+        # recent_history (step 6), so appending it here too would
+        # double-weight the last four nets in the pool (docs/V2_PLAN.md
+        # §10.1 item 5). promoted_history only records gate-confirmed wins.
+        if cfg.gate_enabled:
+            new_promoted_history = champion_pool.append_promoted(new_promoted_history, str(candidate_path))
         new_meta['promotions'] = meta.get('promotions', 0) + 1
         new_meta['consecutive_failures'] = 0
     else:

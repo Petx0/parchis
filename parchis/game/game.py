@@ -208,6 +208,7 @@ class Game:
         # remove on them).
         board.positions = {position: list(pieces) for position, pieces in positions}
         board.move_counter = move_counter
+        board.rebuild_blockades()
 
         self.current_player_idx = current_player_idx
         self.turn_number = turn_number

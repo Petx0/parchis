@@ -134,6 +134,110 @@ def test_champion_unchanged_on_forced_non_promotion(tmp_path, monkeypatch):
           "but recent_history still grew, failures=1")
 
 
+def test_gate_disabled_adopts_candidate_without_appending_promoted_history(tmp_path, monkeypatch):
+    """docs/V2_PLAN.md C4/§10.1 item 5: with the gate off the candidate always
+    becomes the champion, but promoted_history stays untouched (the candidate
+    is already in recent_history; appending to both double-weights it)."""
+    print("\nTesting gate_enabled=False adopts a losing candidate and leaves promoted_history alone...")
+    cfg = _tiny_cfg(tmp_path, run_name="gate_off", gate_enabled=False)
+    run_dir = tmp_path / "runs" / cfg.run_name
+    run_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(round_loop.duplicate, "play_duplicate_match",
+                         lambda *a, **k: _forced_promotion_result(False))
+
+    champion_state, meta = round_loop.load_champion_state(run_dir, cfg)
+    new_state, new_meta, new_history, new_recent = round_loop.run_round(
+        0, champion_state, meta, [], [], cfg, run_dir,
+    )
+
+    assert new_meta['promotions'] == 1
+    assert new_meta['consecutive_failures'] == 0
+    assert new_history == [], "gate off: promoted_history must not grow"
+    assert len(new_recent) == 1, "recent_history still grows every round"
+    scratch_key = next(iter(champion_state))
+    assert not (new_state[scratch_key] == champion_state[scratch_key]).all(), (
+        "gate off: the candidate must have replaced the champion even though the match was lost"
+    )
+    with open(run_dir / "rounds" / "round_0000" / "promotion_result.json") as f:
+        result = json.load(f)
+    assert result['promoted'] is True and result['gate_enabled'] is False
+    print("✓ gate off: champion replaced, promoted_history empty, recent_history grew, result recorded")
+
+
+def test_pool_options_thread_through_to_generate_round_games_and_round_trip(tmp_path, monkeypatch):
+    print("\nTesting pool_random_anchor/pool_heuristic_fraction reach generate_round_games...")
+    cfg = _tiny_cfg(tmp_path, run_name="pool_wiring", pool_random_anchor=False, pool_heuristic_fraction=0.2)
+    run_dir = tmp_path / "runs" / cfg.run_name
+    run_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(round_loop.duplicate, "play_duplicate_match",
+                         lambda *a, **k: _forced_promotion_result(False))
+
+    captured_kwargs = []
+    original_generate = round_loop.selfplay.generate_round_games
+
+    def recording_generate(*args, **kwargs):
+        captured_kwargs.append(kwargs)
+        return original_generate(*args, **kwargs)
+
+    monkeypatch.setattr(round_loop.selfplay, "generate_round_games", recording_generate)
+
+    champion_state, meta = round_loop.load_champion_state(run_dir, cfg)
+    round_loop.run_round(0, champion_state, meta, [], [], cfg, run_dir)
+
+    assert captured_kwargs
+    for kwargs in captured_kwargs:
+        assert kwargs['random_anchor'] is False, kwargs
+        assert kwargs['heuristic_fraction'] == 0.2, kwargs
+
+    # Config round trip, including the None default for the fraction.
+    cfg.save(runs_dir=tmp_path / "runs")
+    loaded = config_module.SelfPlayRoundConfig.load(cfg.run_name, runs_dir=tmp_path / "runs")
+    assert loaded == cfg
+    default_cfg = _tiny_cfg(tmp_path, run_name="pool_defaults")
+    default_cfg.save(runs_dir=tmp_path / "runs")
+    loaded_default = config_module.SelfPlayRoundConfig.load("pool_defaults", runs_dir=tmp_path / "runs")
+    assert loaded_default.pool_random_anchor is True and loaded_default.pool_heuristic_fraction is None
+    print(f"✓ pool options threaded through {len(captured_kwargs)} call(s) and survive save/load")
+
+
+def test_afterstate_rows_thread_through_and_shards_carry_policy_weights(tmp_path, monkeypatch):
+    print("\nTesting afterstate_rows reaches generate_round_games and shards carry policy_weights...")
+    import numpy as np
+    cfg = _tiny_cfg(tmp_path, run_name="afterstate_wiring", afterstate_rows=True)
+    run_dir = tmp_path / "runs" / cfg.run_name
+    run_dir.mkdir(parents=True)
+    monkeypatch.setattr(round_loop.duplicate, "play_duplicate_match",
+                         lambda *a, **k: _forced_promotion_result(False))
+    captured_kwargs = []
+    original_generate = round_loop.selfplay.generate_round_games
+
+    def recording_generate(*args, **kwargs):
+        captured_kwargs.append(kwargs)
+        return original_generate(*args, **kwargs)
+
+    monkeypatch.setattr(round_loop.selfplay, "generate_round_games", recording_generate)
+    champion_state, meta = round_loop.load_champion_state(run_dir, cfg)
+    round_loop.run_round(0, champion_state, meta, [], [], cfg, run_dir)
+    assert captured_kwargs and all(k['afterstate_rows'] is True for k in captured_kwargs)
+    shard = np.load(round_loop._round_dir(run_dir, 0) / "shards" / "shard_000.npz")
+    assert "policy_weights" in shard.files
+    pw = shard["policy_weights"]
+    assert pw.shape == (shard["X"].shape[0],) and (pw == 0.0).any() and (pw == 1.0).any()
+    assert np.all(shard["policy_targets"][pw == 0.0] == 0.0)
+
+    cfg_off = _tiny_cfg(tmp_path, run_name="afterstate_off")
+    run_dir_off = tmp_path / "runs" / cfg_off.run_name
+    run_dir_off.mkdir(parents=True)
+    champion_state, meta = round_loop.load_champion_state(run_dir_off, cfg_off)
+    round_loop.run_round(0, champion_state, meta, [], [], cfg_off, run_dir_off)
+    shard_off = np.load(round_loop._round_dir(run_dir_off, 0) / "shards" / "shard_000.npz")
+    assert np.all(shard_off["policy_weights"] == 1.0)
+    print(f"✓ afterstate_rows threaded; shard has {int((pw == 0).sum())} zero-weight rows of {len(pw)}; "
+          f"off -> all ones")
+
+
 def test_escalation_triggers_after_n_failures_and_resets(tmp_path, monkeypatch):
     print("\nTesting escalation triggers after N consecutive failures and resets after...")
     cfg = _tiny_cfg(tmp_path, run_name="escalation", escalate_after_failures=2, escalation_depth=2, base_depth=1)
@@ -205,6 +309,41 @@ def test_escalation_disabled_when_enable_escalation_false(tmp_path, monkeypatch)
     )
     print(f"✓ generation_depths={generation_depths} (never escalates), "
           f"consecutive_failures={failures_after} (keeps climbing)")
+
+
+def test_deep_fraction_and_deep_depth_thread_through_to_generate_round_games(tmp_path, monkeypatch):
+    """Targets the specific wiring-bug class that already bit this project
+    once this session: a config field added to SelfPlayRoundConfig but its
+    one call site into selfplay.generate_round_games never updated. Wraps
+    (rather than replaces) generate_round_games so run_round still gets a
+    real, usable result -- only the kwargs it was called with are captured
+    for inspection."""
+    print("\nTesting deep_fraction/deep_depth thread through to generate_round_games...")
+    cfg = _tiny_cfg(tmp_path, run_name="deep_fraction_wiring", deep_fraction=0.3, deep_depth=3)
+    run_dir = tmp_path / "runs" / cfg.run_name
+    run_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(round_loop.duplicate, "play_duplicate_match",
+                         lambda *a, **k: _forced_promotion_result(False))
+
+    captured_kwargs = []
+    original_generate = round_loop.selfplay.generate_round_games
+
+    def recording_generate(*args, **kwargs):
+        captured_kwargs.append(kwargs)
+        return original_generate(*args, **kwargs)
+
+    monkeypatch.setattr(round_loop.selfplay, "generate_round_games", recording_generate)
+
+    champion_state, meta = round_loop.load_champion_state(run_dir, cfg)
+    round_loop.run_round(0, champion_state, meta, [], [], cfg, run_dir)
+
+    assert captured_kwargs, "Expected generate_round_games to be called at least once"
+    for kwargs in captured_kwargs:
+        assert kwargs['deep_fraction'] == 0.3, kwargs
+        assert kwargs['deep_depth'] == 3, kwargs
+    print(f"✓ deep_fraction=0.3/deep_depth=3 threaded through to all "
+          f"{len(captured_kwargs)} generate_round_games call(s)")
 
 
 def test_run_round_warm_starts_from_a_pre_aux_head_champion_state(tmp_path, monkeypatch):
@@ -309,3 +448,54 @@ def test_load_champion_state_fresh_then_round_trips_after_save(tmp_path):
 
 if __name__ == '__main__':
     print("All tests in this file need tmp_path/monkeypatch -- run via pytest.")
+
+
+def test_generation_workers_produce_byte_identical_shards(tmp_path):
+    """C6(a): the same round generated with generation_workers=1 (in-process,
+    sequential) and =2 (spawned worker pool) writes identical shards -- the
+    seeds are per shard, so parallelism only changes the wall-clock."""
+    print("\nTesting generation_workers=2 reproduces the sequential shards byte for byte...")
+    import numpy as np
+
+    cfg_seq = _tiny_cfg(tmp_path, run_name="seq", generation_workers=1)
+    cfg_par = _tiny_cfg(tmp_path, run_name="par", generation_workers=2)
+    cfg_par.save(runs_dir=tmp_path / "cfgs")
+    assert config_module.SelfPlayRoundConfig.load("par", runs_dir=tmp_path / "cfgs").generation_workers == 2
+
+    run_dirs = {}
+    for cfg in (cfg_seq, cfg_par):
+        run_dir = tmp_path / "runs" / cfg.run_name
+        run_dir.mkdir(parents=True)
+        run_dirs[cfg.run_name] = run_dir
+    champion_state, meta = round_loop.load_champion_state(run_dirs["seq"], cfg_seq)
+    for cfg in (cfg_seq, cfg_par):
+        round_loop.run_round(0, champion_state, meta, [], [], cfg, run_dirs[cfg.run_name])
+
+    for shard in ("shard_000.npz", "shard_001.npz"):
+        a = np.load(round_loop._round_dir(run_dirs["seq"], 0) / "shards" / shard)
+        b = np.load(round_loop._round_dir(run_dirs["par"], 0) / "shards" / shard)
+        assert sorted(a.files) == sorted(b.files)
+        for key in a.files:
+            assert np.array_equal(a[key], b[key]), f"{shard}[{key}] differs between 1 and 2 workers"
+        assert len(a["X"]) > 0
+    print("✓ both shards identical between generation_workers=1 and generation_workers=2")
+
+
+def test_deep_targets_wiring_zero_weights_cheap_rows_in_shards(tmp_path):
+    """C2: cfg.deep_targets reaches generate_round_games -- shards carry
+    policy_weights 0 on cheap decisions and 1 on deep ones -- and the flag
+    round-trips through config save/load."""
+    import numpy as np
+    cfg = _tiny_cfg(tmp_path, deep_fraction=0.5, deep_depth=2, deep_targets=True)
+    run_dir = tmp_path / "runs" / cfg.run_name
+    run_dir.mkdir(parents=True)
+    cfg.save(runs_dir=tmp_path / "runs")
+    assert config_module.SelfPlayRoundConfig.load(cfg.run_name, runs_dir=tmp_path / "runs").deep_targets is True
+    champion_state, meta = round_loop.load_champion_state(run_dir, cfg)
+    round_loop.run_round(0, champion_state, meta, [], [], cfg, run_dir)
+    weights = np.concatenate([
+        np.load(round_loop._round_dir(run_dir, 0) / "shards" / f"shard_{i:03d}.npz")["policy_weights"]
+        for i in range(2)
+    ])
+    assert set(np.unique(weights)) == {0.0, 1.0}
+    assert 0.2 < weights.mean() < 0.8

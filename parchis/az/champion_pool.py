@@ -126,7 +126,8 @@ def load_numpy_net(model_path, input_size, num_players, hidden_sizes):
     return NumpyAZNet.from_torch(model)
 
 
-def build_pool(champion_numpy_net, promoted_numpy_nets, recent_numpy_nets=(), tuned_weights=None):
+def build_pool(champion_numpy_net, promoted_numpy_nets, recent_numpy_nets=(), tuned_weights=None,
+               random_anchor=True):
     """Returns (nets, anchor_factories):
 
     nets: tuple of NumpyAZNet, `(champion_numpy_net, *promoted_numpy_nets,
@@ -145,7 +146,10 @@ def build_pool(champion_numpy_net, promoted_numpy_nets, recent_numpy_nets=(), tu
         pool is visible.
     anchor_factories: tuple of plain arena-style
         factory(game, seat, roll_box) -> choose_move_fn callables --
-        (tuned heuristic, random). Never search-capable, so never
+        (tuned heuristic, random), or (tuned heuristic,) alone when
+        random_anchor=False (docs/V2_PLAN.md §10.2). The tuned heuristic
+        is ALWAYS anchor index 0 -- selfplay.generate_round_games'
+        heuristic_fraction relies on that. Never search-capable, so never
         recordable; used as-is, purely for opponent diversity.
     """
     # Deferred import: parchis.az.selfplay imports THIS module (to build
@@ -157,5 +161,7 @@ def build_pool(champion_numpy_net, promoted_numpy_nets, recent_numpy_nets=(), tu
 
     w = heuristic.TUNED_WEIGHTS if tuned_weights is None else tuned_weights
     nets = (champion_numpy_net, *promoted_numpy_nets, *recent_numpy_nets)
-    anchor_factories = (heuristic.make_heuristic_agent_factory(w), random_factory)
+    anchor_factories = (heuristic.make_heuristic_agent_factory(w),)
+    if random_anchor:
+        anchor_factories = anchor_factories + (random_factory,)
     return nets, anchor_factories

@@ -1,0 +1,40 @@
+"""V2.0b control run (docs/V2_PLAN.md §10.3): 10 ungated rounds from the V2.0 champion with the §10.2
+config changes only -- tau_end 0.005, warm-start lr 3e-4, no random-mover anchor, tuned heuristic at
+1 seat in 15 -- everything else as V2.0. Ladders at rounds 5 and 10 against the tuned heuristic, the
+round-23 champion and the V2.0 champion (1,000 pairs each, depth 1).
+
+Usage: run_v2_0b.py <runs_dir>      (shards: ~1.2 GB/round; use a local non-iCloud directory)
+Post hoc: scripts/diagnostics/round_summary.py <runs_dir>/v2_0b
+"""
+import sys
+import time
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import torch
+
+from ladder import run_ladder
+
+INIT = REPO / "runs/v2_0_champion/model.pt"
+
+if __name__ == "__main__":
+    # Everything below the guard: the ladder's spawn workers re-import this module.
+    RUNS = Path(sys.argv[1])
+    RUNS.mkdir(parents=True, exist_ok=True)
+    from parchis.az import config as C, round_loop
+    cfg = C.SelfPlayRoundConfig(
+        run_name="v2_0b", num_players=2, n_games_per_round=6000, games_per_shard=2000,
+        tau_start=0.03, tau_end=0.005, dirichlet_epsilon=0.0, tau_target=0.015,
+        enable_escalation=False, aux_loss_weight=0.2, deep_fraction=0.0, gate_enabled=False,
+        promotion_n_pairs=100,  # telemetry only (gate bypassed); the real read is the ladder
+        learning_rate=3e-4,
+        pool_random_anchor=False, pool_heuristic_fraction=1 / 15,
+    )
+    init = torch.load(INIT, map_location="cpu")
+    t0 = time.time()
+    for stop in (5, 10):
+        round_loop.run_continuous(cfg, runs_dir=str(RUNS), max_rounds=stop, initial_champion_state_dict=init)
+        print(f"== {stop} rounds done, {(time.time() - t0) / 60:.0f} min since start", flush=True)
+        run_ladder(RUNS / "v2_0b" / "champion.pt", RUNS / f"ladder_round{stop}.json", tag=f"round{stop}")

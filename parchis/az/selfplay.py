@@ -192,7 +192,11 @@ def _make_search_recording_factory(numpy_net, examples, game_index_box, depth, p
                                     dirichlet_rng, tau_start, tau_end, anneal_plies,
                                     tau_target, dirichlet_alpha, dirichlet_epsilon,
                                     rollout_target_fraction=0.0, rollout_n=24,
-                                    rollout_rng=None, max_turns=arena.DEFAULT_MAX_TURNS):
+                                    rollout_rng=None, max_turns=arena.DEFAULT_MAX_TURNS,
+                                    deep_fraction=0.0, deep_depth=2, deep_rng=None,
+                                    deep_decision_box=None,
+                                    afterstate_rows=False, afterstate_box=None,
+                                    deep_targets=False):
     """One seat's factory for generate_round_games, when that seat is
     occupied by a search-capable pool member (the champion or a promoted
     net) this game: every real decision runs search.search() directly
@@ -215,8 +219,51 @@ def _make_search_recording_factory(numpy_net, examples, game_index_box, depth, p
     docstring for why this is deliberately sampled rather than applied to
     every decision. `rollout_target_fraction=0.0` (the default) never
     touches `rollout_rng`, preserving byte-identical behavior to before
-    this parameter existed for any caller that doesn't pass it."""
+    this parameter existed for any caller that doesn't pass it.
+
+    `deep_fraction`/`deep_depth`/`deep_rng`/`deep_decision_box` (Phase 2.3,
+    playout-depth randomization): when > 0, a `deep_fraction` random
+    subset of this factory's OWN decisions run search.search() at
+    `deep_depth` instead of `depth` -- unlike the rollout mechanism above,
+    this DOES change the move actually played (deeper search's own
+    move_values feed the same sampling step every decision uses), so it
+    can alter this game's subsequent trajectory once it first fires.
+    `deep_decision_box['count']` is incremented (a mutable single-key dict
+    shared across the round, mirroring `ply_box`/`game_index_box`) each
+    time it fires, giving generate_round_games an observable count.
+    `deep_fraction=0.0` (the default) never touches `deep_rng`, preserving
+    byte-identical behavior to before this parameter existed for any
+    caller that doesn't pass it.
+
+    `afterstate_rows`/`afterstate_box` (docs/V2_PLAN.md C3): when True,
+    every recorded decision ALSO records the depth-1 search leaf of the
+    move actually played -- the post-move state encoded with exactly the
+    (observer_seat, roll, pending_bonus, consecutive_sixes) that
+    search.afterstate_context gives search's own leaves -- as a second
+    example: 'mover_seat' = that observer seat (so the outcome backfill
+    rotates to its perspective), 'root_value' = the search's value of the
+    played move rotated to that seat (at depth 1 that is the net's own
+    evaluation of this very row), zero policy target with
+    'policy_weight' 0.0 (no roll, so no legal-move distribution to
+    learn), 'is_afterstate' True. A move that wins the game records no
+    afterstate (terminal; search treats it as a one-hot leaf). Costs one
+    snapshot/execute_move/encode/restore per decision and uses no RNG, so
+    the decision rows are byte-identical with it on or off.
+    `afterstate_box['count']` counts rows added, like deep_decision_box.
+
+    `deep_targets` (docs/V2_PLAN.md C2): when True, only the decisions on
+    which deep_fraction's gate fired carry a bootstrap value target and a
+    policy target -- every row records 'use_bootstrap' (read by
+    generate_round_games' backfill: False means lam = 0, outcome only) and
+    cheap decisions get 'policy_weight' 0.0. An afterstate row inherits
+    its decision's 'use_bootstrap'; on a deep decision its 'root_value' is
+    then the deep search's chance-resolved value of the played move -- the
+    consistency target C3 lacked (§10.4 item 3) -- at no extra cost.
+    False (default) records 'use_bootstrap' True everywhere and is
+    otherwise byte-identical to before the flag existed."""
     evaluator = NetEvaluator(numpy_net)
+    if afterstate_box is None:
+        afterstate_box = {'count': 0}
 
     def factory(game, seat, roll_box):
         tracker = TurnContextTracker()
@@ -231,9 +278,16 @@ def _make_search_recording_factory(numpy_net, examples, game_index_box, depth, p
             roll, pending_bonus, consecutive_sixes = tracker.context_for(roll_box)
             obs = encoding.encode(game, seat, roll=roll, pending_bonus=pending_bonus,
                                    consecutive_sixes=consecutive_sixes)
+            this_depth = depth
+            is_deep = False
+            if deep_fraction > 0 and deep_rng.random() < deep_fraction:
+                this_depth = deep_depth
+                is_deep = True
+                deep_decision_box['count'] += 1
+            use_bootstrap = is_deep or not deep_targets
             _greedy_move, move_values, root_value_absolute = search.search(
                 game, roll=roll, pending_bonus=pending_bonus,
-                consecutive_sixes=consecutive_sixes, depth=depth, evaluator=evaluator,
+                consecutive_sixes=consecutive_sixes, depth=this_depth, evaluator=evaluator,
             )
 
             tau = targets.anneal_temperature(ply, tau_start=tau_start, tau_end=tau_end,
@@ -269,10 +323,38 @@ def _make_search_recording_factory(numpy_net, examples, game_index_box, depth, p
                 'policy_target': targets.policy_target_from_move_values(
                     move_values, seat, tau_target=tau_target,
                 ),
+                'policy_weight': 1.0 if use_bootstrap else 0.0,
+                'use_bootstrap': use_bootstrap,
                 'chosen_piece_id': chosen_piece_id,
                 'mover_seat': seat,
                 'game_index': game_index_box['index'],
+                'is_afterstate': False,
             })
+            if afterstate_rows:
+                piece, new_position, move_type = move
+                mover_player = game.get_current_player()
+                snap = game.snapshot()
+                move_info = game.execute_move(piece, new_position, move_type)
+                if not mover_player.has_won():
+                    obs_seat, a_roll, a_bonus, a_sixes = search.afterstate_context(
+                        game, move_info, roll, pending_bonus, consecutive_sixes,
+                    )
+                    after_row = encoding.encode(game, obs_seat, roll=a_roll, pending_bonus=a_bonus,
+                                                consecutive_sixes=a_sixes)
+                    examples.append({
+                        'encoding': after_row,
+                        'root_value': np.roll(move_values[chosen_piece_id], -obs_seat),
+                        'rollout_value': None,
+                        'policy_target': np.zeros(4, dtype=np.float32),
+                        'policy_weight': 0.0,
+                        'use_bootstrap': use_bootstrap,
+                        'chosen_piece_id': -1,
+                        'mover_seat': obs_seat,
+                        'game_index': game_index_box['index'],
+                        'is_afterstate': True,
+                    })
+                    afterstate_box['count'] += 1
+                game.restore(snap)
             tracker.record_move(game, move)
             return move
 
@@ -307,7 +389,10 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
                           dirichlet_alpha=targets.DEFAULT_DIRICHLET_ALPHA,
                           dirichlet_epsilon=targets.DEFAULT_DIRICHLET_EPSILON,
                           recent_numpy_nets=(), tuned_weights=None,
-                          rollout_target_fraction=0.0, rollout_n=24):
+                          rollout_target_fraction=0.0, rollout_n=24,
+                          deep_fraction=0.0, deep_depth=2,
+                          random_anchor=True, heuristic_fraction=None,
+                          afterstate_rows=False, deep_targets=False):
     """
     Phase 3 self-play generation (Part 3 Phase 3's "Generate" bullet): the
     CURRENT CHAMPION (`champion_numpy_net`) always occupies one seat per
@@ -340,6 +425,33 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
     forwarded to _make_search_recording_factory -- see its own docstring.
     0.0 (default) never spends any rollout compute.
 
+    `deep_fraction`/`deep_depth` (Phase 2.3, playout-depth randomization):
+    forwarded to _make_search_recording_factory -- see its own docstring.
+    0.0 (default) never spends any extra search compute.
+
+    `random_anchor`/`heuristic_fraction` (docs/V2_PLAN.md §10.2): the pool
+    composition. random_anchor=False drops the uniformly-random mover from
+    the pool (forwarded to champion_pool.build_pool). heuristic_fraction
+    None (default) keeps the historical uniform draw over every pool entry
+    (byte-identical RNG consumption); a float is the probability that a
+    non-champion seat is the tuned heuristic, with the remaining
+    probability spread uniformly over the other entries (nets, and the
+    random anchor if kept).
+
+    `afterstate_rows` (docs/V2_PLAN.md C3): forwarded to
+    _make_search_recording_factory -- see its docstring. False (default)
+    is byte-identical to before it existed; True roughly doubles the
+    examples, adding one afterstate row per recorded non-winning decision
+    ('is_afterstate' True, 'policy_weight' 0.0), counted in
+    stats['n_afterstate_rows'].
+
+    `deep_targets` (docs/V2_PLAN.md C2): forwarded to
+    _make_search_recording_factory -- see its docstring. Requires
+    deep_fraction > 0. Rows with 'use_bootstrap' False (cheap decisions and
+    their afterstate rows) get value_target = outcome alone on backfill
+    (lam = 0); their policy weight is 0. False (default) is byte-identical
+    to before the flag existed.
+
     Returns:
         tuple(list[dict], dict): (examples, stats).
         examples: [{'encoding', 'root_value' (mover-relative),
@@ -361,7 +473,10 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
             'n_unrecorded_games' (games where even the guaranteed champion
             seat recorded nothing -- expected to be ~0 in real games;
             measured, not assumed, since a tiny max_turns test fixture can
-            end before the champion seat's first turn), 'n_by_winner_seat'}.
+            end before the champion seat's first turn), 'n_by_winner_seat',
+            'n_deep_decisions' (Phase 2.3: how many recorded decisions
+            across the whole call actually fired deep_fraction's gate --
+            0 whenever deep_fraction=0.0)}.
     """
     rng = random.Random(seed)
     dirichlet_rng = np.random.default_rng(seed)
@@ -372,16 +487,37 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
     # pass rollout_target_fraction see byte-identical output to before
     # this parameter existed.
     rollout_rng = random.Random(seed)
+    # Same independent-stream precedent as rollout_rng, for deep_fraction's
+    # gate (Phase 2.3) -- only ever consumed when deep_fraction > 0.
+    deep_rng = random.Random(seed)
+    deep_decision_box = {'count': 0}
+    afterstate_box = {'count': 0}
     examples = []
+    if heuristic_fraction is not None and not 0.0 <= heuristic_fraction <= 1.0:
+        raise ValueError(f"heuristic_fraction must be None or within [0, 1], got {heuristic_fraction}")
+    if deep_targets and not deep_fraction > 0:
+        raise ValueError("deep_targets=True needs deep_fraction > 0 (otherwise no row has a target)")
     nets, anchor_factories = champion_pool.build_pool(
         champion_numpy_net, promoted_numpy_nets, recent_numpy_nets=recent_numpy_nets,
-        tuned_weights=tuned_weights,
+        tuned_weights=tuned_weights, random_anchor=random_anchor,
     )
-    # Every seat NOT holding the guaranteed champion samples uniformly from
-    # this combined pool -- ('net', i) again lets champion-vs-champion (or
+    # Every seat NOT holding the guaranteed champion samples from this
+    # combined pool -- ('net', i) again lets champion-vs-champion (or
     # champion-vs-promoted) self-play arise, not just champion-vs-anchor.
+    # heuristic_fraction=None: uniform over every entry (historical).
+    # Otherwise the tuned heuristic (always anchor index 0, build_pool's
+    # contract) gets exactly that share and the rest is uniform.
     pool_entries = [('net', i) for i in range(len(nets))] + \
                    [('anchor', i) for i in range(len(anchor_factories))]
+    heuristic_entry = ('anchor', 0)
+    non_heuristic_entries = [e for e in pool_entries if e != heuristic_entry]
+
+    def sample_opponent():
+        if heuristic_fraction is None:
+            return rng.choice(pool_entries)
+        if rng.random() < heuristic_fraction:
+            return heuristic_entry
+        return rng.choice(non_heuristic_entries)
 
     stats = {
         'n_games': 0, 'n_recorded_decisions': 0, 'n_total_plies': 0, 'n_truncated': 0,
@@ -398,7 +534,7 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
         seat_kinds = {champion_seat: ('net', 0)}
         for seat in range(num_players):
             if seat != champion_seat:
-                seat_kinds[seat] = rng.choice(pool_entries)
+                seat_kinds[seat] = sample_opponent()
 
         agent_factories = {}
         for seat, (kind, idx) in seat_kinds.items():
@@ -408,6 +544,10 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
                     tau_start, tau_end, anneal_plies, tau_target, dirichlet_alpha, dirichlet_epsilon,
                     rollout_target_fraction=rollout_target_fraction, rollout_n=rollout_n,
                     rollout_rng=rollout_rng, max_turns=max_turns,
+                    deep_fraction=deep_fraction, deep_depth=deep_depth,
+                    deep_rng=deep_rng, deep_decision_box=deep_decision_box,
+                    afterstate_rows=afterstate_rows, afterstate_box=afterstate_box,
+                    deep_targets=deep_targets,
                 )
             else:
                 agent_factories[seat] = _make_ply_counting_factory(anchor_factories[idx], ply_box)
@@ -427,6 +567,7 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
             stats['n_truncated'] += 1
 
         n_new = len(examples) - mark
+        n_new_decisions = sum(1 for example in examples[mark:] if not example.get('is_afterstate', False))
         for example in examples[mark:]:
             outcome_relative = np.roll(absolute_outcome, -example['mover_seat'])
             # Use the rollout-refined estimate as the bootstrap term when
@@ -435,8 +576,11 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
             bootstrap_value = example['rollout_value']
             if bootstrap_value is None:
                 bootstrap_value = example['root_value']
+            # C2 deep targets: a row whose decision was not searched deep
+            # bootstraps from nothing -- the outcome alone (lam = 0).
+            row_lam = lam if example.get('use_bootstrap', True) else 0.0
             example['value_target'] = targets.blend_value_target(
-                outcome_relative, bootstrap_value, lam=lam,
+                outcome_relative, bootstrap_value, lam=row_lam,
             ).astype(np.float32)
             # Phase 4.1 aux target: did THIS decision's own mover's own 4
             # pieces (piece_id-indexed, matching encoding._own_piece_features'
@@ -448,12 +592,25 @@ def generate_round_games(champion_numpy_net, promoted_numpy_nets, n_games, num_p
             )
 
         stats['n_games'] += 1
-        stats['n_recorded_decisions'] += n_new
+        # Decision rows only -- afterstate rows (C3) are counted separately
+        # in n_afterstate_rows, so this stays comparable across configs.
+        stats['n_recorded_decisions'] += n_new_decisions
         stats['n_total_plies'] += ply_box['ply']
-        if n_new == 0:
+        if n_new_decisions == 0:
             stats['n_unrecorded_games'] += 1
 
+    stats['n_deep_decisions'] = deep_decision_box['count']
+    stats['n_afterstate_rows'] = afterstate_box['count']
     return examples, stats
+
+
+def round_examples_policy_weights(examples):
+    """(n,) float32 per-row policy-loss weight for generate_round_games'
+    output: 1.0 for a decision row, 0.0 for an afterstate row (no roll, so
+    no policy target -- docs/V2_PLAN.md C3). Examples recorded before
+    'policy_weight' existed default to 1.0. Stored in each shard as
+    `policy_weights` and consumed by parchis.az.train._load_shard."""
+    return np.array([ex.get('policy_weight', 1.0) for ex in examples], dtype=np.float32)
 
 
 def round_examples_to_arrays(examples, num_players):

@@ -46,6 +46,36 @@ class Board:
         self.positions = {}
         # Global move counter to track order of piece movements
         self.move_counter = 0
+        # Blockade cache (docs/V2_PLAN.md C6(b)): the safe squares that
+        # currently hold exactly MAX_PIECES_PER_SQUARE same-colour pieces.
+        # add_piece/remove_piece keep it exact (they are the only mutators
+        # of `positions` besides Game.restore, which calls
+        # rebuild_blockades). Before this, RuleEngine.get_blockades rescanned
+        # all 12 safe squares on every call -- 160k calls per 40 games.
+        self._blockades = set()
+
+    @property
+    def blockades(self):
+        """The live blockade set: positions where two same-colour pieces sit
+        on a safe square. Read-only by contract -- callers that want to keep
+        or mutate it take a copy (RuleEngine.get_blockades does)."""
+        return self._blockades
+
+    def _refresh_blockade(self, position):
+        pieces = self.positions.get(position)
+        if (pieces is not None and len(pieces) == self.MAX_PIECES_PER_SQUARE
+                and pieces[0].color == pieces[1].color):
+            self._blockades.add(position)
+        else:
+            self._blockades.discard(position)
+
+    def rebuild_blockades(self):
+        """Recompute the cache from `positions` wholesale -- for Game.restore,
+        which replaces the dict. Mutates the existing set in place so any
+        live reference stays valid."""
+        self._blockades.clear()
+        for position in self.SAFE_SQUARES:
+            self._refresh_blockade(position)
 
     def get_pieces_at(self, position):
         """
@@ -83,6 +113,8 @@ class Board:
         if position not in self.positions:
             self.positions[position] = []
         self.positions[position].append(piece)
+        if position in self.SAFE_SQUARES:
+            self._refresh_blockade(position)
 
         if update_move_order:
             self.move_counter += 1
@@ -100,6 +132,8 @@ class Board:
                 self.positions[piece.position].remove(piece)
                 if not self.positions[piece.position]:
                     del self.positions[piece.position]
+                if piece.position in self.SAFE_SQUARES:
+                    self._refresh_blockade(piece.position)
 
     def enter_piece(self, piece, starting_position):
         """

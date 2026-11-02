@@ -1861,3 +1861,31 @@ All four anchors agree in sign (+0.7 to +1.9pp over V2.0c's scores). Value bias 
 (V2.0c 0.011-0.021). New best-so-far: `runs/v2_1c_champion/model.pt`. Not yet measured: the
 pre-roll/post-roll consistency gate. Lesson: effects of ~2pp need >= 10,000 pairs; `scripts/v2/h2h.py`
 runs that on disjoint seeds.
+
+## 2026-11-02 C8 luck-adjusted scoring built; unbiased but ×1.3 — and a BLAS thread fix worth 1.6×
+
+`docs/V2_PLAN.md` §10.8. `parchis/evaluation/luck.py`: `LuckTracker` wraps `game.dice.roll` and
+accumulates, per seat, V(S, roll) − mean over faces of V(S, f) for a fixed evaluator; the duplicate
+match reports outcome − Σ luck with a t-interval over groups and the variance multiplier
+var(raw)/var(adjusted). Exact zero conditional mean for any evaluator (fair die) — adjusted and raw
+agree within 0.5pp on three pairings. With the V2.1c net as evaluator the multiplier is 1.3
+(24% of outcome variance removed) at 1.75× the per-game cost; with the depth-1 search value 2.3
+(56%) at 6.8× — precision per second below plain games in both cases, so gates stay on raw
+10,000-pair duplicate scores and the multiplier becomes a value-sharpness telemetry number (true
+value function → ∞; the net currently sees about half of what a roll is worth, depth-1 search
+about three quarters). `encoding.encode_all_rolls` builds the six post-roll rows from one encode
+(tested equal to six encodes). Side finding: OpenBLAS threading made 5–6-row forwards 1.7–2.9 ms
+on a busy machine against 0.2 ms single-threaded; `scripts/v2/ladder.py` and `h2h.py` now cap
+their worker pools to one BLAS thread like `round_loop` does (plain evaluation games 121 → 76 ms).
+Built in a worktree while V2.1d (deep_fraction 0.5, control V2.1c) ran; merged after it ended.
+
+## 2026-11-02 V2.1d (deep_fraction 0.5): no gain over V2.1c; C2 effect replicates; C8 merged
+
+`docs/V2_PLAN.md` §10.9. V2.1c recipe with half the decisions searched at depth 2: 49.26%
+[48.57, 49.95] against V2.1c (20,000 games), 51.24% [50.55, 51.93] against the V2.0c control. Same
+telemetry as V2.1c, 45% longer rounds. So the C2 gain replicates across two runs (52.5%, 51.2% over
+the control) but does not grow with the deep share; V2.1c stays best-so-far, `deep_fraction` 0.25
+stays the reference. In-run 2,000-game ladders move +-2pp between consecutive checkpoints of one
+run; decisions need 10,000 pairs. The C8 worktree (luck-adjusted scoring, BLAS cap in ladder/h2h
+pools) was merged into the main tree after the run ended. Next lever per the plan: capacity (C10) or
+depth-3 targets; neither launched.

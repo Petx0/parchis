@@ -383,3 +383,20 @@ def encode(game, observer_seat, roll=None, pending_bonus=None, consecutive_sixes
     turn[11] = min(game.turn_number / 300.0, 1.0)
 
     return out
+
+
+def encode_all_rolls(game, observer_seat, consecutive_sixes=0):
+    """The six rows encode(game, observer_seat, roll=f, consecutive_sixes=...) for f = 1..6 as one
+    (6, encoding_size) array, from ONE encode: a fresh roll touches only the roll one-hot of the
+    turn-context block (slots 0-4 for 1-5, slot 5 or 6 for a six with/without a piece in base),
+    everything else is identical across faces. Used by the C8 luck tracker
+    (parchis/evaluation/luck.py) on every dice roll; equality with six separate encode() calls is
+    checked in tests/test_luck.py."""
+    base = encode(game, observer_seat, roll=None, consecutive_sixes=consecutive_sixes)
+    turn_start = block_offsets(game.num_players)["turn_context"]
+    out = np.repeat(base[None, :], 6, axis=0)
+    for face in range(1, 6):
+        out[face - 1, turn_start + face - 1] = 1.0
+    six_slot = 5 if len(game.players[observer_seat].get_pieces_in_base()) > 0 else 6
+    out[5, turn_start + six_slot] = 1.0
+    return out

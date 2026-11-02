@@ -19,6 +19,8 @@ trusting a number that may have drifted.
 
 *Update, 2026-11-02: V2.1c (C2 deep targets) beat the V2.0c control 52.5% [51.8, 53.2] over 20,000 fresh-seed games (10,000 duplicate pairs), after its own four ladders had read 47.0 / 51.6 / 50.5 / 50.0% over 2,000 games each. It is the new best-so-far, by a small margin; §10.7.*
 
+*Update, 2026-11-02 afternoon: V2.1d (deep_fraction 0.5) did not improve on V2.1c — 49.3% [48.6, 50.0] head to head over 20,000 games, though it also beats the V2.0c control (51.2% [50.6, 51.9]), so the C2 gain replicates but does not grow with the deep share. V2.1c stays the best net. C8 luck-adjusted scoring was built (unbiased, multiplier only ×1.3); §10.8–10.9.*
+
 The 109-round plateau was not a ceiling of the architecture or the data scale. The loop could not
 move, for two independent reasons that are both fixable in a day, and it was spending most of its
 compute on the wrong things:
@@ -605,6 +607,8 @@ not against a shared older anchor.
    `deep_targets`, `afterstate_rows`, 8 workers; ladders every 5 rounds incl. the V2.0c champion).
    `round_summary.py` columns then describe deep decisions only (policy-weight-0 rows excluded).
 4. **V2.1d** unchanged (C8, C5, §6 telemetry plus the sibling-ranking metric from item 4).
+   *2026-11-02: C8 built and measured — §10.8 (modest; protocol unchanged). The name V2.1d now
+   denotes the deep_fraction-0.5 run (§10.9). C5 and the telemetry items stay open.*
 5. The fallback above stands: if V2.1c also fails to beat its control, run C10 (3×512) with 30k
    games/round as the next A/B.
 
@@ -745,6 +749,120 @@ next variant must also be gated head to head at ≥ 10,000 pairs, not 2,000.
 **Next.** One more lever is cheap and untested: the same recipe with `deep_fraction` raised (0.5) or
 `deep_depth` 3, since quality of targets, not volume, is what moved. If that is flat, capacity (C10,
 3×512) is the next A/B, as the plan stated. Both remain unlaunched.
+
+### 10.8 C8 luck-adjusted scoring: built, unbiased, and not worth its cost yet (2026-11-02)
+
+**Result: the adjustment is exact in expectation and agrees with the raw score on every pairing
+tried, but with today's nets as the evaluator it removes only 24% of the outcome variance (×1.3)
+while costing 1.75× per game; the depth-1 search value as evaluator removes 56% (×2.3) at 6.8× the
+cost. Plain duplicate games stay the most precise estimator per second, so the protocol is
+unchanged: raw score, 10,000 pairs for effects of 2–3pp.** The multiplier itself is a new,
+cheap measurement of value-head sharpness. A side finding pays immediately: OpenBLAS threading
+made a 5–6-row forward 10× slower on a busy machine; capping the evaluation pools to one BLAS
+thread makes plain ladder/head-to-head games 1.6× faster.
+
+What was built (`parchis/evaluation/luck.py`, hooks in `arena.play_one_game` and
+`duplicate.play_duplicate_*`, `encoding.encode_all_rolls`, `scripts/v2/ladder.py` and `h2h.py`
+options `luck=default|<model.pt>` and `luck_depth=0|1`): for the roll r in pre-roll state S,
+luck_r[seat] = V(S, r)[seat] − mean over the six faces of V(S, f)[seat]; adjusted result =
+outcome − Σ luck_r. Because the die is fair, E[luck_r | S] = 0 for *any* evaluator, so the
+adjusted score is unbiased by construction and only its variance depends on V (a control variate
+with known mean; the §4 note that a biased net could bias the judge was wrong). `LuckTracker`
+wraps `game.dice.roll`, so dice, moves and raw results are identical with and without it; the
+six post-roll rows come from one encode (the roll touches only the turn-context one-hot). Tests
+(`tests/test_luck.py`, 9): tracker leaves the game unchanged; per-roll luck sums to exactly zero
+over the faces and to zero across seats; the six-streak handed to the evaluator equals the
+turn's roll index; `encode_all_rolls` equals six `encode` calls on 300+ real positions
+(2/3/4 players); the fast net path equals the duck-typed path with a real net.
+
+Measurements (V2.1c champion as the evaluator unless stated; 1,000 pairs = 2,000 games per row):
+
+| pairing | raw | adjusted | multiplier |
+|---|---|---|---|
+| V2.1c vs V2.0c | 51.5 [49.3, 53.7] | 51.9 [50.1, 53.6] | ×1.35 |
+| V2.1c vs heuristic | 72.9 [70.9, 74.8] | 72.4 [70.7, 74.2] | ×1.3 |
+| V2.1c vs round-23 | 57.3 [55.1, 59.5] | 57.8 [56.1, 59.5] | ×1.3 |
+| V2.1c vs V2.0c, 400 pairs, depth-1 search value as evaluator | 49.4 | 52.1 [49.9, 54.3] | ×2.29 |
+
+Mean |Σ luck| per game is 0.20 with the net and 0.28 with the depth-1 value, over ~170 rolls. Cost
+per game, one process, one BLAS thread, same seeds interleaved: plain 76 ms, net evaluator 134 ms
+(×1.75), depth-1 evaluator 522 ms (×6.8). With default BLAS threads under load the same games cost
+121 / 670 / 874 ms: OpenBLAS spins up threads for the 6-row GEMM (1.7–2.9 ms per forward against
+0.2 ms single-threaded) — `round_loop` already capped its generation workers; `ladder.py`/`h2h.py`
+now do the same (`single_thread_blas()`).
+
+Readings:
+
+1. **Why so little.** With deterministic agents all randomness is dice, so under the *true* value
+   function and optimal play the adjusted result would be a constant (multiplier → ∞). A multiplier
+   of 1.3 says the net's value moves by roughly half of what a roll is really worth (removed share
+   24% ≈ c² with c ≈ 0.5): the value head is well calibrated (bias ~0, ECE 0.005) but under-resolved
+   with respect to the roll. Depth-1 search doubles the removed share (56%) because it sees what the
+   roll lets the mover *do*; the raw net reads the roll only through the threat features. This is
+   the same gap M8 found from the other side (depth-1 root +1.8pp over the net) and §10.4 reading 4
+   asked for: a sharpness metric that calibration numbers do not give.
+2. **Precision per second.** Variance multiplier ÷ cost multiplier: net 1.3/1.75 = 0.75,
+   depth-1 2.3/6.8 = 0.34, both < 1 — the adjustment loses to simply playing more plain games until
+   the nets are much sharper. It would win where games are expensive relative to the evaluator
+   (depth-2 or 4-player matches) or where the game budget rather than time is fixed.
+3. **The free gain** is the BLAS cap: ladder and head-to-head games 121 → 76 ms when the machine is
+   busy; the 10,000-pair head-to-head drops to roughly 2.5 minutes on 8 workers.
+
+**Decisions.** Gates and ladders stay on raw duplicate scores; `h2h.py`/`ladder.py` report the
+adjusted score and multiplier when asked (`luck=default`), as a second opinion and as the sharpness
+number. Add the multiplier (net evaluator, fixed 200-pair sample vs the heuristic) to the §6
+telemetry: it should rise as the value head sharpens, and a variant whose head-to-head gain comes
+with a rising multiplier is learning value, not noise. Naming: the `deep_fraction` 0.5 run launched
+this morning is **V2.1d** (§10.9 when it ends; control V2.1c); what §10.4 item 4 called V2.1d (C8,
+C5, telemetry) is this section plus two open items. C8 code was built in a git worktree while V2.1d
+ran from the main tree and is merged after it ends.
+
+### 10.9 V2.1d — deep_fraction 0.5: no further gain; the C2 effect replicates (2026-11-02)
+
+**Result: doubling the share of depth-2 decisions from 25% to 50% did not improve the net. V2.1d
+scores 49.26% [48.57, 49.95] against V2.1c over 20,000 games (10,000 pairs, seeds 70000+i), a tie
+to a 0.7pp loss, so the gate (beat V2.1c, Wilson lower bound > 50%) fails and V2.1c stays the
+best-so-far.** Against the V2.0c control it wins 51.24% [50.55, 51.93] (same protocol), 1.3pp
+short of V2.1c's 52.49%. Run: 20 rounds from the V2.0b champion, V2.1c recipe with `deep_fraction`
+0.5, 148 min (rounds 6.4–8.7 min against V2.1c's 5.1). Artefacts: `runs/v2_1d_champion/` (endpoint,
+config, four ladders, `h2h_vs_v2_1c.json`, `h2h_vs_v2_0c.json`, log, per-round metrics); raw run in
+`~/parchis_training_archive/v2_1d_runs`.
+
+| ladder (depth 1, 2,000 games) | round 5 | round 10 | round 15 | round 20 | V2.1c r20 |
+|---|---|---|---|---|---|
+| vs heuristic | 71.5 | 71.2 | 69.7 | 70.9 | 72.9 |
+| vs round-23 champion | 56.1 | 56.6 | 55.1 | 56.7 | 57.3 |
+| vs V2.0 | 56.9 | 53.8 | 56.0 | 55.8 | 55.1 |
+| vs V2.0b | 50.7 | 51.0 | 48.9 | 54.3 | 51.4 |
+| vs V2.0c | 50.3 | 49.3 | 51.3 | 51.4 | 50.0 |
+| vs V2.1c | 48.5 | 44.8 | 46.2 | 49.4 | — |
+
+Readings:
+
+1. **The deep share is not the lever above 25%.** The telemetry is the same as V2.1c's to the
+   second decimal (value bias −0.2 to 0, ECE 0.004–0.008, mean sibling gap 2.1–2.3pp, P(best)
+   0.64–0.66) with twice as many deep rows per game (79 against 40). More depth-2 targets
+   cost 45% more wall-clock per round and bought nothing measurable. The mechanism §10.7 suggested
+   ("target quality, not volume") survives only in the weak form that a quarter of decisions
+   at depth 2 already carries the available signal at this net size.
+2. **The C2 effect replicates.** Two independent runs of the recipe, with different deep shares
+   and different seeds, both beat the V2.0c control head to head (52.5% and 51.2%). The
+   size is therefore 1–2.5pp, not a lucky-seed artefact, but a single run has run-to-run
+   spread of about a point: the gap between V2.1c and V2.1d is of that order, which is why
+   V2.1d "losing" to V2.1c by 0.7pp is read as noise around a plateau, not as deep_fraction 0.5
+   being harmful. Both are one run each; no seed replicate of either exists.
+3. **In-run ladders again could not decide.** V2.1d read 44.8 → 46.2 → 49.4% against V2.1c at 2,000
+   games while rising to a tie; the 10,000-pair match adds the last half point of sign.
+4. **A flat ladder row is not a flat net.** V2.1d is 54.3% against V2.0b at round 20 and 48.9% at
+   round 15, with the same recipe: 2,000-game readings move ±2pp between consecutive
+   checkpoints of one run. Any decision needs the 10,000-pair match.
+
+**Decisions.** `runs/v2_1c_champion/model.pt` remains best-so-far; `deep_fraction` stays 0.25 in the
+reference recipe. The deep-target lever is exhausted at this net size, so the next independent lever
+is **capacity (C10: 3 layers of 512, 30k games per round)**, as the plan's fallback said, or
+**depth-3 targets** if a cheaper test is wanted first. Neither is launched; C10 is the costlier run
+(est. 5–8 h) and needs the user's go-ahead. V2.1d ties V2.1c, so it is not added as a ladder
+anchor.
 
 ---
 

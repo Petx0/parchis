@@ -5,6 +5,8 @@ ladders, so numbers against the same anchor are directly comparable across runs.
 Importable (run_v2_0b.py) or standalone:
     ladder.py <checkpoint.pt> <out.json> [tag] [pairs]
 """
+import os
+from contextlib import contextmanager
 import json
 import multiprocessing as mp
 import sys
@@ -25,10 +27,33 @@ ANCHORS = {
     "v2_1c": REPO / "runs/v2_1c_champion/model.pt",  # best-so-far after §10.7 (C2 deep targets)
 }
 PAIRS, WORKERS, DEPTH = 1000, 8, 1
+# One BLAS thread per worker: the nets' forwards are tiny (<= a few rows x 256) and OpenBLAS's
+# threading makes a 5-6-row forward 10x slower on a busy machine (measured 2026-11-02: 1.7-2.9 ms vs
+# 0.2 ms). Same caps as round_loop._THREAD_ENV; set in the parent before the pool spawns so the
+# children inherit them, restored afterwards.
+_THREAD_ENV = {"OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1",
+               "VECLIB_MAXIMUM_THREADS": "1"}
+
+
+@contextmanager
+def single_thread_blas():
+    saved = {k: os.environ.get(k) for k in _THREAD_ENV}
+    os.environ.update(_THREAD_ENV)
+    try:
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+LUCK_NET = REPO / "runs/v2_1c_champion/model.pt"  # C8 reference evaluator; any fixed net is unbiased
 
 
 def _worker(args):
-    anchor_path, ckpt, seed, n, depth = args
+    anchor_path, ckpt, seed, n, depth, *rest = args
+    luck_path = rest[0] if rest else None       # C8: reference net for luck adjustment, or None
+    luck_depth = int(rest[1]) if len(rest) > 1 else 0   # 0 = the net's post-roll value, k = depth-k search value
     sys.path.insert(0, str(REPO))
     from parchis.agents import heuristic
     from parchis.az import champion_pool
@@ -41,34 +66,69 @@ def _worker(args):
 
     other = (heuristic.make_heuristic_agent_factory(heuristic.TUNED_WEIGHTS) if anchor_path is None
              else net_factory(anchor_path))
+    luck_ev = None
+    if luck_path:
+        from parchis.evaluation.luck import NetLuckEvaluator, SearchLuckEvaluator
+        luck_net = NetEvaluator(champion_pool.load_numpy_net(str(luck_path), 216, 2, (256, 256)))
+        luck_ev = SearchLuckEvaluator(luck_net, luck_depth) if luck_depth > 0 else NetLuckEvaluator(luck_net)
     r = duplicate.play_duplicate_match(net_factory(ckpt), other, n_pairs=n, num_players=2,
-                                       max_turns=500, seed=seed)
-    return r["wins_a"], r["n_games"]
+                                       max_turns=500, seed=seed, luck_evaluator=luck_ev)
+    extra = ({"raw_groups": r["raw_groups"], "adjusted_groups": r["adjusted_groups"]}
+             if luck_ev is not None else {})
+    return r["wins_a"], r["n_games"], extra
 
 
-def run_ladder(ckpt, out_path, tag="", anchors=ANCHORS, pairs=PAIRS, workers=WORKERS, depth=DEPTH):
+def pool_luck(results):
+    """Concatenate the workers' per-group scores and summarise (C8)."""
+    from parchis.evaluation.duplicate import summarise_luck_groups
+    raw = [x for r in results for x in r[2]["raw_groups"]]
+    adj = [x for r in results for x in r[2]["adjusted_groups"]]
+    return summarise_luck_groups(raw, adj)
+
+
+def format_luck(summary):
+    lo, hi = summary["adjusted_score_a_ci"]
+    return (f"adj {summary['adjusted_score_a']:.3f} [{lo:.3f}, {hi:.3f}] "
+            f"x{summary['luck_variance_multiplier']:.1f}")
+
+
+def run_ladder(ckpt, out_path, tag="", anchors=ANCHORS, pairs=PAIRS, workers=WORKERS, depth=DEPTH,
+               luck=None):
+    """luck: None, or a checkpoint path used as the C8 luck evaluator (LUCK_NET for the default);
+    then every anchor line also carries the adjusted score, its t-interval and the variance
+    multiplier, and the JSON gains 'adjusted', 'adjusted_ci', 'luck_multiplier', 'luck_net'."""
     from parchis.evaluation import stats
     out = {}
     for name, anchor_path in anchors.items():
         t = time.time()
         jobs = [(None if anchor_path is None else str(anchor_path), str(ckpt), 9000 + i, pairs // workers, depth)
+                + ((str(luck),) if luck else ())
                 for i in range(workers)]
-        with ProcessPoolExecutor(workers, mp_context=mp.get_context("spawn")) as ex:
+        with single_thread_blas(), ProcessPoolExecutor(workers, mp_context=mp.get_context("spawn")) as ex:
             res = list(ex.map(_worker, jobs))
         w, n = sum(r[0] for r in res), sum(r[1] for r in res)
         lo, hi = stats.wilson_score_interval(w, n)
         out[name] = dict(win_rate=w / n, ci=[lo, hi], n_games=n, depth=depth)
-        print(f"LADDER {tag} latest vs {name}: {w / n:.3f} [{lo:.3f}, {hi:.3f}] n={n} ({time.time() - t:.0f}s)",
-              flush=True)
+        line = f"LADDER {tag} latest vs {name}: {w / n:.3f} [{lo:.3f}, {hi:.3f}] n={n}"
+        if luck:
+            summary = pool_luck(res)
+            out[name].update(adjusted=summary["adjusted_score_a"], adjusted_ci=list(summary["adjusted_score_a_ci"]),
+                             luck_multiplier=summary["luck_variance_multiplier"], luck_net=str(luck))
+            line += " " + format_luck(summary)
+        print(f"{line} ({time.time() - t:.0f}s)", flush=True)
     Path(out_path).write_text(json.dumps(out, indent=2))
     return out
 
 
 if __name__ == "__main__":
-    # ladder.py <ckpt> <out.json> [tag] [pairs] [name=model.pt ...]  (extra anchors join the defaults)
+    # ladder.py <ckpt> <out.json> [tag] [pairs] [name=model.pt ...] [luck=default|<model.pt>]
+    # (extra anchors join the defaults; luck= turns on C8 luck-adjusted scoring)
     positional = [a for a in sys.argv[1:] if "=" not in a]
     extra = dict(a.split("=", 1) for a in sys.argv[1:] if "=" in a)
+    luck = extra.pop("luck", None)
+    if luck == "default":
+        luck = LUCK_NET
     anchors = dict(ANCHORS)
     anchors.update({k: Path(v) for k, v in extra.items()})
     run_ladder(positional[0], positional[1], tag=positional[2] if len(positional) > 2 else "",
-               pairs=int(positional[3]) if len(positional) > 3 else PAIRS, anchors=anchors)
+               pairs=int(positional[3]) if len(positional) > 3 else PAIRS, anchors=anchors, luck=luck)

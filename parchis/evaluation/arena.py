@@ -45,7 +45,7 @@ def _install_roll_recorder(game):
 
 
 def play_one_game(agent_factories, num_players=2, max_turns=DEFAULT_MAX_TURNS, seed=None,
-                   return_piece_status=False):
+                   return_piece_status=False, luck_evaluator=None, luck_out=None):
     """
     agent_factories: {seat_index: factory(game, seat, roll_box) -> choose_move_fn}.
         A seat not present keeps Player.choose_move's own default (random).
@@ -66,11 +66,20 @@ def play_one_game(agent_factories, num_players=2, max_turns=DEFAULT_MAX_TURNS, s
         (winner_seat_or_None, piece_status) instead, where piece_status is
         {seat: [bool, bool, bool, bool]} (piece_id-indexed, True = that
         piece finished by the time the game ended or max_turns was hit).
+    luck_evaluator / luck_out: C8 luck-adjusted scoring (parchis.evaluation.luck).
+        When an evaluator is given, a LuckTracker is installed on the game's
+        dice and, if luck_out is a dict, it receives {'luck': per-seat
+        cumulative luck (absolute seat order), 'n_rolls': int}. Dice, moves
+        and the returned winner are unaffected.
     """
     if seed is not None:
         random.seed(seed)
     game = Game(num_players=num_players)
     roll_box = _install_roll_recorder(game)
+    tracker = None
+    if luck_evaluator is not None:
+        from parchis.evaluation.luck import LuckTracker
+        tracker = LuckTracker(game, luck_evaluator)
     for seat, factory in agent_factories.items():
         game.players[seat].choose_move = factory(game, seat, roll_box)
 
@@ -80,6 +89,9 @@ def play_one_game(agent_factories, num_players=2, max_turns=DEFAULT_MAX_TURNS, s
         turns += 1
 
     winner_seat = None if game.winner is None else game.players.index(game.winner)
+    if tracker is not None and luck_out is not None:
+        luck_out['luck'] = tracker.luck.copy()
+        luck_out['n_rolls'] = tracker.n_rolls
     if not return_piece_status:
         return winner_seat
     piece_status = {

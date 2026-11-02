@@ -1,0 +1,12 @@
+{
+  "a": "runs/v2_1d_champion/model.pt",
+  "b": "runs/v2_0c_champion/model.pt",
+  "win_rate_a": 0.5124,
+  "ci": [
+    0.5054708957013808,
+    0.5193243418044278
+  ],
+  "n_games": 20000,
+  "depth": 1,
+  "seeds": "70000+i"
+}

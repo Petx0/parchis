@@ -17,15 +17,18 @@ docs/AGENT_REBUILD_PLAN.md previews) -- built once, generally, here rather
 than as a 2-seat special case plus a separate later rewrite.
 """
 
+import math
 import random
 import statistics
+
+import numpy as np
 
 from parchis.evaluation import arena
 from parchis.evaluation import stats as eval_stats
 
 
 def play_duplicate_group(agent_a_factory, agent_b_factory, num_players=2,
-                          max_turns=arena.DEFAULT_MAX_TURNS, seed=None):
+                          max_turns=arena.DEFAULT_MAX_TURNS, seed=None, luck_evaluator=None):
     """
     Play `num_players` games all sharing the SAME dice seed, rotating which
     seat `agent_a_factory` occupies (0, 1, ..., num_players-1) with
@@ -36,25 +39,59 @@ def play_duplicate_group(agent_a_factory, agent_b_factory, num_players=2,
         'winners': list, one entry per rotation -- the seat index that won
         that particular game (as occupied at the time, not translated to
         "a" or "b"), or None if max_turns was hit with no winner}.
+        With luck_evaluator (C8, parchis.evaluation.luck) also 'a_adjusted':
+        one luck-adjusted result per rotation, outcome_a - luck[a_seat].
     """
     winners = []
     a_wins = 0
+    a_adjusted = []
     for a_seat in range(num_players):
         agent_factories = {
             seat: (agent_a_factory if seat == a_seat else agent_b_factory)
             for seat in range(num_players)
         }
+        luck_out = {}
         winner_seat = arena.play_one_game(agent_factories, num_players=num_players,
-                                           max_turns=max_turns, seed=seed)
+                                           max_turns=max_turns, seed=seed,
+                                           luck_evaluator=luck_evaluator, luck_out=luck_out)
         winners.append(winner_seat)
+        outcome = 1.0 if winner_seat == a_seat else 0.0
         if winner_seat == a_seat:
             a_wins += 1
-    return {'a_wins': a_wins, 'n_games': num_players, 'winners': winners}
+        if luck_evaluator is not None:
+            a_adjusted.append(outcome - float(luck_out['luck'][a_seat]))
+    result = {'a_wins': a_wins, 'n_games': num_players, 'winners': winners}
+    if luck_evaluator is not None:
+        result['a_adjusted'] = a_adjusted
+    return result
+
+
+def summarise_luck_groups(raw_groups, adjusted_groups, confidence=eval_stats.DEFAULT_CONFIDENCE):
+    """Pool per-group scores (each group = one duplicate rotation set, independent of the
+    others) into the C8 report: the adjusted score with a t-interval over groups, the raw
+    score's t-interval over the same groups (comparable like for like), and the variance
+    multiplier var(raw) / var(adjusted) -- how many raw games one adjusted game is worth.
+    Usable across workers: concatenate their group lists first."""
+    raw = np.asarray(raw_groups, dtype=np.float64)
+    adj = np.asarray(adjusted_groups, dtype=np.float64)
+    out = {
+        'n_groups': int(raw.size),
+        'raw_score_a': float(raw.mean()),
+        'adjusted_score_a': float(adj.mean()),
+        'mean_abs_luck': float(np.abs(raw - adj).mean()),
+    }
+    if raw.size >= 2:
+        out['raw_score_a_ci_groups'] = eval_stats.mean_confidence_interval(raw.tolist(), confidence)
+        out['adjusted_score_a_ci'] = eval_stats.mean_confidence_interval(adj.tolist(), confidence)
+        var_raw, var_adj = float(raw.var(ddof=1)), float(adj.var(ddof=1))
+        out['luck_variance_multiplier'] = (var_raw / var_adj if var_adj > 0
+                                           else (math.inf if var_raw > 0 else math.nan))
+    return out
 
 
 def play_duplicate_match(agent_a_factory, agent_b_factory, n_pairs, num_players=2,
                           max_turns=arena.DEFAULT_MAX_TURNS, seed=42,
-                          confidence=eval_stats.DEFAULT_CONFIDENCE):
+                          confidence=eval_stats.DEFAULT_CONFIDENCE, luck_evaluator=None):
     """
     Play `n_pairs` independent duplicate groups (play_duplicate_group),
     each on its own seed drawn from a seeded RNG, and pool every individual
@@ -75,6 +112,10 @@ def play_duplicate_match(agent_a_factory, agent_b_factory, n_pairs, num_players=
         pair_record ({'a_better', 'split', 'b_better'} counts of groups by
         whether agent_a won more/equal/fewer than half its group's games --
         exact win/split/loss semantics only at num_players=2).
+        With luck_evaluator (C8): raw_groups / adjusted_groups (one score per
+        group) and the summarise_luck_groups fields -- adjusted_score_a,
+        adjusted_score_a_ci (t over groups), raw_score_a_ci_groups,
+        luck_variance_multiplier, mean_abs_luck.
     """
     rng = random.Random(seed)
     groups = []
@@ -85,7 +126,7 @@ def play_duplicate_match(agent_a_factory, agent_b_factory, n_pairs, num_players=
         group_seed = rng.randrange(2**31)
         group = play_duplicate_group(agent_a_factory, agent_b_factory,
                                       num_players=num_players, max_turns=max_turns,
-                                      seed=group_seed)
+                                      seed=group_seed, luck_evaluator=luck_evaluator)
         groups.append(group)
         wins_a += group['a_wins']
         half = num_players / 2.0
@@ -100,7 +141,7 @@ def play_duplicate_match(agent_a_factory, agent_b_factory, n_pairs, num_players=
     win_rate_a = wins_a / n_games
     ci = eval_stats.wilson_score_interval(wins_a, n_games, confidence=confidence)
 
-    return {
+    result = {
         'wins_a': wins_a,
         'n_games': n_games,
         'win_rate_a': win_rate_a,
@@ -108,6 +149,13 @@ def play_duplicate_match(agent_a_factory, agent_b_factory, n_pairs, num_players=
         'groups': groups,
         'pair_record': pair_record,
     }
+    if luck_evaluator is not None:
+        raw_groups = [g['a_wins'] / num_players for g in groups]
+        adjusted_groups = [statistics.mean(g['a_adjusted']) for g in groups]
+        result['raw_groups'] = raw_groups
+        result['adjusted_groups'] = adjusted_groups
+        result.update(summarise_luck_groups(raw_groups, adjusted_groups, confidence=confidence))
+    return result
 
 
 def measure_variance_reduction(agent_a_factory, agent_b_factory, n_pairs=100,

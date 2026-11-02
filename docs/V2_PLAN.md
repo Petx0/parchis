@@ -17,6 +17,8 @@ trusting a number that may have drifted.
 
 *Update, 2026-11-01: V2.0c — 20 more rounds of the V2.0b recipe from its champion — stayed level with V2.0b at all four ladders (49.5–50.1% head to head, 8,000 games): the V2.0b gain was a step, not a slope, and the recipe is saturated at ~72% vs the heuristic. C6 throughput is in the main tree (80 games/s on 8 workers, a 6,000-game round in under 2 min) and C2 deep targets are coded; V2.1c (C2, gated against the V2.0c endpoint) is the next run. §10.5–10.6.*
 
+*Update, 2026-11-02: V2.1c (C2 deep targets) beat the V2.0c control 52.5% [51.8, 53.2] over 20,000 fresh-seed games (10,000 duplicate pairs), after its own four ladders had read 47.0 / 51.6 / 50.5 / 50.0% over 2,000 games each. It is the new best-so-far, by a small margin; §10.7.*
+
 The 109-round plateau was not a ceiling of the architecture or the data scale. The loop could not
 move, for two independent reasons that are both fixable in a day, and it was spending most of its
 compute on the wrong things:
@@ -696,6 +698,53 @@ fits in roughly the wall-clock V2.0c just used.
 
 **Next:** launch `scripts/v2/run_v2_1c.py` (20 rounds from the V2.0b champion, same start and length as
 V2.0c; ladders every 5 rounds including `v2_0c`). Gates as in §10.4 item 3.
+
+### 10.7 V2.1c — C2 deep targets: small but real gain over the control (2026-11-02)
+
+**Result: V2.1c beats the V2.0c control 52.49% [51.80, 53.18] over 20,000 games (10,000 duplicate pairs,
+depth 1, seeds 70000+i, disjoint from every ladder). The gate (beat the control head to head,
+≥ 2,000 pairs, Wilson lower bound > 50%) is met by 1.8pp.** The 2,000-game ladders during the run
+could not see it: against V2.0c they read 47.0 / 51.6 / 50.5 / 50.0% at rounds 5 / 10 / 15 / 20, whose
+standard error is ±1.1pp each. It is a modest gain, about 2.5pp head to head, the same order as the
+V2.0 → V2.0b step (4.4pp) and well short of a different regime. The Wilson interval treats games as
+independent; duplicate pairs are positively correlated in the right direction (it makes the true
+interval slightly narrower, not wider), so the bound is conservative. Run: 20 rounds from the V2.0b
+champion, `deep_fraction` 0.25 at depth 2, `deep_targets`, `afterstate_rows`, 8 workers, 102 min
+(rounds 4.5–5 min, against 9.8 min for V2.0c). Artefacts: `runs/v2_1c_champion/` (endpoint
+`model.pt`, config, four ladder JSONs, `h2h_vs_v2_0c.json`, log, per-round metrics); raw run in
+`~/parchis_training_archive/v2_1c_runs`. Head-to-head script: `scripts/v2/h2h.py`.
+
+| ladder (depth 1, 2,000 games) | round 5 | round 10 | round 15 | round 20 | V2.0c r20 |
+|---|---|---|---|---|---|
+| vs heuristic | 67.6 | 69.6 | 72.4 | 72.9 | 72.2 |
+| vs round-23 champion | 54.7 | 56.7 | 55.8 | 57.3 | 55.4 |
+| vs V2.0 | 55.0 | 54.5 | 54.9 | 55.1 | 53.9 |
+| vs V2.0b | 50.8 | 51.2 | 51.2 | 51.4 | 50.1 |
+| vs V2.0c | 47.0 | 51.6 | 50.5 | 50.0 | — |
+
+Readings:
+
+1. **The effect shows only in the larger sample, and the anchors agree in sign.** All four anchors
+   put the round-20 net 0.7–1.9pp above V2.0c's own scores (heuristic +0.7, round 23 +1.9, V2.0
+   +1.2, V2.0b +1.3). A 2.5pp head-to-head edge with 1pp-ish anchor edges is what a real small gain
+   looks like. Round 5 was a dip (67.6% vs the heuristic) while the net adjusted to the new targets.
+2. **Calibration improved, strength moved with it.** Over the last ten rounds the value bias sits at
+   −0.3 to +0.2pp (V2.0c: −0.4 to −0.9) and ECE at 0.004–0.009 (V2.0c: 0.011–0.021), both inside the
+   ±0.5pp bias gate. The sibling gap grew slightly (mean 2.2–2.4pp against 2.05–2.12) and the share of
+   multi-move decisions inside 1pp fell from 49% to 46–47%: the net separates near-tied moves a
+   little more. These columns now describe deep decisions only (about 40 per game, ~280 more
+   zero-policy-weight rows per game are excluded by `round_summary.py`).
+3. **Cost.** Rounds took 4.5-5 min against V2.0c's 9.8 min, because C6 is in: 20 rounds with depth-2 search on a quarter of decisions cost half the wall-clock of 20 depth-1-only rounds before it.
+4. **Consistency check (run 2026-11-02, 1,613 decisions).** Mean |V(pre-roll) − mean V(post-roll)| is 1.12pp for V2.1c against 1.56pp for V2.0c and 1.61pp for V2.0b (V2.1a: 1.2): 28% lower than the control, but **the absolute gate (< 0.5pp) is not met**. Depth-1 minus depth-2 root bias is +0.34pp (V2.0c −1.22pp), inside the ±0.5pp gate. Correlation 0.999. The telemetry at 100 pairs is again noise (promotion matches 0.43–0.55 throughout).
+
+**Decisions.** `runs/v2_1c_champion/model.pt` is the new best-so-far for deployment and joins the
+ladder anchors as `v2_1c` on the next ladder edit. `deep_targets` and `afterstate_rows` stay
+default-off in the config; the V2.1c script is the reference recipe. The gain is small enough that the
+next variant must also be gated head to head at ≥ 10,000 pairs, not 2,000.
+
+**Next.** One more lever is cheap and untested: the same recipe with `deep_fraction` raised (0.5) or
+`deep_depth` 3, since quality of targets, not volume, is what moved. If that is flat, capacity (C10,
+3×512) is the next A/B, as the plan stated. Both remain unlaunched.
 
 ---
 

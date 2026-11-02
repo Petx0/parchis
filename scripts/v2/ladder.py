@@ -22,6 +22,7 @@ ANCHORS = {
     "v2_0": REPO / "runs/v2_0_champion/model.pt",
     "v2_0b": REPO / "runs/v2_0b_champion/model.pt",  # best-so-far after §10.4 (V2.0c tied it, §10.6)
     "v2_0c": REPO / "runs/v2_0c_champion/model.pt",  # V2.0b config, 20 more rounds: control for V2.1c
+    "v2_1c": REPO / "runs/v2_1c_champion/model.pt",  # best-so-far after §10.7 (C2 deep targets)
 }
 PAIRS, WORKERS, DEPTH = 1000, 8, 1
 

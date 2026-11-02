@@ -2,7 +2,7 @@ import os, sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-CHAMPION = "runs/selfplay_2p_v1_champion/model.pt"
+CHAMPION = os.environ.get("PARCHIS_CHAMPION", "runs/selfplay_2p_v1_champion/model.pt")  # override: PARCHIS_CHAMPION=runs/x/model.pt
 
 
 def setup():

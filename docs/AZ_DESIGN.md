@@ -1850,3 +1850,14 @@ the V2.0c endpoint `runs/v2_0c_champion/model.pt` is the control for V2.1c and l
 With V2.0c finished, the C6 and C2 worktree was merged into the main tree (twelve files, trees
 identical) and the clean throughput number taken: 14.9 games/s for one process, 80.3 games/s on
 8 workers for a 6,000-game round including spawn.
+
+## 2026-11-02 V2.1c (C2 deep targets): +2.5pp over the V2.0c control, gate met
+
+`docs/V2_PLAN.md` §10.7. 20 rounds from the V2.0b champion with `deep_fraction` 0.25 (depth 2),
+`deep_targets` and `afterstate_rows`, 8 workers, 102 min. Head to head against the V2.0c endpoint on
+20,000 fresh-seed games: 52.49% [51.80, 53.18], gate (Wilson lower bound > 50%) met. The in-run
+ladders against V2.0c (47.0 / 51.6 / 50.5 / 50.0% at 2,000 games each) were too coarse to see it.
+All four anchors agree in sign (+0.7 to +1.9pp over V2.0c's scores). Value bias ~0, ECE 0.004-0.009
+(V2.0c 0.011-0.021). New best-so-far: `runs/v2_1c_champion/model.pt`. Not yet measured: the
+pre-roll/post-roll consistency gate. Lesson: effects of ~2pp need >= 10,000 pairs; `scripts/v2/h2h.py`
+runs that on disjoint seeds.

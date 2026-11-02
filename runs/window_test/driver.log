@@ -1,0 +1,736 @@
+round_loop starting at round 0 (champion last updated at round -1, 0 total promotions, 0 promoted checkpoints in pool, 0 recent checkpoints in pool, 0 consecutive failures)
+round 0 shard 0/8: 750 games, 118779 recorded decisions (+118044 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29798
+round 0 shard 1/8: 750 games, 119065 recorded decisions (+118333 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29961
+round 0 shard 2/8: 750 games, 119245 recorded decisions (+118509 afterstate rows) (91.0% of plies), depth=1, deep_decisions=29581
+round 0 shard 3/8: 750 games, 118506 recorded decisions (+117764 afterstate rows) (92.1% of plies), depth=1, deep_decisions=29694
+round 0 shard 4/8: 750 games, 118186 recorded decisions (+117445 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29552
+round 0 shard 5/8: 750 games, 120740 recorded decisions (+120002 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30208
+round 0 shard 6/8: 750 games, 117853 recorded decisions (+117116 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29300
+round 0 shard 7/8: 750 games, 117841 recorded decisions (+117107 afterstate rows) (90.9% of plies), depth=1, deep_decisions=29559
+round 0: replay buffer = 8 shards (7 train / 1 val)
+Loading 1 validation shards...
+Validation set: 237754 rows (208173 afterstate rows)
+epoch 0: train_loss=1.9827 val_loss=1.9312 (value=0.5975 policy=0.7362 aux=0.4434)
+epoch 1: train_loss=1.9747 val_loss=1.9321 (value=0.5983 policy=0.7355 aux=0.4437)
+epoch 2: train_loss=1.9697 val_loss=1.9248 (value=0.5951 policy=0.7346 aux=0.4421)
+epoch 3: train_loss=1.9667 val_loss=1.9249 (value=0.5953 policy=0.7343 aux=0.4424)
+epoch 4: train_loss=1.9652 val_loss=1.9262 (value=0.5962 policy=0.7338 aux=0.4425)
+Early stopping at epoch 4 (best val_loss=1.9248)
+round 0: win_rate_a=0.5350 CI=[0.4659, 0.6028] generation_depth=1 eval_depth=1 -> PROMOTED
+round 0 finished in 236.5s (1 promotions so far)
+round 1 shard 0/8: 750 games, 118515 recorded decisions (+117778 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29531
+round 1 shard 1/8: 750 games, 119282 recorded decisions (+118554 afterstate rows) (90.8% of plies), depth=1, deep_decisions=29925
+round 1 shard 2/8: 750 games, 120311 recorded decisions (+119584 afterstate rows) (90.9% of plies), depth=1, deep_decisions=30285
+round 1 shard 3/8: 750 games, 121577 recorded decisions (+120840 afterstate rows) (92.2% of plies), depth=1, deep_decisions=30426
+round 1 shard 4/8: 750 games, 120630 recorded decisions (+119892 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30376
+round 1 shard 5/8: 750 games, 120529 recorded decisions (+119796 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30079
+round 1 shard 6/8: 750 games, 118266 recorded decisions (+117536 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29611
+round 1 shard 7/8: 750 games, 120148 recorded decisions (+119408 afterstate rows) (92.2% of plies), depth=1, deep_decisions=29763
+round 1: replay buffer = 16 shards (14 train / 2 val)
+Loading 2 validation shards...
+Validation set: 476165 rows (416186 afterstate rows)
+epoch 0: train_loss=1.9864 val_loss=1.9188 (value=0.5896 policy=0.7396 aux=0.4449)
+epoch 1: train_loss=1.9828 val_loss=1.9223 (value=0.5917 policy=0.7388 aux=0.4453)
+epoch 2: train_loss=1.9793 val_loss=1.9198 (value=0.5901 policy=0.7397 aux=0.4454)
+Early stopping at epoch 2 (best val_loss=1.9188)
+round 1: win_rate_a=0.5800 CI=[0.5107, 0.6463] generation_depth=1 eval_depth=1 -> PROMOTED
+round 1 finished in 247.6s (2 promotions so far)
+round 2 shard 0/8: 750 games, 120474 recorded decisions (+119731 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30163
+round 2 shard 1/8: 750 games, 118395 recorded decisions (+117660 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29546
+round 2 shard 2/8: 750 games, 119167 recorded decisions (+118434 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29660
+round 2 shard 3/8: 750 games, 119928 recorded decisions (+119195 afterstate rows) (90.9% of plies), depth=1, deep_decisions=30009
+round 2 shard 4/8: 750 games, 118118 recorded decisions (+117386 afterstate rows) (90.6% of plies), depth=1, deep_decisions=29328
+round 2 shard 5/8: 750 games, 119467 recorded decisions (+118730 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29594
+round 2 shard 6/8: 750 games, 119256 recorded decisions (+118519 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29621
+round 2 shard 7/8: 750 games, 119893 recorded decisions (+119155 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30047
+round 2: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 473258 rows (414349 afterstate rows)
+epoch 0: train_loss=1.9858 val_loss=1.9241 (value=0.5884 policy=0.7474 aux=0.4414)
+epoch 1: train_loss=1.9819 val_loss=1.9291 (value=0.5901 policy=0.7490 aux=0.4421)
+epoch 2: train_loss=1.9795 val_loss=1.9227 (value=0.5884 policy=0.7459 aux=0.4414)
+epoch 3: train_loss=1.9775 val_loss=1.9273 (value=0.5897 policy=0.7479 aux=0.4420)
+epoch 4: train_loss=1.9776 val_loss=1.9203 (value=0.5884 policy=0.7434 aux=0.4413)
+round 2: win_rate_a=0.4950 CI=[0.4265, 0.5637] generation_depth=1 eval_depth=1 -> PROMOTED
+round 2 finished in 309.8s (3 promotions so far)
+round 3 shard 0/8: 750 games, 119208 recorded decisions (+118469 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29593
+round 3 shard 1/8: 750 games, 120335 recorded decisions (+119597 afterstate rows) (91.1% of plies), depth=1, deep_decisions=30073
+round 3 shard 2/8: 750 games, 119337 recorded decisions (+118596 afterstate rows) (92.6% of plies), depth=1, deep_decisions=30088
+round 3 shard 3/8: 750 games, 119721 recorded decisions (+118982 afterstate rows) (91.4% of plies), depth=1, deep_decisions=30022
+round 3 shard 4/8: 750 games, 119062 recorded decisions (+118326 afterstate rows) (91.3% of plies), depth=1, deep_decisions=30005
+round 3 shard 5/8: 750 games, 118535 recorded decisions (+117798 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29565
+round 3 shard 6/8: 750 games, 118581 recorded decisions (+117841 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29585
+round 3 shard 7/8: 750 games, 120726 recorded decisions (+119990 afterstate rows) (92.0% of plies), depth=1, deep_decisions=30217
+round 3: replay buffer = 32 shards (29 train / 3 val)
+Loading 3 validation shards...
+Validation set: 714454 rows (624396 afterstate rows)
+epoch 0: train_loss=1.9800 val_loss=1.9085 (value=0.5842 policy=0.7400 aux=0.4386)
+epoch 1: train_loss=1.9780 val_loss=1.9078 (value=0.5849 policy=0.7381 aux=0.4386)
+epoch 2: train_loss=1.9756 val_loss=1.9077 (value=0.5845 policy=0.7387 aux=0.4390)
+epoch 3: train_loss=1.9737 val_loss=1.9078 (value=0.5851 policy=0.7376 aux=0.4392)
+epoch 4: train_loss=1.9741 val_loss=1.9034 (value=0.5840 policy=0.7355 aux=0.4382)
+round 3: win_rate_a=0.4700 CI=[0.4020, 0.5391] generation_depth=1 eval_depth=1 -> PROMOTED
+round 3 finished in 346.6s (4 promotions so far)
+round 4 shard 0/8: 750 games, 119319 recorded decisions (+118585 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29935
+round 4 shard 1/8: 750 games, 119846 recorded decisions (+119109 afterstate rows) (91.8% of plies), depth=1, deep_decisions=30050
+round 4 shard 2/8: 750 games, 120905 recorded decisions (+120176 afterstate rows) (91.7% of plies), depth=1, deep_decisions=30250
+round 4 shard 3/8: 750 games, 118720 recorded decisions (+117989 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29420
+round 4 shard 4/8: 750 games, 119040 recorded decisions (+118301 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29849
+round 4 shard 5/8: 750 games, 118235 recorded decisions (+117504 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29581
+round 4 shard 6/8: 750 games, 118079 recorded decisions (+117352 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29447
+round 4 shard 7/8: 750 games, 117495 recorded decisions (+116757 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29399
+round 4: replay buffer = 40 shards (36 train / 4 val)
+Loading 4 validation shards...
+Validation set: 954754 rows (834926 afterstate rows)
+epoch 0: train_loss=1.9756 val_loss=1.9036 (value=0.5818 policy=0.7400 aux=0.4398)
+epoch 1: train_loss=1.9740 val_loss=1.9103 (value=0.5830 policy=0.7443 aux=0.4412)
+epoch 2: train_loss=1.9719 val_loss=1.9034 (value=0.5821 policy=0.7392 aux=0.4404)
+epoch 3: train_loss=1.9708 val_loss=1.9022 (value=0.5818 policy=0.7387 aux=0.4399)
+epoch 4: train_loss=1.9709 val_loss=1.8996 (value=0.5809 policy=0.7378 aux=0.4395)
+round 4: win_rate_a=0.4850 CI=[0.4167, 0.5539] generation_depth=1 eval_depth=1 -> PROMOTED
+round 4 finished in 378.9s (5 promotions so far)
+round 5 shard 0/8: 750 games, 120362 recorded decisions (+119622 afterstate rows) (92.4% of plies), depth=1, deep_decisions=29991
+round 5 shard 1/8: 750 games, 120290 recorded decisions (+119553 afterstate rows) (92.3% of plies), depth=1, deep_decisions=30135
+round 5 shard 2/8: 750 games, 119556 recorded decisions (+118824 afterstate rows) (90.8% of plies), depth=1, deep_decisions=29998
+round 5 shard 3/8: 750 games, 120741 recorded decisions (+120007 afterstate rows) (91.9% of plies), depth=1, deep_decisions=30486
+round 5 shard 4/8: 750 games, 119864 recorded decisions (+119124 afterstate rows) (91.8% of plies), depth=1, deep_decisions=30049
+round 5 shard 5/8: 750 games, 120410 recorded decisions (+119674 afterstate rows) (92.4% of plies), depth=1, deep_decisions=30119
+round 5 shard 6/8: 750 games, 120726 recorded decisions (+119992 afterstate rows) (91.5% of plies), depth=1, deep_decisions=30053
+round 5 shard 7/8: 750 games, 120208 recorded decisions (+119470 afterstate rows) (92.2% of plies), depth=1, deep_decisions=29846
+round 5: replay buffer = 48 shards (43 train / 5 val)
+Loading 5 validation shards...
+Validation set: 1187904 rows (1038510 afterstate rows)
+epoch 0: train_loss=1.9768 val_loss=1.8931 (value=0.5757 policy=0.7417 aux=0.4385)
+epoch 1: train_loss=1.9754 val_loss=1.8984 (value=0.5770 policy=0.7445 aux=0.4389)
+epoch 2: train_loss=1.9737 val_loss=1.8970 (value=0.5763 policy=0.7444 aux=0.4387)
+Early stopping at epoch 2 (best val_loss=1.8931)
+round 5: win_rate_a=0.5500 CI=[0.4808, 0.6174] generation_depth=1 eval_depth=1 -> PROMOTED
+round 5 finished in 335.4s (6 promotions so far)
+round 6 shard 0/8: 750 games, 121178 recorded decisions (+120439 afterstate rows) (91.9% of plies), depth=1, deep_decisions=30219
+round 6 shard 1/8: 750 games, 119822 recorded decisions (+119086 afterstate rows) (92.3% of plies), depth=1, deep_decisions=29823
+round 6 shard 2/8: 750 games, 120175 recorded decisions (+119436 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29725
+round 6 shard 3/8: 750 games, 119298 recorded decisions (+118563 afterstate rows) (92.0% of plies), depth=1, deep_decisions=29639
+round 6 shard 4/8: 750 games, 120801 recorded decisions (+120058 afterstate rows) (92.4% of plies), depth=1, deep_decisions=30201
+round 6 shard 5/8: 750 games, 120444 recorded decisions (+119711 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29720
+round 6 shard 6/8: 750 games, 119952 recorded decisions (+119211 afterstate rows) (92.2% of plies), depth=1, deep_decisions=29899
+round 6 shard 7/8: 750 games, 119886 recorded decisions (+119153 afterstate rows) (91.1% of plies), depth=1, deep_decisions=29909
+round 6: replay buffer = 56 shards (50 train / 6 val)
+Loading 6 validation shards...
+Validation set: 1427651 rows (1247902 afterstate rows)
+epoch 0: train_loss=1.9757 val_loss=1.8931 (value=0.5771 policy=0.7389 aux=0.4383)
+epoch 1: train_loss=1.9741 val_loss=1.8949 (value=0.5777 policy=0.7394 aux=0.4380)
+epoch 2: train_loss=1.9725 val_loss=1.8934 (value=0.5774 policy=0.7385 aux=0.4377)
+Early stopping at epoch 2 (best val_loss=1.8931)
+round 6: win_rate_a=0.5450 CI=[0.4758, 0.6125] generation_depth=1 eval_depth=1 -> PROMOTED
+round 6 finished in 354.5s (7 promotions so far)
+round 7 shard 0/8: 750 games, 120094 recorded decisions (+119358 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29726
+round 7 shard 1/8: 750 games, 120094 recorded decisions (+119357 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29794
+round 7 shard 2/8: 750 games, 119508 recorded decisions (+118773 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29991
+round 7 shard 3/8: 750 games, 120445 recorded decisions (+119704 afterstate rows) (91.7% of plies), depth=1, deep_decisions=30125
+round 7 shard 4/8: 750 games, 119654 recorded decisions (+118923 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29765
+round 7 shard 5/8: 750 games, 120549 recorded decisions (+119811 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29957
+round 7 shard 6/8: 750 games, 119635 recorded decisions (+118900 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29827
+round 7 shard 7/8: 750 games, 119469 recorded decisions (+118737 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29626
+round 7: replay buffer = 64 shards (58 train / 6 val)
+Loading 6 validation shards...
+Validation set: 1430880 rows (1252071 afterstate rows)
+epoch 0: train_loss=1.9745 val_loss=1.8974 (value=0.5776 policy=0.7422 aux=0.4363)
+epoch 1: train_loss=1.9732 val_loss=1.8959 (value=0.5773 policy=0.7414 aux=0.4364)
+epoch 2: train_loss=1.9717 val_loss=1.8939 (value=0.5765 policy=0.7409 aux=0.4369)
+epoch 3: train_loss=1.9708 val_loss=1.8945 (value=0.5764 policy=0.7417 aux=0.4359)
+epoch 4: train_loss=1.9708 val_loss=1.8892 (value=0.5759 policy=0.7373 aux=0.4356)
+round 7: win_rate_a=0.4800 CI=[0.4118, 0.5490] generation_depth=1 eval_depth=1 -> PROMOTED
+round 7 finished in 484.9s (8 promotions so far)
+round 8 shard 0/8: 750 games, 118679 recorded decisions (+117946 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29753
+round 8 shard 1/8: 750 games, 118446 recorded decisions (+117711 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29336
+round 8 shard 2/8: 750 games, 118696 recorded decisions (+117962 afterstate rows) (91.1% of plies), depth=1, deep_decisions=29438
+round 8 shard 3/8: 750 games, 118885 recorded decisions (+118153 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29363
+round 8 shard 4/8: 750 games, 120824 recorded decisions (+120087 afterstate rows) (92.2% of plies), depth=1, deep_decisions=30376
+round 8 shard 5/8: 750 games, 118298 recorded decisions (+117559 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29488
+round 8 shard 6/8: 750 games, 119698 recorded decisions (+118967 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30016
+round 8 shard 7/8: 750 games, 118939 recorded decisions (+118204 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29781
+round 8: replay buffer = 72 shards (65 train / 7 val)
+Loading 7 validation shards...
+Validation set: 1666044 rows (1457897 afterstate rows)
+epoch 0: train_loss=1.9725 val_loss=1.8905 (value=0.5765 policy=0.7376 aux=0.4370)
+epoch 1: train_loss=1.9712 val_loss=1.8901 (value=0.5766 policy=0.7368 aux=0.4370)
+epoch 2: train_loss=1.9701 val_loss=1.8903 (value=0.5768 policy=0.7368 aux=0.4372)
+epoch 3: train_loss=1.9691 val_loss=1.8885 (value=0.5758 policy=0.7369 aux=0.4368)
+epoch 4: train_loss=1.9692 val_loss=1.8860 (value=0.5755 policy=0.7349 aux=0.4365)
+round 8: win_rate_a=0.5050 CI=[0.4363, 0.5735] generation_depth=1 eval_depth=1 -> PROMOTED
+round 8 finished in 520.0s (9 promotions so far)
+round 9 shard 0/8: 750 games, 119343 recorded decisions (+118606 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29862
+round 9 shard 1/8: 750 games, 119080 recorded decisions (+118342 afterstate rows) (92.3% of plies), depth=1, deep_decisions=29656
+round 9 shard 2/8: 750 games, 119014 recorded decisions (+118276 afterstate rows) (92.0% of plies), depth=1, deep_decisions=29566
+round 9 shard 3/8: 750 games, 119392 recorded decisions (+118657 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29480
+round 9 shard 4/8: 750 games, 119444 recorded decisions (+118707 afterstate rows) (92.1% of plies), depth=1, deep_decisions=29681
+round 9 shard 5/8: 750 games, 117050 recorded decisions (+116316 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29271
+round 9 shard 6/8: 750 games, 118489 recorded decisions (+117755 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29538
+round 9 shard 7/8: 750 games, 118876 recorded decisions (+118139 afterstate rows) (91.0% of plies), depth=1, deep_decisions=29837
+round 9: replay buffer = 80 shards (72 train / 8 val)
+Loading 8 validation shards...
+Validation set: 1899114 rows (1660864 afterstate rows)
+epoch 0: train_loss=1.9711 val_loss=1.8842 (value=0.5761 policy=0.7320 aux=0.4383)
+epoch 1: train_loss=1.9703 val_loss=1.8882 (value=0.5766 policy=0.7351 aux=0.4383)
+epoch 2: train_loss=1.9689 val_loss=1.8844 (value=0.5766 policy=0.7312 aux=0.4385)
+Early stopping at epoch 2 (best val_loss=1.8842)
+round 9: win_rate_a=0.4350 CI=[0.3682, 0.5043] generation_depth=1 eval_depth=1 -> PROMOTED
+round 9 finished in 420.1s (10 promotions so far)
+== win10: 10 rounds done, 61 min since start
+LADDER win10_round10 latest vs heuristic: 0.706 [0.685, 0.725] n=2000 (14s)
+LADDER win10_round10 latest vs v2_0c: 0.505 [0.484, 0.527] n=2000 (20s)
+LADDER win10_round10 latest vs v2_1c: 0.483 [0.461, 0.505] n=2000 (20s)
+round_loop starting at round 10 (champion last updated at round 9, 10 total promotions, 0 promoted checkpoints in pool, 8 recent checkpoints in pool, 0 consecutive failures)
+round 10 shard 0/8: 750 games, 119606 recorded decisions (+118868 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29818
+round 10 shard 1/8: 750 games, 118706 recorded decisions (+117974 afterstate rows) (91.1% of plies), depth=1, deep_decisions=29923
+round 10 shard 2/8: 750 games, 119985 recorded decisions (+119245 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29870
+round 10 shard 3/8: 750 games, 119366 recorded decisions (+118627 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29925
+round 10 shard 4/8: 750 games, 120548 recorded decisions (+119809 afterstate rows) (92.4% of plies), depth=1, deep_decisions=30135
+round 10 shard 5/8: 750 games, 120264 recorded decisions (+119526 afterstate rows) (91.1% of plies), depth=1, deep_decisions=30181
+round 10 shard 6/8: 750 games, 118476 recorded decisions (+117744 afterstate rows) (90.7% of plies), depth=1, deep_decisions=29660
+round 10 shard 7/8: 750 games, 119149 recorded decisions (+118412 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29647
+round 10: replay buffer = 80 shards (72 train / 8 val)
+Loading 8 validation shards...
+Validation set: 1909735 rows (1670680 afterstate rows)
+epoch 0: train_loss=1.9687 val_loss=1.8946 (value=0.5794 policy=0.7358 aux=0.4379)
+epoch 1: train_loss=1.9674 val_loss=1.8983 (value=0.5805 policy=0.7372 aux=0.4387)
+epoch 2: train_loss=1.9662 val_loss=1.8944 (value=0.5791 policy=0.7362 aux=0.4380)
+epoch 3: train_loss=1.9653 val_loss=1.8941 (value=0.5800 policy=0.7342 aux=0.4381)
+epoch 4: train_loss=1.9646 val_loss=1.8912 (value=0.5788 policy=0.7336 aux=0.4376)
+round 10: win_rate_a=0.4850 CI=[0.4167, 0.5539] generation_depth=1 eval_depth=1 -> PROMOTED
+round 10 finished in 553.1s (11 promotions so far)
+round 11 shard 0/8: 750 games, 119660 recorded decisions (+118923 afterstate rows) (92.2% of plies), depth=1, deep_decisions=30112
+round 11 shard 1/8: 750 games, 119484 recorded decisions (+118742 afterstate rows) (92.8% of plies), depth=1, deep_decisions=29878
+round 11 shard 2/8: 750 games, 118194 recorded decisions (+117457 afterstate rows) (91.1% of plies), depth=1, deep_decisions=29696
+round 11 shard 3/8: 750 games, 118212 recorded decisions (+117480 afterstate rows) (90.8% of plies), depth=1, deep_decisions=29566
+round 11 shard 4/8: 750 games, 119110 recorded decisions (+118376 afterstate rows) (91.1% of plies), depth=1, deep_decisions=29955
+round 11 shard 5/8: 750 games, 119058 recorded decisions (+118321 afterstate rows) (90.6% of plies), depth=1, deep_decisions=29886
+round 11 shard 6/8: 750 games, 119762 recorded decisions (+119032 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29974
+round 11 shard 7/8: 750 games, 121059 recorded decisions (+120320 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30557
+round 11: replay buffer = 80 shards (72 train / 8 val)
+Loading 8 validation shards...
+Validation set: 1904759 rows (1665907 afterstate rows)
+epoch 0: train_loss=1.9650 val_loss=1.8930 (value=0.5803 policy=0.7325 aux=0.4361)
+epoch 1: train_loss=1.9636 val_loss=1.8910 (value=0.5804 policy=0.7301 aux=0.4364)
+epoch 2: train_loss=1.9629 val_loss=1.8970 (value=0.5810 policy=0.7351 aux=0.4363)
+epoch 3: train_loss=1.9617 val_loss=1.8888 (value=0.5797 policy=0.7294 aux=0.4357)
+epoch 4: train_loss=1.9611 val_loss=1.8887 (value=0.5794 policy=0.7299 aux=0.4355)
+round 11: win_rate_a=0.5300 CI=[0.4609, 0.5980] generation_depth=1 eval_depth=1 -> PROMOTED
+round 11 finished in 557.9s (12 promotions so far)
+round 12 shard 0/8: 750 games, 118720 recorded decisions (+117980 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29556
+round 12 shard 1/8: 750 games, 119424 recorded decisions (+118683 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29534
+round 12 shard 2/8: 750 games, 119245 recorded decisions (+118510 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29812
+round 12 shard 3/8: 750 games, 118697 recorded decisions (+117964 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29641
+round 12 shard 4/8: 750 games, 119450 recorded decisions (+118712 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29672
+round 12 shard 5/8: 750 games, 119009 recorded decisions (+118274 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29779
+round 12 shard 6/8: 750 games, 119049 recorded decisions (+118313 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29412
+round 12 shard 7/8: 750 games, 119722 recorded decisions (+118975 afterstate rows) (92.7% of plies), depth=1, deep_decisions=29753
+round 12: replay buffer = 80 shards (72 train / 8 val)
+Loading 8 validation shards...
+Validation set: 1913164 rows (1673576 afterstate rows)
+epoch 0: train_loss=1.9621 val_loss=1.8878 (value=0.5813 policy=0.7252 aux=0.4353)
+epoch 1: train_loss=1.9607 val_loss=1.8853 (value=0.5808 policy=0.7238 aux=0.4351)
+epoch 2: train_loss=1.9596 val_loss=1.8832 (value=0.5803 policy=0.7227 aux=0.4347)
+epoch 3: train_loss=1.9584 val_loss=1.8807 (value=0.5793 policy=0.7220 aux=0.4341)
+epoch 4: train_loss=1.9579 val_loss=1.8798 (value=0.5792 policy=0.7214 aux=0.4340)
+round 12: win_rate_a=0.5550 CI=[0.4857, 0.6222] generation_depth=1 eval_depth=1 -> PROMOTED
+round 12 finished in 558.9s (13 promotions so far)
+round 13 shard 0/8: 750 games, 118459 recorded decisions (+117719 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29771
+round 13 shard 1/8: 750 games, 117546 recorded decisions (+116805 afterstate rows) (92.1% of plies), depth=1, deep_decisions=29498
+round 13 shard 2/8: 750 games, 119494 recorded decisions (+118751 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29863
+round 13 shard 3/8: 750 games, 119845 recorded decisions (+119104 afterstate rows) (92.0% of plies), depth=1, deep_decisions=29940
+round 13 shard 4/8: 750 games, 118909 recorded decisions (+118170 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29768
+round 13 shard 5/8: 750 games, 117409 recorded decisions (+116678 afterstate rows) (91.1% of plies), depth=1, deep_decisions=29233
+round 13 shard 6/8: 750 games, 118799 recorded decisions (+118058 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29824
+round 13 shard 7/8: 750 games, 118877 recorded decisions (+118145 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29712
+round 13: replay buffer = 80 shards (72 train / 8 val)
+Loading 8 validation shards...
+Validation set: 1903042 rows (1665091 afterstate rows)
+epoch 0: train_loss=1.9594 val_loss=1.8821 (value=0.5794 policy=0.7232 aux=0.4341)
+epoch 1: train_loss=1.9582 val_loss=1.8831 (value=0.5791 policy=0.7250 aux=0.4342)
+epoch 2: train_loss=1.9568 val_loss=1.8843 (value=0.5793 policy=0.7256 aux=0.4339)
+Early stopping at epoch 2 (best val_loss=1.8821)
+round 13: win_rate_a=0.5200 CI=[0.4510, 0.5882] generation_depth=1 eval_depth=1 -> PROMOTED
+round 13 finished in 419.3s (14 promotions so far)
+round 14 shard 0/8: 750 games, 119864 recorded decisions (+119124 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29833
+round 14 shard 1/8: 750 games, 119673 recorded decisions (+118945 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29881
+round 14 shard 2/8: 750 games, 118583 recorded decisions (+117840 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29607
+round 14 shard 3/8: 750 games, 120072 recorded decisions (+119340 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29939
+round 14 shard 4/8: 750 games, 120034 recorded decisions (+119296 afterstate rows) (91.7% of plies), depth=1, deep_decisions=30056
+round 14 shard 5/8: 750 games, 118728 recorded decisions (+117991 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29446
+round 14 shard 6/8: 750 games, 119197 recorded decisions (+118461 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29676
+round 14 shard 7/8: 750 games, 119902 recorded decisions (+119156 afterstate rows) (92.1% of plies), depth=1, deep_decisions=29835
+round 14: replay buffer = 80 shards (72 train / 8 val)
+Loading 8 validation shards...
+Validation set: 1901831 rows (1664241 afterstate rows)
+epoch 0: train_loss=1.9618 val_loss=1.8771 (value=0.5777 policy=0.7217 aux=0.4362)
+epoch 1: train_loss=1.9603 val_loss=1.8790 (value=0.5779 policy=0.7231 aux=0.4366)
+epoch 2: train_loss=1.9591 val_loss=1.8769 (value=0.5774 policy=0.7221 aux=0.4360)
+epoch 3: train_loss=1.9578 val_loss=1.8749 (value=0.5771 policy=0.7206 aux=0.4361)
+epoch 4: train_loss=1.9572 val_loss=1.8738 (value=0.5770 policy=0.7199 aux=0.4356)
+round 14: win_rate_a=0.5050 CI=[0.4363, 0.5735] generation_depth=1 eval_depth=1 -> PROMOTED
+round 14 finished in 557.2s (15 promotions so far)
+round 15 shard 0/8: 750 games, 119089 recorded decisions (+118357 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29752
+round 15 shard 1/8: 750 games, 119877 recorded decisions (+119137 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29979
+round 15 shard 2/8: 750 games, 118384 recorded decisions (+117651 afterstate rows) (91.0% of plies), depth=1, deep_decisions=29566
+round 15 shard 3/8: 750 games, 119238 recorded decisions (+118504 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29842
+round 15 shard 4/8: 750 games, 118221 recorded decisions (+117474 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29231
+round 15 shard 5/8: 750 games, 119642 recorded decisions (+118904 afterstate rows) (92.1% of plies), depth=1, deep_decisions=29972
+round 15 shard 6/8: 750 games, 119067 recorded decisions (+118330 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29977
+round 15 shard 7/8: 750 games, 119304 recorded decisions (+118566 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29863
+round 15: replay buffer = 80 shards (72 train / 8 val)
+Loading 8 validation shards...
+Validation set: 1901988 rows (1663686 afterstate rows)
+epoch 0: train_loss=1.9595 val_loss=1.8758 (value=0.5765 policy=0.7228 aux=0.4329)
+epoch 1: train_loss=1.9585 val_loss=1.8764 (value=0.5773 policy=0.7219 aux=0.4331)
+epoch 2: train_loss=1.9570 val_loss=1.8760 (value=0.5772 policy=0.7216 aux=0.4329)
+Early stopping at epoch 2 (best val_loss=1.8758)
+round 15: win_rate_a=0.4100 CI=[0.3442, 0.4792] generation_depth=1 eval_depth=1 -> PROMOTED
+round 15 finished in 422.3s (16 promotions so far)
+round 16 shard 0/8: 750 games, 119405 recorded decisions (+118669 afterstate rows) (91.4% of plies), depth=1, deep_decisions=30041
+round 16 shard 1/8: 750 games, 119750 recorded decisions (+119013 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29892
+round 16 shard 2/8: 750 games, 119213 recorded decisions (+118478 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29601
+round 16 shard 3/8: 750 games, 118591 recorded decisions (+117857 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29702
+round 16 shard 4/8: 750 games, 118453 recorded decisions (+117717 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29794
+round 16 shard 5/8: 750 games, 119144 recorded decisions (+118412 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29895
+round 16 shard 6/8: 750 games, 120747 recorded decisions (+120011 afterstate rows) (92.5% of plies), depth=1, deep_decisions=30264
+round 16 shard 7/8: 750 games, 118941 recorded decisions (+118212 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29524
+round 16: replay buffer = 80 shards (72 train / 8 val)
+Loading 8 validation shards...
+Validation set: 1906447 rows (1667720 afterstate rows)
+epoch 0: train_loss=1.9594 val_loss=1.8896 (value=0.5833 policy=0.7231 aux=0.4385)
+epoch 1: train_loss=1.9581 val_loss=1.8892 (value=0.5828 policy=0.7236 aux=0.4383)
+epoch 2: train_loss=1.9569 val_loss=1.8885 (value=0.5823 policy=0.7238 aux=0.4380)
+epoch 3: train_loss=1.9557 val_loss=1.8857 (value=0.5816 policy=0.7225 aux=0.4374)
+epoch 4: train_loss=1.9549 val_loss=1.8844 (value=0.5815 policy=0.7215 aux=0.4371)
+round 16: win_rate_a=0.4800 CI=[0.4118, 0.5490] generation_depth=1 eval_depth=1 -> PROMOTED
+round 16 finished in 556.0s (17 promotions so far)
+round 17 shard 0/8: 750 games, 118526 recorded decisions (+117789 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29865
+round 17 shard 1/8: 750 games, 119221 recorded decisions (+118486 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29901
+round 17 shard 2/8: 750 games, 118998 recorded decisions (+118264 afterstate rows) (92.0% of plies), depth=1, deep_decisions=29865
+round 17 shard 3/8: 750 games, 118002 recorded decisions (+117266 afterstate rows) (91.0% of plies), depth=1, deep_decisions=29656
+round 17 shard 4/8: 750 games, 118622 recorded decisions (+117884 afterstate rows) (92.0% of plies), depth=1, deep_decisions=29592
+round 17 shard 5/8: 750 games, 119018 recorded decisions (+118278 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29500
+round 17 shard 6/8: 750 games, 119918 recorded decisions (+119183 afterstate rows) (92.1% of plies), depth=1, deep_decisions=29960
+round 17 shard 7/8: 750 games, 118051 recorded decisions (+117314 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29372
+round 17: replay buffer = 80 shards (72 train / 8 val)
+Loading 8 validation shards...
+Validation set: 1899149 rows (1661137 afterstate rows)
+epoch 0: train_loss=1.9588 val_loss=1.8822 (value=0.5823 policy=0.7175 aux=0.4326)
+epoch 1: train_loss=1.9577 val_loss=1.8863 (value=0.5832 policy=0.7200 aux=0.4337)
+epoch 2: train_loss=1.9561 val_loss=1.8821 (value=0.5819 policy=0.7182 aux=0.4328)
+epoch 3: train_loss=1.9549 val_loss=1.8813 (value=0.5824 policy=0.7165 aux=0.4330)
+epoch 4: train_loss=1.9544 val_loss=1.8792 (value=0.5816 policy=0.7160 aux=0.4323)
+round 17: win_rate_a=0.4650 CI=[0.3972, 0.5341] generation_depth=1 eval_depth=1 -> PROMOTED
+round 17 finished in 554.8s (18 promotions so far)
+round 18 shard 0/8: 750 games, 119381 recorded decisions (+118644 afterstate rows) (92.2% of plies), depth=1, deep_decisions=29641
+round 18 shard 1/8: 750 games, 119574 recorded decisions (+118838 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29820
+round 18 shard 2/8: 750 games, 117890 recorded decisions (+117155 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29394
+round 18 shard 3/8: 750 games, 118094 recorded decisions (+117363 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29674
+round 18 shard 4/8: 750 games, 120176 recorded decisions (+119433 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29792
+round 18 shard 5/8: 750 games, 118457 recorded decisions (+117714 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29637
+round 18 shard 6/8: 750 games, 119025 recorded decisions (+118299 afterstate rows) (91.1% of plies), depth=1, deep_decisions=29587
+round 18 shard 7/8: 750 games, 118069 recorded decisions (+117339 afterstate rows) (90.9% of plies), depth=1, deep_decisions=29687
+round 18: replay buffer = 80 shards (72 train / 8 val)
+Loading 8 validation shards...
+Validation set: 1902398 rows (1663823 afterstate rows)
+epoch 0: train_loss=1.9581 val_loss=1.8769 (value=0.5775 policy=0.7219 aux=0.4347)
+epoch 1: train_loss=1.9570 val_loss=1.8785 (value=0.5780 policy=0.7226 aux=0.4354)
+epoch 2: train_loss=1.9557 val_loss=1.8781 (value=0.5780 policy=0.7222 aux=0.4349)
+Early stopping at epoch 2 (best val_loss=1.8769)
+round 18: win_rate_a=0.4900 CI=[0.4216, 0.5588] generation_depth=1 eval_depth=1 -> PROMOTED
+round 18 finished in 423.7s (19 promotions so far)
+round 19 shard 0/8: 750 games, 119545 recorded decisions (+118808 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29830
+round 19 shard 1/8: 750 games, 117751 recorded decisions (+117019 afterstate rows) (91.0% of plies), depth=1, deep_decisions=29692
+round 19 shard 2/8: 750 games, 118602 recorded decisions (+117865 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29700
+round 19 shard 3/8: 750 games, 118421 recorded decisions (+117689 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29699
+round 19 shard 4/8: 750 games, 118669 recorded decisions (+117931 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29937
+round 19 shard 5/8: 750 games, 118366 recorded decisions (+117628 afterstate rows) (91.1% of plies), depth=1, deep_decisions=29760
+round 19 shard 6/8: 750 games, 118671 recorded decisions (+117930 afterstate rows) (91.0% of plies), depth=1, deep_decisions=29797
+round 19 shard 7/8: 750 games, 119148 recorded decisions (+118411 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29729
+round 19: replay buffer = 80 shards (72 train / 8 val)
+Loading 8 validation shards...
+Validation set: 1891935 rows (1654564 afterstate rows)
+epoch 0: train_loss=1.9596 val_loss=1.8712 (value=0.5773 policy=0.7167 aux=0.4331)
+epoch 1: train_loss=1.9581 val_loss=1.8722 (value=0.5775 policy=0.7172 aux=0.4333)
+epoch 2: train_loss=1.9565 val_loss=1.8729 (value=0.5784 policy=0.7162 aux=0.4332)
+Early stopping at epoch 2 (best val_loss=1.8712)
+round 19: win_rate_a=0.5000 CI=[0.4314, 0.5686] generation_depth=1 eval_depth=1 -> PROMOTED
+round 19 finished in 427.8s (20 promotions so far)
+== win10: 20 rounds done, 145 min since start
+LADDER win10_round20 latest vs heuristic: 0.692 [0.671, 0.712] n=2000 (14s)
+LADDER win10_round20 latest vs v2_0c: 0.496 [0.474, 0.518] n=2000 (20s)
+LADDER win10_round20 latest vs v2_1c: 0.477 [0.456, 0.499] n=2000 (20s)
+RUN DONE win10
+round_loop starting at round 0 (champion last updated at round -1, 0 total promotions, 0 promoted checkpoints in pool, 0 recent checkpoints in pool, 0 consecutive failures)
+round 0 shard 0/8: 750 games, 118779 recorded decisions (+118044 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29798
+round 0 shard 1/8: 750 games, 119065 recorded decisions (+118333 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29961
+round 0 shard 2/8: 750 games, 119245 recorded decisions (+118509 afterstate rows) (91.0% of plies), depth=1, deep_decisions=29581
+round 0 shard 3/8: 750 games, 118506 recorded decisions (+117764 afterstate rows) (92.1% of plies), depth=1, deep_decisions=29694
+round 0 shard 4/8: 750 games, 118186 recorded decisions (+117445 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29552
+round 0 shard 5/8: 750 games, 120740 recorded decisions (+120002 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30208
+round 0 shard 6/8: 750 games, 117853 recorded decisions (+117116 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29300
+round 0 shard 7/8: 750 games, 117841 recorded decisions (+117107 afterstate rows) (90.9% of plies), depth=1, deep_decisions=29559
+round 0: replay buffer = 8 shards (7 train / 1 val)
+Loading 1 validation shards...
+Validation set: 237754 rows (208173 afterstate rows)
+epoch 0: train_loss=1.9827 val_loss=1.9312 (value=0.5975 policy=0.7362 aux=0.4434)
+epoch 1: train_loss=1.9747 val_loss=1.9321 (value=0.5983 policy=0.7355 aux=0.4437)
+epoch 2: train_loss=1.9697 val_loss=1.9248 (value=0.5951 policy=0.7346 aux=0.4421)
+epoch 3: train_loss=1.9667 val_loss=1.9249 (value=0.5953 policy=0.7343 aux=0.4424)
+epoch 4: train_loss=1.9652 val_loss=1.9262 (value=0.5962 policy=0.7338 aux=0.4425)
+Early stopping at epoch 4 (best val_loss=1.9248)
+round 0: win_rate_a=0.5350 CI=[0.4659, 0.6028] generation_depth=1 eval_depth=1 -> PROMOTED
+round 0 finished in 239.4s (1 promotions so far)
+round 1 shard 0/8: 750 games, 118515 recorded decisions (+117778 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29531
+round 1 shard 1/8: 750 games, 119282 recorded decisions (+118554 afterstate rows) (90.8% of plies), depth=1, deep_decisions=29925
+round 1 shard 2/8: 750 games, 120311 recorded decisions (+119584 afterstate rows) (90.9% of plies), depth=1, deep_decisions=30285
+round 1 shard 3/8: 750 games, 121577 recorded decisions (+120840 afterstate rows) (92.2% of plies), depth=1, deep_decisions=30426
+round 1 shard 4/8: 750 games, 120630 recorded decisions (+119892 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30376
+round 1 shard 5/8: 750 games, 120529 recorded decisions (+119796 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30079
+round 1 shard 6/8: 750 games, 118266 recorded decisions (+117536 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29611
+round 1 shard 7/8: 750 games, 120148 recorded decisions (+119408 afterstate rows) (92.2% of plies), depth=1, deep_decisions=29763
+round 1: replay buffer = 16 shards (14 train / 2 val)
+Loading 2 validation shards...
+Validation set: 476165 rows (416186 afterstate rows)
+epoch 0: train_loss=1.9864 val_loss=1.9188 (value=0.5896 policy=0.7396 aux=0.4449)
+epoch 1: train_loss=1.9828 val_loss=1.9223 (value=0.5917 policy=0.7388 aux=0.4453)
+epoch 2: train_loss=1.9793 val_loss=1.9198 (value=0.5901 policy=0.7397 aux=0.4454)
+Early stopping at epoch 2 (best val_loss=1.9188)
+round 1: win_rate_a=0.5800 CI=[0.5107, 0.6463] generation_depth=1 eval_depth=1 -> PROMOTED
+round 1 finished in 247.4s (2 promotions so far)
+round 2 shard 0/8: 750 games, 120474 recorded decisions (+119731 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30163
+round 2 shard 1/8: 750 games, 118395 recorded decisions (+117660 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29546
+round 2 shard 2/8: 750 games, 119167 recorded decisions (+118434 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29660
+round 2 shard 3/8: 750 games, 119928 recorded decisions (+119195 afterstate rows) (90.9% of plies), depth=1, deep_decisions=30009
+round 2 shard 4/8: 750 games, 118118 recorded decisions (+117386 afterstate rows) (90.6% of plies), depth=1, deep_decisions=29328
+round 2 shard 5/8: 750 games, 119467 recorded decisions (+118730 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29594
+round 2 shard 6/8: 750 games, 119256 recorded decisions (+118519 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29621
+round 2 shard 7/8: 750 games, 119893 recorded decisions (+119155 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30047
+round 2: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 473258 rows (414349 afterstate rows)
+epoch 0: train_loss=1.9858 val_loss=1.9241 (value=0.5884 policy=0.7474 aux=0.4414)
+epoch 1: train_loss=1.9819 val_loss=1.9291 (value=0.5901 policy=0.7490 aux=0.4421)
+epoch 2: train_loss=1.9795 val_loss=1.9227 (value=0.5884 policy=0.7459 aux=0.4414)
+epoch 3: train_loss=1.9775 val_loss=1.9273 (value=0.5897 policy=0.7479 aux=0.4420)
+epoch 4: train_loss=1.9776 val_loss=1.9203 (value=0.5884 policy=0.7434 aux=0.4413)
+round 2: win_rate_a=0.4950 CI=[0.4265, 0.5637] generation_depth=1 eval_depth=1 -> PROMOTED
+round 2 finished in 305.3s (3 promotions so far)
+round 3 shard 0/8: 750 games, 119208 recorded decisions (+118469 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29593
+round 3 shard 1/8: 750 games, 120335 recorded decisions (+119597 afterstate rows) (91.1% of plies), depth=1, deep_decisions=30073
+round 3 shard 2/8: 750 games, 119337 recorded decisions (+118596 afterstate rows) (92.6% of plies), depth=1, deep_decisions=30088
+round 3 shard 3/8: 750 games, 119721 recorded decisions (+118982 afterstate rows) (91.4% of plies), depth=1, deep_decisions=30022
+round 3 shard 4/8: 750 games, 119062 recorded decisions (+118326 afterstate rows) (91.3% of plies), depth=1, deep_decisions=30005
+round 3 shard 5/8: 750 games, 118535 recorded decisions (+117798 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29565
+round 3 shard 6/8: 750 games, 118581 recorded decisions (+117841 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29585
+round 3 shard 7/8: 750 games, 120726 recorded decisions (+119990 afterstate rows) (92.0% of plies), depth=1, deep_decisions=30217
+round 3: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 477283 rows (416993 afterstate rows)
+epoch 0: train_loss=1.9803 val_loss=1.9105 (value=0.5860 policy=0.7384 aux=0.4403)
+epoch 1: train_loss=1.9765 val_loss=1.9114 (value=0.5870 policy=0.7374 aux=0.4409)
+epoch 2: train_loss=1.9748 val_loss=1.9098 (value=0.5861 policy=0.7375 aux=0.4403)
+epoch 3: train_loss=1.9728 val_loss=1.9111 (value=0.5861 policy=0.7388 aux=0.4402)
+epoch 4: train_loss=1.9716 val_loss=1.9071 (value=0.5857 policy=0.7357 aux=0.4400)
+round 3: win_rate_a=0.5000 CI=[0.4314, 0.5686] generation_depth=1 eval_depth=1 -> PROMOTED
+round 3 finished in 308.8s (4 promotions so far)
+round 4 shard 0/8: 750 games, 118679 recorded decisions (+117941 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29796
+round 4 shard 1/8: 750 games, 120181 recorded decisions (+119453 afterstate rows) (92.0% of plies), depth=1, deep_decisions=30130
+round 4 shard 2/8: 750 games, 119579 recorded decisions (+118844 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29924
+round 4 shard 3/8: 750 games, 119953 recorded decisions (+119219 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29734
+round 4 shard 4/8: 750 games, 120239 recorded decisions (+119501 afterstate rows) (91.9% of plies), depth=1, deep_decisions=30157
+round 4 shard 5/8: 750 games, 117271 recorded decisions (+116537 afterstate rows) (91.0% of plies), depth=1, deep_decisions=29327
+round 4 shard 6/8: 750 games, 119035 recorded decisions (+118300 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29673
+round 4 shard 7/8: 750 games, 117619 recorded decisions (+116884 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29435
+round 4: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 477341 rows (417524 afterstate rows)
+epoch 0: train_loss=1.9791 val_loss=1.8944 (value=0.5720 policy=0.7503 aux=0.4430)
+epoch 1: train_loss=1.9759 val_loss=1.8950 (value=0.5728 policy=0.7495 aux=0.4435)
+epoch 2: train_loss=1.9736 val_loss=1.8942 (value=0.5726 policy=0.7489 aux=0.4433)
+epoch 3: train_loss=1.9719 val_loss=1.8943 (value=0.5725 policy=0.7493 aux=0.4432)
+epoch 4: train_loss=1.9709 val_loss=1.8916 (value=0.5718 policy=0.7481 aux=0.4429)
+round 4: win_rate_a=0.5400 CI=[0.4708, 0.6077] generation_depth=1 eval_depth=1 -> PROMOTED
+round 4 finished in 313.2s (5 promotions so far)
+round 5 shard 0/8: 750 games, 119255 recorded decisions (+118518 afterstate rows) (92.4% of plies), depth=1, deep_decisions=29712
+round 5 shard 1/8: 750 games, 120555 recorded decisions (+119817 afterstate rows) (92.0% of plies), depth=1, deep_decisions=30206
+round 5 shard 2/8: 750 games, 118402 recorded decisions (+117666 afterstate rows) (90.9% of plies), depth=1, deep_decisions=29717
+round 5 shard 3/8: 750 games, 119531 recorded decisions (+118795 afterstate rows) (92.0% of plies), depth=1, deep_decisions=30170
+round 5 shard 4/8: 750 games, 118113 recorded decisions (+117382 afterstate rows) (92.2% of plies), depth=1, deep_decisions=29630
+round 5 shard 5/8: 750 games, 120971 recorded decisions (+120229 afterstate rows) (92.4% of plies), depth=1, deep_decisions=30271
+round 5 shard 6/8: 750 games, 118962 recorded decisions (+118228 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29632
+round 5 shard 7/8: 750 games, 119525 recorded decisions (+118789 afterstate rows) (92.1% of plies), depth=1, deep_decisions=29673
+round 5: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 473428 rows (413710 afterstate rows)
+epoch 0: train_loss=1.9738 val_loss=1.8935 (value=0.5783 policy=0.7369 aux=0.4401)
+epoch 1: train_loss=1.9703 val_loss=1.8918 (value=0.5776 policy=0.7367 aux=0.4397)
+epoch 2: train_loss=1.9679 val_loss=1.8901 (value=0.5767 policy=0.7366 aux=0.4392)
+epoch 3: train_loss=1.9660 val_loss=1.8885 (value=0.5765 policy=0.7355 aux=0.4395)
+epoch 4: train_loss=1.9651 val_loss=1.8879 (value=0.5764 policy=0.7350 aux=0.4393)
+round 5: win_rate_a=0.5150 CI=[0.4461, 0.5833] generation_depth=1 eval_depth=1 -> PROMOTED
+round 5 finished in 308.9s (6 promotions so far)
+round 6 shard 0/8: 750 games, 119660 recorded decisions (+118926 afterstate rows) (92.0% of plies), depth=1, deep_decisions=29822
+round 6 shard 1/8: 750 games, 120010 recorded decisions (+119278 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29868
+round 6 shard 2/8: 750 games, 119031 recorded decisions (+118295 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29444
+round 6 shard 3/8: 750 games, 119264 recorded decisions (+118527 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29627
+round 6 shard 4/8: 750 games, 119377 recorded decisions (+118643 afterstate rows) (92.0% of plies), depth=1, deep_decisions=29840
+round 6 shard 5/8: 750 games, 119095 recorded decisions (+118364 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29392
+round 6 shard 6/8: 750 games, 119063 recorded decisions (+118323 afterstate rows) (92.1% of plies), depth=1, deep_decisions=29688
+round 6 shard 7/8: 750 games, 118613 recorded decisions (+117874 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29590
+round 6: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 476443 rows (416679 afterstate rows)
+epoch 0: train_loss=1.9736 val_loss=1.9205 (value=0.5875 policy=0.7455 aux=0.4454)
+epoch 1: train_loss=1.9703 val_loss=1.9206 (value=0.5879 policy=0.7448 aux=0.4449)
+epoch 2: train_loss=1.9678 val_loss=1.9207 (value=0.5880 policy=0.7447 aux=0.4450)
+Early stopping at epoch 2 (best val_loss=1.9205)
+round 6: win_rate_a=0.4800 CI=[0.4118, 0.5490] generation_depth=1 eval_depth=1 -> PROMOTED
+round 6 finished in 268.4s (7 promotions so far)
+round 7 shard 0/8: 750 games, 117706 recorded decisions (+116975 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29145
+round 7 shard 1/8: 750 games, 118437 recorded decisions (+117698 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29398
+round 7 shard 2/8: 750 games, 118547 recorded decisions (+117805 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29745
+round 7 shard 3/8: 750 games, 118637 recorded decisions (+117903 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29670
+round 7 shard 4/8: 750 games, 118312 recorded decisions (+117572 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29436
+round 7 shard 5/8: 750 games, 119662 recorded decisions (+118922 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29745
+round 7 shard 6/8: 750 games, 118369 recorded decisions (+117639 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29494
+round 7 shard 7/8: 750 games, 118190 recorded decisions (+117455 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29302
+round 7: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 471952 rows (412799 afterstate rows)
+epoch 0: train_loss=1.9748 val_loss=1.8902 (value=0.5789 policy=0.7323 aux=0.4344)
+epoch 1: train_loss=1.9712 val_loss=1.8909 (value=0.5795 policy=0.7318 aux=0.4354)
+epoch 2: train_loss=1.9684 val_loss=1.8903 (value=0.5791 policy=0.7320 aux=0.4347)
+Early stopping at epoch 2 (best val_loss=1.8902)
+round 7: win_rate_a=0.4450 CI=[0.3778, 0.5143] generation_depth=1 eval_depth=1 -> PROMOTED
+round 7 finished in 265.2s (8 promotions so far)
+round 8 shard 0/8: 750 games, 118367 recorded decisions (+117635 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29665
+round 8 shard 1/8: 750 games, 118148 recorded decisions (+117415 afterstate rows) (90.9% of plies), depth=1, deep_decisions=29267
+round 8 shard 2/8: 750 games, 118622 recorded decisions (+117894 afterstate rows) (91.0% of plies), depth=1, deep_decisions=29421
+round 8 shard 3/8: 750 games, 118766 recorded decisions (+118027 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29334
+round 8 shard 4/8: 750 games, 119763 recorded decisions (+119024 afterstate rows) (92.4% of plies), depth=1, deep_decisions=30087
+round 8 shard 5/8: 750 games, 117682 recorded decisions (+116944 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29328
+round 8 shard 6/8: 750 games, 119209 recorded decisions (+118474 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29889
+round 8 shard 7/8: 750 games, 119313 recorded decisions (+118576 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29855
+round 8: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 476113 rows (416582 afterstate rows)
+epoch 0: train_loss=1.9784 val_loss=1.8706 (value=0.5718 policy=0.7270 aux=0.4392)
+epoch 1: train_loss=1.9736 val_loss=1.8742 (value=0.5737 policy=0.7268 aux=0.4400)
+epoch 2: train_loss=1.9707 val_loss=1.8705 (value=0.5721 policy=0.7263 aux=0.4393)
+epoch 3: train_loss=1.9685 val_loss=1.8707 (value=0.5726 policy=0.7255 aux=0.4395)
+epoch 4: train_loss=1.9682 val_loss=1.8701 (value=0.5718 policy=0.7266 aux=0.4390)
+round 8: win_rate_a=0.5700 CI=[0.5007, 0.6367] generation_depth=1 eval_depth=1 -> PROMOTED
+round 8 finished in 303.4s (9 promotions so far)
+round 9 shard 0/8: 750 games, 118756 recorded decisions (+118022 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29741
+round 9 shard 1/8: 750 games, 119843 recorded decisions (+119100 afterstate rows) (92.2% of plies), depth=1, deep_decisions=29859
+round 9 shard 2/8: 750 games, 118714 recorded decisions (+117976 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29493
+round 9 shard 3/8: 750 games, 118407 recorded decisions (+117672 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29249
+round 9 shard 4/8: 750 games, 118740 recorded decisions (+117999 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29518
+round 9 shard 5/8: 750 games, 117740 recorded decisions (+117007 afterstate rows) (90.9% of plies), depth=1, deep_decisions=29431
+round 9 shard 6/8: 750 games, 118201 recorded decisions (+117465 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29471
+round 9 shard 7/8: 750 games, 117996 recorded decisions (+117262 afterstate rows) (91.1% of plies), depth=1, deep_decisions=29617
+round 9: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 473091 rows (413828 afterstate rows)
+epoch 0: train_loss=1.9696 val_loss=1.8781 (value=0.5775 policy=0.7231 aux=0.4322)
+epoch 1: train_loss=1.9662 val_loss=1.8796 (value=0.5767 policy=0.7262 aux=0.4325)
+epoch 2: train_loss=1.9637 val_loss=1.8785 (value=0.5765 policy=0.7254 aux=0.4323)
+Early stopping at epoch 2 (best val_loss=1.8781)
+round 9: win_rate_a=0.4600 CI=[0.3923, 0.5292] generation_depth=1 eval_depth=1 -> PROMOTED
+round 9 finished in 265.8s (10 promotions so far)
+== win3: 10 rounds done, 47 min since start
+LADDER win3_round10 latest vs heuristic: 0.696 [0.675, 0.716] n=2000 (13s)
+LADDER win3_round10 latest vs v2_0c: 0.519 [0.497, 0.541] n=2000 (20s)
+LADDER win3_round10 latest vs v2_1c: 0.487 [0.465, 0.509] n=2000 (20s)
+round_loop starting at round 10 (champion last updated at round 9, 10 total promotions, 0 promoted checkpoints in pool, 8 recent checkpoints in pool, 0 consecutive failures)
+round 10 shard 0/8: 750 games, 119302 recorded decisions (+118560 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29735
+round 10 shard 1/8: 750 games, 119252 recorded decisions (+118520 afterstate rows) (90.7% of plies), depth=1, deep_decisions=30057
+round 10 shard 2/8: 750 games, 119408 recorded decisions (+118674 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29725
+round 10 shard 3/8: 750 games, 121023 recorded decisions (+120286 afterstate rows) (91.7% of plies), depth=1, deep_decisions=30357
+round 10 shard 4/8: 750 games, 120351 recorded decisions (+119612 afterstate rows) (92.5% of plies), depth=1, deep_decisions=30083
+round 10 shard 5/8: 750 games, 119615 recorded decisions (+118881 afterstate rows) (90.8% of plies), depth=1, deep_decisions=29996
+round 10 shard 6/8: 750 games, 117756 recorded decisions (+117022 afterstate rows) (90.5% of plies), depth=1, deep_decisions=29467
+round 10 shard 7/8: 750 games, 119747 recorded decisions (+119009 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29796
+round 10: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 476479 rows (416975 afterstate rows)
+epoch 0: train_loss=1.9697 val_loss=1.9104 (value=0.5916 policy=0.7272 aux=0.4384)
+epoch 1: train_loss=1.9660 val_loss=1.9107 (value=0.5917 policy=0.7272 aux=0.4386)
+epoch 2: train_loss=1.9633 val_loss=1.9110 (value=0.5919 policy=0.7271 aux=0.4381)
+Early stopping at epoch 2 (best val_loss=1.9104)
+round 10: win_rate_a=0.4950 CI=[0.4265, 0.5637] generation_depth=1 eval_depth=1 -> PROMOTED
+round 10 finished in 269.0s (11 promotions so far)
+round 11 shard 0/8: 750 games, 119766 recorded decisions (+119031 afterstate rows) (92.1% of plies), depth=1, deep_decisions=30138
+round 11 shard 1/8: 750 games, 119493 recorded decisions (+118751 afterstate rows) (92.7% of plies), depth=1, deep_decisions=29881
+round 11 shard 2/8: 750 games, 119221 recorded decisions (+118486 afterstate rows) (90.6% of plies), depth=1, deep_decisions=29942
+round 11 shard 3/8: 750 games, 119569 recorded decisions (+118839 afterstate rows) (90.9% of plies), depth=1, deep_decisions=29873
+round 11 shard 4/8: 750 games, 120220 recorded decisions (+119484 afterstate rows) (90.9% of plies), depth=1, deep_decisions=30230
+round 11 shard 5/8: 750 games, 119141 recorded decisions (+118407 afterstate rows) (90.4% of plies), depth=1, deep_decisions=29911
+round 11 shard 6/8: 750 games, 119275 recorded decisions (+118538 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29853
+round 11 shard 7/8: 750 games, 120552 recorded decisions (+119818 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30443
+round 11: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 476394 rows (416671 afterstate rows)
+epoch 0: train_loss=1.9720 val_loss=1.9095 (value=0.5917 policy=0.7260 aux=0.4415)
+epoch 1: train_loss=1.9671 val_loss=1.9111 (value=0.5925 policy=0.7261 aux=0.4418)
+epoch 2: train_loss=1.9649 val_loss=1.9153 (value=0.5931 policy=0.7290 aux=0.4414)
+Early stopping at epoch 2 (best val_loss=1.9095)
+round 11: win_rate_a=0.5150 CI=[0.4461, 0.5833] generation_depth=1 eval_depth=1 -> PROMOTED
+round 11 finished in 267.1s (12 promotions so far)
+round 12 shard 0/8: 750 games, 118300 recorded decisions (+117565 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29462
+round 12 shard 1/8: 750 games, 117988 recorded decisions (+117251 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29157
+round 12 shard 2/8: 750 games, 118455 recorded decisions (+117717 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29600
+round 12 shard 3/8: 750 games, 119939 recorded decisions (+119204 afterstate rows) (91.1% of plies), depth=1, deep_decisions=29956
+round 12 shard 4/8: 750 games, 119014 recorded decisions (+118286 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29562
+round 12 shard 5/8: 750 games, 119094 recorded decisions (+118362 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29800
+round 12 shard 6/8: 750 games, 118837 recorded decisions (+118107 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29376
+round 12 shard 7/8: 750 games, 120477 recorded decisions (+119736 afterstate rows) (92.8% of plies), depth=1, deep_decisions=29945
+round 12: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 475382 rows (416095 afterstate rows)
+epoch 0: train_loss=1.9764 val_loss=1.9003 (value=0.5868 policy=0.7267 aux=0.4377)
+epoch 1: train_loss=1.9725 val_loss=1.9006 (value=0.5879 policy=0.7247 aux=0.4380)
+epoch 2: train_loss=1.9694 val_loss=1.8997 (value=0.5870 policy=0.7257 aux=0.4377)
+epoch 3: train_loss=1.9680 val_loss=1.8994 (value=0.5871 policy=0.7252 aux=0.4376)
+epoch 4: train_loss=1.9668 val_loss=1.8967 (value=0.5866 policy=0.7235 aux=0.4373)
+round 12: win_rate_a=0.5350 CI=[0.4659, 0.6028] generation_depth=1 eval_depth=1 -> PROMOTED
+round 12 finished in 306.5s (13 promotions so far)
+round 13 shard 0/8: 750 games, 118852 recorded decisions (+118117 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29868
+round 13 shard 1/8: 750 games, 119194 recorded decisions (+118463 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29906
+round 13 shard 2/8: 750 games, 119088 recorded decisions (+118350 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29748
+round 13 shard 3/8: 750 games, 119712 recorded decisions (+118975 afterstate rows) (92.2% of plies), depth=1, deep_decisions=29915
+round 13 shard 4/8: 750 games, 119085 recorded decisions (+118352 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29814
+round 13 shard 5/8: 750 games, 117860 recorded decisions (+117126 afterstate rows) (90.9% of plies), depth=1, deep_decisions=29374
+round 13 shard 6/8: 750 games, 119354 recorded decisions (+118618 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29964
+round 13 shard 7/8: 750 games, 119014 recorded decisions (+118283 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29748
+round 13: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 475144 rows (415388 afterstate rows)
+epoch 0: train_loss=1.9734 val_loss=1.9108 (value=0.5946 policy=0.7216 aux=0.4412)
+epoch 1: train_loss=1.9707 val_loss=1.9113 (value=0.5949 policy=0.7214 aux=0.4412)
+epoch 2: train_loss=1.9682 val_loss=1.9100 (value=0.5945 policy=0.7209 aux=0.4413)
+epoch 3: train_loss=1.9662 val_loss=1.9097 (value=0.5931 policy=0.7234 aux=0.4408)
+epoch 4: train_loss=1.9652 val_loss=1.9066 (value=0.5932 policy=0.7203 aux=0.4406)
+round 13: win_rate_a=0.4550 CI=[0.3875, 0.5242] generation_depth=1 eval_depth=1 -> PROMOTED
+round 13 finished in 309.2s (14 promotions so far)
+round 14 shard 0/8: 750 games, 120260 recorded decisions (+119521 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29919
+round 14 shard 1/8: 750 games, 119877 recorded decisions (+119143 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29940
+round 14 shard 2/8: 750 games, 119287 recorded decisions (+118550 afterstate rows) (91.4% of plies), depth=1, deep_decisions=29785
+round 14 shard 3/8: 750 games, 120453 recorded decisions (+119722 afterstate rows) (91.4% of plies), depth=1, deep_decisions=30040
+round 14 shard 4/8: 750 games, 119273 recorded decisions (+118536 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29882
+round 14 shard 5/8: 750 games, 119510 recorded decisions (+118769 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29627
+round 14 shard 6/8: 750 games, 120818 recorded decisions (+120083 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30084
+round 14 shard 7/8: 750 games, 119455 recorded decisions (+118716 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29718
+round 14: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 473981 rows (414499 afterstate rows)
+epoch 0: train_loss=1.9779 val_loss=1.9107 (value=0.5859 policy=0.7388 aux=0.4396)
+epoch 1: train_loss=1.9751 val_loss=1.9102 (value=0.5859 policy=0.7384 aux=0.4402)
+epoch 2: train_loss=1.9724 val_loss=1.9103 (value=0.5859 policy=0.7386 aux=0.4400)
+epoch 3: train_loss=1.9711 val_loss=1.9093 (value=0.5858 policy=0.7378 aux=0.4399)
+epoch 4: train_loss=1.9695 val_loss=1.9073 (value=0.5852 policy=0.7369 aux=0.4396)
+round 14: win_rate_a=0.4650 CI=[0.3972, 0.5341] generation_depth=1 eval_depth=1 -> PROMOTED
+round 14 finished in 308.9s (15 promotions so far)
+round 15 shard 0/8: 750 games, 119825 recorded decisions (+119095 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29924
+round 15 shard 1/8: 750 games, 119621 recorded decisions (+118878 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29920
+round 15 shard 2/8: 750 games, 119731 recorded decisions (+119001 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29897
+round 15 shard 3/8: 750 games, 119913 recorded decisions (+119181 afterstate rows) (91.5% of plies), depth=1, deep_decisions=30024
+round 15 shard 4/8: 750 games, 118778 recorded decisions (+118037 afterstate rows) (92.0% of plies), depth=1, deep_decisions=29364
+round 15 shard 5/8: 750 games, 121079 recorded decisions (+120342 afterstate rows) (92.1% of plies), depth=1, deep_decisions=30313
+round 15 shard 6/8: 750 games, 118761 recorded decisions (+118025 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29887
+round 15 shard 7/8: 750 games, 118973 recorded decisions (+118236 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29776
+round 15: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 474253 rows (415141 afterstate rows)
+epoch 0: train_loss=1.9805 val_loss=1.8889 (value=0.5819 policy=0.7251 aux=0.4402)
+epoch 1: train_loss=1.9773 val_loss=1.8879 (value=0.5821 policy=0.7237 aux=0.4400)
+epoch 2: train_loss=1.9749 val_loss=1.8911 (value=0.5838 policy=0.7234 aux=0.4414)
+epoch 3: train_loss=1.9731 val_loss=1.8868 (value=0.5819 policy=0.7229 aux=0.4402)
+epoch 4: train_loss=1.9719 val_loss=1.8864 (value=0.5821 policy=0.7222 aux=0.4401)
+round 15: win_rate_a=0.5200 CI=[0.4510, 0.5882] generation_depth=1 eval_depth=1 -> PROMOTED
+round 15 finished in 310.4s (16 promotions so far)
+round 16 shard 0/8: 750 games, 120457 recorded decisions (+119724 afterstate rows) (91.8% of plies), depth=1, deep_decisions=30322
+round 16 shard 1/8: 750 games, 119655 recorded decisions (+118917 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29855
+round 16 shard 2/8: 750 games, 119730 recorded decisions (+118996 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29731
+round 16 shard 3/8: 750 games, 118743 recorded decisions (+118008 afterstate rows) (91.2% of plies), depth=1, deep_decisions=29735
+round 16 shard 4/8: 750 games, 120538 recorded decisions (+119805 afterstate rows) (91.8% of plies), depth=1, deep_decisions=30336
+round 16 shard 5/8: 750 games, 119348 recorded decisions (+118615 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29952
+round 16 shard 6/8: 750 games, 121299 recorded decisions (+120560 afterstate rows) (92.3% of plies), depth=1, deep_decisions=30406
+round 16 shard 7/8: 750 games, 119353 recorded decisions (+118617 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29626
+round 16: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 478180 rows (418059 afterstate rows)
+epoch 0: train_loss=1.9840 val_loss=1.9156 (value=0.5937 policy=0.7282 aux=0.4424)
+epoch 1: train_loss=1.9809 val_loss=1.9150 (value=0.5934 policy=0.7281 aux=0.4426)
+epoch 2: train_loss=1.9780 val_loss=1.9153 (value=0.5939 policy=0.7275 aux=0.4425)
+epoch 3: train_loss=1.9760 val_loss=1.9148 (value=0.5939 policy=0.7270 aux=0.4423)
+epoch 4: train_loss=1.9749 val_loss=1.9128 (value=0.5931 policy=0.7266 aux=0.4421)
+round 16: win_rate_a=0.5050 CI=[0.4363, 0.5735] generation_depth=1 eval_depth=1 -> PROMOTED
+round 16 finished in 310.9s (17 promotions so far)
+round 17 shard 0/8: 750 games, 120240 recorded decisions (+119507 afterstate rows) (91.3% of plies), depth=1, deep_decisions=30301
+round 17 shard 1/8: 750 games, 119584 recorded decisions (+118851 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29993
+round 17 shard 2/8: 750 games, 120236 recorded decisions (+119493 afterstate rows) (91.9% of plies), depth=1, deep_decisions=30152
+round 17 shard 3/8: 750 games, 119297 recorded decisions (+118564 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29979
+round 17 shard 4/8: 750 games, 120786 recorded decisions (+120049 afterstate rows) (92.4% of plies), depth=1, deep_decisions=30137
+round 17 shard 5/8: 750 games, 119753 recorded decisions (+119018 afterstate rows) (91.9% of plies), depth=1, deep_decisions=29671
+round 17 shard 6/8: 750 games, 119656 recorded decisions (+118916 afterstate rows) (91.7% of plies), depth=1, deep_decisions=29900
+round 17 shard 7/8: 750 games, 118409 recorded decisions (+117673 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29465
+round 17: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 479567 rows (419533 afterstate rows)
+epoch 0: train_loss=1.9843 val_loss=1.9168 (value=0.5958 policy=0.7252 aux=0.4408)
+epoch 1: train_loss=1.9813 val_loss=1.9145 (value=0.5948 policy=0.7248 aux=0.4399)
+epoch 2: train_loss=1.9790 val_loss=1.9155 (value=0.5949 policy=0.7256 aux=0.4399)
+epoch 3: train_loss=1.9765 val_loss=1.9132 (value=0.5947 policy=0.7238 aux=0.4403)
+epoch 4: train_loss=1.9759 val_loss=1.9105 (value=0.5936 policy=0.7232 aux=0.4393)
+round 17: win_rate_a=0.5300 CI=[0.4609, 0.5980] generation_depth=1 eval_depth=1 -> PROMOTED
+round 17 finished in 310.9s (18 promotions so far)
+round 18 shard 0/8: 750 games, 120431 recorded decisions (+119696 afterstate rows) (92.2% of plies), depth=1, deep_decisions=29910
+round 18 shard 1/8: 750 games, 119698 recorded decisions (+118962 afterstate rows) (91.8% of plies), depth=1, deep_decisions=29851
+round 18 shard 2/8: 750 games, 119189 recorded decisions (+118452 afterstate rows) (91.3% of plies), depth=1, deep_decisions=29678
+round 18 shard 3/8: 750 games, 118950 recorded decisions (+118216 afterstate rows) (91.5% of plies), depth=1, deep_decisions=29879
+round 18 shard 4/8: 750 games, 120072 recorded decisions (+119337 afterstate rows) (92.0% of plies), depth=1, deep_decisions=29771
+round 18 shard 5/8: 750 games, 120167 recorded decisions (+119425 afterstate rows) (91.7% of plies), depth=1, deep_decisions=30057
+round 18 shard 6/8: 750 games, 118273 recorded decisions (+117537 afterstate rows) (90.9% of plies), depth=1, deep_decisions=29410
+round 18 shard 7/8: 750 games, 119068 recorded decisions (+118336 afterstate rows) (90.9% of plies), depth=1, deep_decisions=29935
+round 18: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 478135 rows (418633 afterstate rows)
+epoch 0: train_loss=1.9880 val_loss=1.8944 (value=0.5893 policy=0.7157 aux=0.4369)
+epoch 1: train_loss=1.9850 val_loss=1.8959 (value=0.5901 policy=0.7157 aux=0.4377)
+epoch 2: train_loss=1.9824 val_loss=1.8950 (value=0.5896 policy=0.7158 aux=0.4374)
+Early stopping at epoch 2 (best val_loss=1.8944)
+round 18: win_rate_a=0.5150 CI=[0.4461, 0.5833] generation_depth=1 eval_depth=1 -> PROMOTED
+round 18 finished in 268.4s (19 promotions so far)
+round 19 shard 0/8: 750 games, 120698 recorded decisions (+119962 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30108
+round 19 shard 1/8: 750 games, 118643 recorded decisions (+117905 afterstate rows) (91.0% of plies), depth=1, deep_decisions=29918
+round 19 shard 2/8: 750 games, 120167 recorded decisions (+119434 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30084
+round 19 shard 3/8: 750 games, 120118 recorded decisions (+119384 afterstate rows) (91.4% of plies), depth=1, deep_decisions=30140
+round 19 shard 4/8: 750 games, 119449 recorded decisions (+118717 afterstate rows) (91.6% of plies), depth=1, deep_decisions=30131
+round 19 shard 5/8: 750 games, 119032 recorded decisions (+118296 afterstate rows) (91.1% of plies), depth=1, deep_decisions=29929
+round 19 shard 6/8: 750 games, 120128 recorded decisions (+119392 afterstate rows) (91.1% of plies), depth=1, deep_decisions=30164
+round 19 shard 7/8: 750 games, 120120 recorded decisions (+119382 afterstate rows) (91.6% of plies), depth=1, deep_decisions=29982
+round 19: replay buffer = 24 shards (22 train / 2 val)
+Loading 2 validation shards...
+Validation set: 477895 rows (417612 afterstate rows)
+epoch 0: train_loss=1.9824 val_loss=1.9136 (value=0.5922 policy=0.7293 aux=0.4439)
+epoch 1: train_loss=1.9786 val_loss=1.9117 (value=0.5908 policy=0.7300 aux=0.4440)
+epoch 2: train_loss=1.9758 val_loss=1.9112 (value=0.5913 policy=0.7286 aux=0.4445)
+epoch 3: train_loss=1.9739 val_loss=1.9101 (value=0.5910 policy=0.7281 aux=0.4436)
+epoch 4: train_loss=1.9727 val_loss=1.9074 (value=0.5902 policy=0.7269 aux=0.4433)
+round 19: win_rate_a=0.5550 CI=[0.4857, 0.6222] generation_depth=1 eval_depth=1 -> PROMOTED
+round 19 finished in 308.3s (20 promotions so far)
+== win3: 20 rounds done, 97 min since start
+LADDER win3_round20 latest vs heuristic: 0.705 [0.685, 0.725] n=2000 (13s)
+LADDER win3_round20 latest vs v2_0c: 0.511 [0.489, 0.533] n=2000 (20s)
+LADDER win3_round20 latest vs v2_1c: 0.483 [0.461, 0.505] n=2000 (19s)
+RUN DONE win3
+H2H a vs b: 0.4921 [0.4852, 0.4990] n=20000 (167s)
+H2H DONE win10_vs_win3
+H2H a vs b: 0.4817 [0.4748, 0.4886] n=20000 (166s)
+H2H DONE win10_vs_v2_1c
+H2H a vs b: 0.4844 [0.4775, 0.4914] n=20000 (168s)
+H2H DONE win3_vs_v2_1c
+ALL DONE

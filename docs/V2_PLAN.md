@@ -281,6 +281,36 @@ removed). Size gates and ladders from the measured multiplier; aim for power to 
 **C10 — Capacity A/B, later.** 2×256 is probably not the binding constraint (losses were flat for
 reasons above). A/B 3×512 at round ~30 of V2.2 only if the ladder trend flattens.
 
+*Revised 2026-11-02, after §10.6–10.9.* The trigger has fired: the ladder is flat at depth 1
+(V2.0c) and with deep targets (V2.1d ties V2.1c), so C10 runs now instead of inside V2.2, which was
+never launched. The original A/B and the §10.3 fallback ("3×512 and 30k games/round") are changed in
+four ways so that one variable moves at a time:
+
+1. **Capacity only; data volume is held fixed.** The fallback bundled 3×512 with 30k games/round,
+   so a gain could not be attributed. V2.0c showed volume alone does nothing at this net size.
+   Both arms keep the V2.1c recipe: 6,000 games/round, `deep_fraction` 0.25, depth 2, replay
+   window 3, afterstate rows, same training hyperparameters and seeds. A volume test (30k
+   games/round) follows only if capacity wins, since a larger net may then be data-limited.
+2. **A matched control arm.** 3×512 (≈ 640k parameters, ≈ 5× today's 125k) cannot warm-start
+   from a 2×256 champion, and every round's training warm-starts from the previous champion's
+   weights. Comparing a fresh large net against V2.1c would confound size with starting point.
+   Arm A is a fresh 2×256 and arm B a fresh 3×512. Both are first trained from random weights on
+   the same three rounds of V2.1c self-play (deep targets), with the same epoch cap and early
+   stopping, then run 20 rounds of the recipe. Arm A doubles as the missing seed replicate of V2.1c.
+3. **A pre-check before the long run.** On those three rounds, fit both sizes and compare
+   validation loss; repeat with 1 and 2 rounds of data to see whether the larger net is
+   data-limited. If 3×512 does not lower validation loss, or widens the train–validation gap,
+   capacity is not binding: skip arm B and record that.
+4. **Gate.** 10,000-pair duplicate matches at depth 1, raw score (§10.8), seeds 70000+i. Arm B
+   passes if it beats both V2.1c and arm A with a Wilson lower bound above 50%. If arm A itself
+   beats V2.1c, run-to-run spread is larger than assumed and only B vs A counts. Strength is
+   compared at equal search depth, not equal time; the large net's per-move cost (≈ 3–5×, estimate)
+   is reported for deployment.
+
+Costs (estimates): pre-check about 30 min including regenerating the V2.1c rounds (the raw archive
+was deleted); arm A about 100 min; arm B about 5–6 h. Arms run one after the other, not in
+parallel, so that throughput numbers stay clean.
+
 **C11 — 4 players** — see §5, V2.3. No search or encoding redesign is needed; the cost is
 generation time (263 turns/game, 3 opponents in the threat scan, 380-wide encoding ⇒ ~3–4× a
 2-player game) and evaluation protocol.
@@ -860,9 +890,113 @@ Readings:
 **Decisions.** `runs/v2_1c_champion/model.pt` remains best-so-far; `deep_fraction` stays 0.25 in the
 reference recipe. The deep-target lever is exhausted at this net size, so the next independent lever
 is **capacity (C10: 3 layers of 512, 30k games per round)**, as the plan's fallback said, or
-**depth-3 targets** if a cheaper test is wanted first. Neither is launched; C10 is the costlier run
+**depth-3 targets** if a cheaper test is wanted first. *(2026-11-02: depth-3 targets dropped by the
+user; C10 redesigned to hold data volume fixed and add a fresh 2×256 control arm — see C10 in §4.)* Neither is launched; C10 is the costlier run
 (est. 5–8 h) and needs the user's go-ahead. V2.1d ties V2.1c, so it is not added as a ladder
 anchor.
+
+### 10.10 C10 pre-check: capacity is not the binding constraint; arm B skipped (2026-11-02)
+
+**Result: a fresh 3×512 net (645k parameters) does not fit V2.1c's self-play better than a fresh
+2×256 (125k) at any of three data sizes, so by the revised C10 rule the 5–6 h arm B is not run, and
+arm A (its control) is not needed either.** Script `scripts/v2/c10_precheck.py`; results and both
+starting nets in `runs/c10_precheck/`; data (5.4 GB) in `~/parchis_training_archive/c10_data`.
+
+Setup: 27 shards of 750 games from the V2.1c champion with the V2.1c recipe (deep_fraction 0.25,
+deep targets, afterstate rows; seeds 500000+i; pool = champion + heuristic), 11.8 min on 8 workers.
+Validation = 3 fixed shards. Fits from random weights, identical for both sizes: lr 1e-3, weight
+decay 1e-4, batch 4096, value weight 2.0, aux 0.2, early stopping on total validation loss, patience 4.
+
+| Training data | Size | Best total (epoch) | Min value loss (epoch) | Min policy loss (epoch) |
+|---|---|---|---|---|
+| 8 shards (1 round) | 2×256 | 2.0300 (4) | 0.5942 (1) | 0.8216 (7) |
+| | 3×512 | 2.0382 (1) | 0.6003 (1) | 0.8204 (4) |
+| 16 shards (2 rounds) | 2×256 | 1.9957 (5) | 0.5930 (2) | 0.7911 (9) |
+| | 3×512 | 2.0119 (2) | 0.5952 (0) | 0.7877 (6) |
+| 24 shards (3 rounds) | 2×256 | 1.9628 (7) | 0.5923 (0) | 0.7679 (11) |
+| | 3×512 | 1.9896 (4) | 0.5946 (0) | 0.7653 (8) |
+
+Readings:
+
+1. **The value head is at its floor and overfits at once, at both sizes.** Its best held-out loss
+   is reached at epoch 0–2 and barely moves with three times the data (0.5942 → 0.5923 for 2×256).
+   Three rounds hold only 18,000 independent game outcomes behind 2.6M correlated rows; the rest of
+   the value loss is dice. The larger net memorises faster (3×512 at 24 shards: 0.5946 at epoch 0,
+   0.633 by epoch 8) and is never better on value.
+2. **Policy gains a little from size and a lot from data.** 3×512's best policy loss is 0.001–0.003
+   lower at every data size, while one extra round of data lowers either net's policy loss by
+   ~0.03. The total-loss gap in favour of 2×256 is mostly an early-stopping effect: the large net's
+   value overfit stops training before its policy converges.
+3. **Early stopping on total loss lets value degrade.** For 2×256 at 24 shards the chosen epoch's
+   value loss is 0.5936 against its minimum 0.5923. The same rule runs inside every round's training.
+   The effect is small; separate per-head stopping or a lower value weight after the first epoch is a
+   cheap recipe test, not yet run.
+
+**Correction, same day: the "floor" above is a floor for 3 rounds of data, not for the game.**
+The lineage nets, warm-started across many rounds, score clearly better on the same validation shards:
+
+| Net | Total | Value | Policy |
+|---|---|---|---|
+| V2.1c (generated this data) | 1.9106 | 0.5835 | 0.7436 |
+| V2.1d (same recipe, not the generator) | 1.9215 | 0.5836 | 0.7542 |
+| V2.0c (depth-1 targets) | 1.9790 | 0.5881 | 0.8028 |
+| fresh 2×256, 24 shards | 1.9628 | 0.5936 | 0.7756 |
+
+So more games do lower value loss; the loop gets them by accumulating rounds through warm starts.
+Each round's training step still sees only 18,000 games (replay window 3), which is where the
+value head overfits within one or two epochs. The capacity verdict stands for that regime only;
+a larger window or more games per round is the untested data lever.
+
+**Decisions.** C10 closes without a self-play run: capacity is not what limits strength at 6,000
+games per round, and the plan's bundled "3×512 with 30k games/round" would mostly have tested data
+volume, which V2.0c already found idle at this net size. V2.1c remains best. The fair arms script
+(`scripts/v2/run_c10_arm.py`) and width-aware ladder loading are kept for any later capacity test,
+e.g. at 4 players where the input is wider.
+
+### 10.11 Replay-window test: a larger window does not help, and continuing V2.1c regresses (2026-11-02, night)
+
+**Result: training each round on the last 10 rounds instead of 3 is no better and probably slightly
+worse (49.2% [48.5, 49.9] against the window-3 control over 20,000 games). More importantly, both
+20-round continuations from V2.1c lose to their own starting point (48.2% and 48.4%), so V2.1c
+stays best and the recipe is at a plateau that V2.1c sits slightly above.** Script
+`scripts/v2/run_window.py`; results, configs and both endpoint nets in `runs/window_test/`.
+
+Setup: both runs continue from the V2.1c champion for 20 ungated rounds with the V2.1c recipe
+(6,000 games/round, deep_fraction 0.25 at depth 2, deep targets, afterstate rows), changing only
+`replay_window_rounds` (10 vs 3). Decisive matches: 10,000 duplicate pairs at depth 1, seeds 70000+i.
+
+| Match (20,000 games) | Win rate of first | Wilson 95% |
+|---|---|---|
+| window 10 vs window 3 | 49.21% | [48.52, 49.90] |
+| window 10 vs V2.1c | 48.17% | [47.48, 48.86] |
+| window 3 vs V2.1c | 48.44% | [47.75, 49.14] |
+
+| Ladder (2,000 games) | w10 r10 | w10 r20 | w3 r10 | w3 r20 |
+|---|---|---|---|---|
+| vs heuristic | 70.6 | 69.2 | 69.6 | 70.5 |
+| vs V2.0c | 50.5 | 49.6 | 51.9 | 51.1 |
+| vs V2.1c | 48.3 | 47.7 | 48.7 | 48.3 |
+
+Readings:
+
+1. **More games per training step is not the missing lever.** Window 10 sees 60,000 games per step
+   instead of 18,000 and does not gain; the older games come from older nets, and any extra outcome
+   signal is cancelled by staleness. It also cost 50% more wall-clock (145 vs 97 min).
+2. **The recipe has a level, and V2.1c is a high draw from it.** Continuing the exact V2.1c recipe
+   for 20 rounds loses 1.6pp to V2.1c. Against V2.0c, the recipe's runs and continuations read about
+   +1 to +2.5pp (V2.1c 52.5, V2.1d 51.2 in 10k-pair matches; continuations ~50–52 on ladders). V2.1c
+   was picked as the best of the runs, so part of its margin is selection: checkpoint-to-checkpoint
+   strength varies by about ±1.5pp around the recipe's level, and the last checkpoint is a sample.
+3. **The ladders agreed this time.** Both continuations read below V2.1c at rounds 10 and 20, and the
+   10k-pair matches confirmed the sign.
+4. **Matches are fast now.** A 10,000-pair match at depth 1 takes under 3 minutes with one-thread
+   BLAS, so checkpoint selection by 10k-pair matches is cheap.
+
+**Decisions.** V2.1c remains best-so-far; replay window stays 3. The 2-player loop at this net size and
+search depth is at a fixed point: deep targets (C2) were the only lever that moved it, and deep
+fraction, capacity (C10) and data per step (this test) do not. Cheap ways to harvest the
+checkpoint-to-checkpoint spread: choose among late checkpoints by 10k-pair matches, or average the
+weights of the last few champions. Otherwise the next phase is 4 players (V2.3).
 
 ---
 

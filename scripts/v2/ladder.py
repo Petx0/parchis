@@ -50,6 +50,15 @@ def single_thread_blas():
 LUCK_NET = REPO / "runs/v2_1c_champion/model.pt"  # C8 reference evaluator; any fixed net is unbiased
 
 
+def hidden_sizes_of(path):
+    """Trunk widths read from a checkpoint's own weights (C10: 2x256 and 3x512 nets share the ladder)."""
+    import torch
+    sd = torch.load(str(path), map_location="cpu")
+    layers = sorted((int(k.split(".")[1]), v.shape[0]) for k, v in sd.items()
+                    if k.startswith("trunk.") and k.endswith(".weight") and v.dim() == 2)
+    return tuple(width for _, width in layers)
+
+
 def _worker(args):
     anchor_path, ckpt, seed, n, depth, *rest = args
     luck_path = rest[0] if rest else None       # C8: reference net for luck adjustment, or None
@@ -62,14 +71,14 @@ def _worker(args):
 
     def net_factory(path):
         return make_search_agent_factory(
-            NetEvaluator(champion_pool.load_numpy_net(path, 216, 2, (256, 256))), depth=depth)
+            NetEvaluator(champion_pool.load_numpy_net(path, 216, 2, hidden_sizes_of(path))), depth=depth)
 
     other = (heuristic.make_heuristic_agent_factory(heuristic.TUNED_WEIGHTS) if anchor_path is None
              else net_factory(anchor_path))
     luck_ev = None
     if luck_path:
         from parchis.evaluation.luck import NetLuckEvaluator, SearchLuckEvaluator
-        luck_net = NetEvaluator(champion_pool.load_numpy_net(str(luck_path), 216, 2, (256, 256)))
+        luck_net = NetEvaluator(champion_pool.load_numpy_net(str(luck_path), 216, 2, hidden_sizes_of(luck_path)))
         luck_ev = SearchLuckEvaluator(luck_net, luck_depth) if luck_depth > 0 else NetLuckEvaluator(luck_net)
     r = duplicate.play_duplicate_match(net_factory(ckpt), other, n_pairs=n, num_players=2,
                                        max_turns=500, seed=seed, luck_evaluator=luck_ev)

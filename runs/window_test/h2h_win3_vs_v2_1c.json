@@ -1,0 +1,12 @@
+{
+  "a": "/Users/nachorodriguezsolis/parchis_training_archive/window_runs/win3/champion.pt",
+  "b": "runs/v2_1c_champion/model.pt",
+  "win_rate_a": 0.48445,
+  "ci": [
+    0.4775274834247798,
+    0.49137848889656505
+  ],
+  "n_games": 20000,
+  "depth": 1,
+  "seeds": "70000+i"
+}

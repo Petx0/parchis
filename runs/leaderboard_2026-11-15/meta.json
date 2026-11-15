@@ -1,0 +1,38 @@
+{
+  "schema": "parchis.run/1",
+  "run_id": "leaderboard_2026-11-15",
+  "title": "2-player round robin of every checkpoint (16 participants)",
+  "kind": "evaluation",
+  "issue": "PILA-1",
+  "status": "finished",
+  "created": "2026-11-15",
+  "finished": null,
+  "git": {
+    "sha": "0cc156b95a12b49abcb5f3c44451875baaf24b03",
+    "dirty": false,
+    "branch": null,
+    "source": "backfill: commit that added runs/leaderboard_2026-11-15 on 2026-11-15"
+  },
+  "script": null,
+  "command": null,
+  "config": {},
+  "init": null,
+  "seeds": {
+    "policy": "n/a"
+  },
+  "checkpoints": [],
+  "training": {},
+  "selection": null,
+  "evals": [],
+  "sessions": [],
+  "notes": "Each pairing is recorded in the run records of both participants (kind round_robin).",
+  "backfilled": true,
+  "doc": "docs/LEADERBOARD.md",
+  "evals_summary": {
+    "pairings": 120,
+    "games": 240000,
+    "seeds": "120000+1000k+c, k<120, c<8",
+    "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+    "ratings": "runs/leaderboard_2026-11-15/leaderboard.json"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schema": "parchis.run/1",
+  "run_id": "puzzles_2026-11-03",
+  "title": "Puzzle re-evaluation: V2.1c vs round-23 net at depths 1-5",
+  "kind": "evaluation",
+  "issue": null,
+  "status": "finished",
+  "created": "2026-11-03",
+  "finished": null,
+  "git": {
+    "sha": "0f7d6e0814e172a7fd2175da1aeff77f0d500cf4",
+    "dirty": false,
+    "branch": null,
+    "source": "backfill: commit that added runs/puzzles_2026-11-03 on 2026-11-04"
+  },
+  "script": null,
+  "command": null,
+  "config": {},
+  "init": null,
+  "seeds": {
+    "policy": "n/a"
+  },
+  "checkpoints": [],
+  "training": {},
+  "selection": null,
+  "evals": [],
+  "sessions": [],
+  "notes": "Per-puzzle choices in report.json; not a match result.",
+  "backfilled": true,
+  "doc": "docs/V2_PLAN.md (puzzles)",
+  "evals_summary": {
+    "source": "runs/puzzles_2026-11-03/report.json",
+    "nets": [
+      "v2_1c",
+      "round23"
+    ]
+  }
+}

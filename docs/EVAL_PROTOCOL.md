@@ -108,7 +108,8 @@ in the run's directory and on the issue.
 | `120000+1000k+c` | PILA-1 round robin | legacy; reserved for leaderboard re-runs |
 | `0 + round·1000 + shard`, `0 + round` | training (generation/promotion) of every run to date | legacy; overlaps the three ranges above after round 9 |
 | `5_000_000 + 1000k`, k<5000 | **this protocol** | one block per run |
-| `10_000_000·n + …`, n≥1 | new training runs (generation, train, promotion seeds) | n recorded in the run record |
+| `500000+i`, i<27 | C10 pre-check data generation (`scripts/v2/c10_precheck.py`) | legacy |
+| `10_000_000·n + …`, n≥1 | new training runs (generation, train, promotion seeds) | n allocated by `python -m parchis.registry alloc-seed` (a `training` line in the registry) and recorded in the run's `meta.json` ([EXPERIMENT_REGISTRY.md](EXPERIMENT_REGISTRY.md)) |
 
 - Training must never use the 5M–10M band. Engineers who need an evaluation-like screening match
   during training (for example, picking among late checkpoints) take seeds from their run's own

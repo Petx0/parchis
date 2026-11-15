@@ -60,6 +60,7 @@ on load) lets a run disable escalation entirely rather than deleting the
 mechanism -- see SelfPlayRoundConfig's own docstring.
 """
 
+import dataclasses
 import json
 import multiprocessing as mp
 import os
@@ -75,6 +76,7 @@ from parchis.az import train as train_module
 from parchis.az.agent import NetEvaluator, make_search_agent_factory
 from parchis.az.net import AZNet, NumpyAZNet
 from parchis.evaluation import duplicate
+from parchis.registry import record as registry
 
 ROUND_DIR_PREFIX = "round_"
 _ROUND_DIR_FMT = ROUND_DIR_PREFIX + "{:04d}"
@@ -390,7 +392,7 @@ def run_round(round_num, champion_state, meta, promoted_history, recent_history,
 
 
 def run_continuous(cfg, runs_dir=config_module.DEFAULT_RUNS_DIR, max_rounds=None,
-                    initial_champion_state_dict=None):
+                    initial_champion_state_dict=None, record=None):
     """Runs rounds back-to-back until `max_rounds` TOTAL rounds have
     completed (None = run until stopped). Resumable: re-invoking this
     with the same cfg.run_name (and the same runs_dir) picks up at
@@ -404,12 +406,21 @@ def run_continuous(cfg, runs_dir=config_module.DEFAULT_RUNS_DIR, max_rounds=None
     fresh run_dir is intentionally started without one (falls back to
     load_champion_state's own random-init default).
 
+    `record`: optional fields for the run record <run_dir>/meta.json
+    (parchis.registry, docs/EXPERIMENT_REGISTRY.md): issue, title,
+    init_path (the checkpoint behind initial_champion_state_dict), notes.
+    The record is written on every start (each start is a session with its
+    own git SHA) and updated after every round; a registry failure is
+    logged and never stops training.
+
     Returns: (final champion_state, final meta, final promoted_history,
     final recent_history).
     """
     run_dir = Path(runs_dir) / cfg.run_name
     run_dir.mkdir(parents=True, exist_ok=True)
     cfg.save(runs_dir=runs_dir)
+    registry.safe(registry.begin_run, run_dir, kind="training", config=dataclasses.asdict(cfg),
+                  **(record or {}))
 
     champion_path, meta_path, promoted_path, recent_path = _champion_paths(run_dir)
     if not champion_path.exists() and initial_champion_state_dict is not None:
@@ -425,14 +436,54 @@ def run_continuous(cfg, runs_dir=config_module.DEFAULT_RUNS_DIR, max_rounds=None
           f"{len(recent_history)} recent checkpoints in pool, "
           f"{meta['consecutive_failures']} consecutive failures)", flush=True)
 
-    while max_rounds is None or round_num < max_rounds:
-        start = time.perf_counter()
-        champion_state, meta, promoted_history, recent_history = run_round(
-            round_num, champion_state, meta, promoted_history, recent_history, cfg, run_dir,
-        )
-        elapsed = time.perf_counter() - start
-        print(f"round {round_num} finished in {elapsed:.1f}s ({meta['promotions']} promotions so far)",
-              flush=True)
-        round_num += 1
+    try:
+        while max_rounds is None or round_num < max_rounds:
+            start = time.perf_counter()
+            champion_state, meta, promoted_history, recent_history = run_round(
+                round_num, champion_state, meta, promoted_history, recent_history, cfg, run_dir,
+            )
+            elapsed = time.perf_counter() - start
+            print(f"round {round_num} finished in {elapsed:.1f}s ({meta['promotions']} promotions so far)",
+                  flush=True)
+            registry.safe(_record_round, run_dir, cfg, round_num, meta, elapsed)
+            round_num += 1
+    except BaseException as e:
+        registry.safe(registry.update_run, run_dir, lambda m: m.update(
+            status="failed", error=f"{type(e).__name__}: {e}", finished=registry.now()))
+        raise
+    registry.safe(registry.update_run, run_dir, lambda m: m.update(status="stopped", finished=registry.now()))
 
     return champion_state, meta, promoted_history, recent_history
+
+
+def _record_round(run_dir, cfg, round_num, champion_meta, elapsed):
+    """Fold one finished round into <run_dir>/meta.json: counters, wall-clock, the round's
+    promotion match, and the current champion checkpoint (sha256 changes as it is replaced)."""
+    round_dir = _round_dir(run_dir, round_num)
+    promo = {}
+    if (round_dir / "promotion_result.json").exists():
+        promo = json.loads((round_dir / "promotion_result.json").read_text())
+
+    def mutate(m):
+        t = m.setdefault("training", {})
+        rounds = [r for r in t.get("rounds", []) if r.get("round") != round_num]
+        rounds.append(dict(round=round_num, seconds=round(elapsed, 1), promoted=promo.get("promoted"),
+                           gate_win_rate=promo.get("win_rate_a"), gate_ci=promo.get("win_rate_a_ci"),
+                           gate_games=promo.get("n_games"),
+                           generation_seed_first=cfg.generation_seed + round_num * 1000,
+                           promotion_seed=cfg.promotion_seed + round_num))
+        rounds.sort(key=lambda r: r["round"])
+        t.update(rounds=rounds, rounds_completed=len(rounds), promotions=champion_meta.get("promotions"),
+                 selfplay_games=len(rounds) * cfg.n_games_per_round,
+                 wall_clock_s=round(sum(r["seconds"] for r in rounds), 1),
+                 wall_clock_note="sum of round times (generation + training + gate), excludes ladders",
+                 rounds_dir="rounds/")
+        registry.set_checkpoint(m, registry.checkpoint_entry(
+            Path(run_dir) / "champion.pt", role="final", round=champion_meta.get("round"),
+            note="current champion; replaced as rounds promote"))
+        if m.get("selection") is None:
+            m["selection"] = ("endpoint: champion after the last round (ungated, every candidate adopted)"
+                              if not cfg.gate_enabled else
+                              "endpoint: last promoted champion (gate: Wilson lower bound >= 50%)")
+        m["status"] = "running"
+    registry.update_run(run_dir, mutate)

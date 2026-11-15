@@ -1,0 +1,378 @@
+{
+  "schema": "parchis.run/1",
+  "run_id": "bootstrap_2p_v4_large",
+  "title": "Phase 2 supervised bootstrap on 200k games (v3 recipe)",
+  "kind": "training",
+  "issue": null,
+  "status": "finished",
+  "created": "2026-08-28",
+  "finished": null,
+  "git": {
+    "sha": "b70622523b1c83543768b3873db07363b82374ab",
+    "dirty": false,
+    "branch": null,
+    "source": "backfill: commit that added runs/bootstrap_2p_v4_large on 2026-08-28 (training SHA not recorded)"
+  },
+  "script": null,
+  "command": null,
+  "config": {
+    "run_name": "bootstrap_2p_v4_large",
+    "num_players": 2,
+    "n_games": 200000,
+    "max_turns": 500,
+    "generation_seed": 0,
+    "noisy_epsilon": 0.15,
+    "train_frac": 0.8,
+    "val_frac": 0.1,
+    "split_seed": 0,
+    "hidden_sizes": [
+      256,
+      256
+    ],
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "batch_size": 4096,
+    "max_epochs": 40,
+    "early_stopping_patience": 6,
+    "value_loss_weight": 2.0,
+    "train_seed": 0
+  },
+  "init": {
+    "path": null,
+    "sha256": null,
+    "run_id": null,
+    "note": "random init"
+  },
+  "seeds": {
+    "values": {
+      "generation_seed": 0,
+      "train_seed": 0
+    },
+    "base_n": null,
+    "policy": "legacy: seeds below 10_000_000 overlap evaluation ranges",
+    "derivation": "generation = generation_seed + round*1000 + shard; promotion = promotion_seed + round; train = train_seed"
+  },
+  "checkpoints": [
+    {
+      "role": "final",
+      "path": "runs/bootstrap_2p_v4_large/model.pt",
+      "sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "primary": true,
+      "round": null
+    }
+  ],
+  "training": {
+    "dataset_games": 200000,
+    "epochs": 40,
+    "best_epoch": 39,
+    "best_val_loss": 1.682574987411499,
+    "metrics": "metrics.jsonl"
+  },
+  "selection": "best validation epoch (early stopping)",
+  "evals": [
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "random",
+      "opponent_name": "random",
+      "opponent_sha256": null,
+      "win_rate": 0.9525,
+      "ci": [
+        0.9422790928066445,
+        0.9609859794038217
+      ],
+      "n_games": 2000,
+      "seeds": "123000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T17:53:54.807979",
+      "side": "b"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "heuristic_default",
+      "opponent_name": "heuristic_default",
+      "opponent_sha256": null,
+      "win_rate": 0.7775,
+      "ci": [
+        0.7587493421088081,
+        0.7951866966500966
+      ],
+      "n_games": 2000,
+      "seeds": "137000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T17:55:51.583207",
+      "side": "b"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "heuristic_tuned",
+      "opponent_name": "heuristic_tuned",
+      "opponent_sha256": null,
+      "win_rate": 0.635,
+      "ci": [
+        0.6136606243419258,
+        0.6558217728921361
+      ],
+      "n_games": 2000,
+      "seeds": "150000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T17:58:12.465848",
+      "side": "b"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/bootstrap_2p_v3/model.pt",
+      "opponent_name": "bootstrap_v3",
+      "opponent_sha256": "2fdb5f5bb27baba2755f898d487a8fffa991ba1fae697e2d545ce5d7f28feac8",
+      "win_rate": 0.611,
+      "ci": [
+        0.5894403775116301,
+        0.6321340379919318
+      ],
+      "n_games": 2000,
+      "seeds": "162000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:00:28.778567",
+      "side": "b"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/selfplay_2p_v1_champion/model.pt",
+      "opponent_name": "champ23",
+      "opponent_sha256": "fc33d73fe0ed81d37567187df75ae1a646efbab299ecf9e0554e02c985657c3c",
+      "win_rate": 0.4455,
+      "ci": [
+        0.4238426173342386,
+        0.4673663408194179
+      ],
+      "n_games": 2000,
+      "seeds": "174000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:04:00.578233",
+      "side": "a"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/v2_0_champion/model.pt",
+      "opponent_name": "v2_0",
+      "opponent_sha256": "388c4d71284781abb14192537b306501e9e7877091e8cfe091bac9bbdcc95f58",
+      "win_rate": 0.4005,
+      "ci": [
+        0.37923570117816197,
+        0.4221457912308073
+      ],
+      "n_games": 2000,
+      "seeds": "175000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:04:17.301321",
+      "side": "a"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/v2_0b_champion/model.pt",
+      "opponent_name": "v2_0b",
+      "opponent_sha256": "8bdbfbc17b112bcba8940c585aa3736ed67432deffba6e2a0d49e442b1bfc9d8",
+      "win_rate": 0.3655,
+      "ci": [
+        0.34467115419861993,
+        0.386844531520037
+      ],
+      "n_games": 2000,
+      "seeds": "176000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:04:34.202177",
+      "side": "a"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/v2_0c_champion/model.pt",
+      "opponent_name": "v2_0c",
+      "opponent_sha256": "d25558ae22e5b2ebfaf0aee9f6885363afda5a9d1d8bf4d34bb86ef91a6629ec",
+      "win_rate": 0.3795,
+      "ci": [
+        0.35848296481803094,
+        0.4009790435767509
+      ],
+      "n_games": 2000,
+      "seeds": "177000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:04:51.190641",
+      "side": "a"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/v2_1a_champion/model.pt",
+      "opponent_name": "v2_1a",
+      "opponent_sha256": "0e0aa2e840b369150e4fe45a19ef540eb47823556fa4f75e18bb72bab81332dd",
+      "win_rate": 0.3945,
+      "ci": [
+        0.3733021197674837,
+        0.4161023772088606
+      ],
+      "n_games": 2000,
+      "seeds": "178000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:05:08.119726",
+      "side": "a"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/v2_1c_champion/model.pt",
+      "opponent_name": "v2_1c",
+      "opponent_sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+      "win_rate": 0.337,
+      "ci": [
+        0.31661403832985313,
+        0.3580109190838353
+      ],
+      "n_games": 2000,
+      "seeds": "179000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:05:24.633797",
+      "side": "a"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/v2_1d_champion/model.pt",
+      "opponent_name": "v2_1d",
+      "opponent_sha256": "66ab36a0186dfe2a8ac6b3869ff96a8647753385ef4aa0b095543dad1040610f",
+      "win_rate": 0.3675,
+      "ci": [
+        0.3466431068552237,
+        0.38886491067430823
+      ],
+      "n_games": 2000,
+      "seeds": "180000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:05:41.886297",
+      "side": "a"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/window_test/win3/model.pt",
+      "opponent_name": "win3",
+      "opponent_sha256": "09ee1ddc5a0e825f8e708c282755b268c7e8e6003e44cf9bb49dcb4b7e67f245",
+      "win_rate": 0.3855,
+      "ci": [
+        0.3644080722975489,
+        0.4070309315298579
+      ],
+      "n_games": 2000,
+      "seeds": "181000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:05:59.193483",
+      "side": "a"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/window_test/win10/model.pt",
+      "opponent_name": "win10",
+      "opponent_sha256": "0eb01a6f2f9c0bc45c22dd808d090d5cf31459da5981d377cab78501cba99fcb",
+      "win_rate": 0.3715,
+      "ci": [
+        0.3505881804471569,
+        0.392904500704125
+      ],
+      "n_games": 2000,
+      "seeds": "182000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:06:16.778781",
+      "side": "a"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/c10_precheck/start_2x256.pt",
+      "opponent_name": "c10_start_2x256",
+      "opponent_sha256": "e5b7c82ac9fb5fed3bf8b695dd84d78425508d211aae7aace3f3c73be6f15b60",
+      "win_rate": 0.65,
+      "ci": [
+        0.6288267792706108,
+        0.6705981065450133
+      ],
+      "n_games": 2000,
+      "seeds": "183000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:06:34.505772",
+      "side": "a"
+    },
+    {
+      "kind": "round_robin",
+      "checkpoint": "runs/bootstrap_2p_v4_large/model.pt",
+      "checkpoint_sha256": "0e8f7ac7e5ac5370a4269f4f5dffe94f266bf9d5d3d0bf60dce7d9c274124185",
+      "opponent": "runs/c10_precheck/start_3x512.pt",
+      "opponent_name": "c10_start_3x512",
+      "opponent_sha256": "658907c9f5acc6da87700ac7f1219dc11d03e4f713ffc41a3574e2e37ca9c027",
+      "win_rate": 0.6705,
+      "ci": [
+        0.6495906360160492,
+        0.6907556508610436
+      ],
+      "n_games": 2000,
+      "seeds": "184000+c, c<8",
+      "depth": 1,
+      "source": "runs/leaderboard_2026-11-15/pairings.jsonl",
+      "tag": "leaderboard_2026-11-15",
+      "recorded": "2026-11-15T18:06:58.996314",
+      "side": "a"
+    }
+  ],
+  "sessions": [],
+  "notes": "Backfilled 2026-11-15 (PILA-7) from files in runs/bootstrap_2p_v4_large; history in docs/AZ_DESIGN.md (bootstrap v4).",
+  "backfilled": true,
+  "doc": "docs/AZ_DESIGN.md (bootstrap v4)"
+}

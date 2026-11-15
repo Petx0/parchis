@@ -29,6 +29,11 @@ V2.1c head to head (duplicate pairs, depth 1, Wilson 95% CIs):
 | tuned heuristic | 72.75% | [70.76, 74.66] | 2,000 | round robin | this board |
 | random | 97.15% | [96.33, 97.79] | 2,000 | round robin | this board |
 
+Since PILA-2, every promotion is decided by `docs/EVAL_PROTOCOL.md` (`scripts/eval/protocol.py`)
+on fresh seed blocks; the champion pointer is `runs/champions.json`. First protocol run (calibration,
+block 1): V2.1d scores 48.93% [48.24, 49.62] against V2.1c over 20,000 games, seeds 5001000+c,
+verdict FAIL (`runs/v2_1d_champion/eval/protocol_b1.json`), which replicates the row above on new deals.
+
 The 20k-game matches were run before this board, under the same protocol on a different seed range.
 In this board the same pairs read 50.6 / 50.6 / 51.4 / 51.9, consistent within ±2.2pp.
 

@@ -60,10 +60,15 @@ def read_registry(path):
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
+# Registry entry kinds that own a block: protocol runs and non-promotion studies (e.g. the PILA-6
+# depth study) draw from the same block sequence, so no two evaluations ever share deals.
+BLOCK_KINDS = ("protocol", "study")
+
+
 def next_block(*registries):
     """Smallest block above every block recorded in any of the registries (append-only: a block
     is burned once allocated, even if the run is aborted)."""
-    used = [e["block"] for reg in registries for e in reg if e.get("kind") == "protocol"]
+    used = [e["block"] for reg in registries for e in reg if e.get("kind") in BLOCK_KINDS]
     k = max(used) + 1 if used else 0
     if k >= MAX_BLOCKS:
         raise RuntimeError("evaluation seed blocks exhausted; extend the registry (EVAL_PROTOCOL §5)")

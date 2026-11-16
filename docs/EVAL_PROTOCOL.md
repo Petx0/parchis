@@ -97,6 +97,9 @@ in the run's directory and on the issue.
   heuristic 100 (shared with the champion's heuristic match), random 200, previous champion 300.
 - **Blocks are never reused, by any pair.** A block counts as spent once it is allocated, even if
   the run aborts. So no verdict can reuse deals from an earlier evaluation or from training.
+- Non-promotion studies (e.g. the PILA-6 depth study, `scripts/eval/depth_study.py`) take blocks from
+  the same sequence and are recorded with `kind: "study"`. `next_block` counts both kinds, so a
+  protocol run never reuses a study's deals.
 - The registry is append-only JSONL. The authoritative copy is `~/parchis_eval_seeds.jsonl` on the
   Mac, and every allocation is mirrored to `runs/eval_seed_registry.jsonl` in the repo. The next
   block is computed from the highest block in either file. That file also lists the legacy ranges:

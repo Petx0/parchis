@@ -1,0 +1,188 @@
+{
+  "schema": "parchis.run/1",
+  "run_id": "depth_study_v2_1c",
+  "title": "Play-time search depth on the 2p champion V2.1c: strength vs ms/move",
+  "kind": "evaluation",
+  "issue": "PILA-6",
+  "status": "finished",
+  "created": "2026-11-16T08:28:36+00:00",
+  "finished": "2026-11-16T10:20:49+00:00",
+  "git": {
+    "sha": "c621f7c5bcbee0647b6ced3d466142714cb04cac",
+    "dirty": true,
+    "branch": "agent/evaluator/728dbf1c8709",
+    "source": "recorded"
+  },
+  "script": "scripts/eval/depth_study.py",
+  "command": "scripts/eval/depth_study.py --run-id depth_study_v2_1c --issue PILA-6 --workers 8",
+  "config": {
+    "stages": [
+      {
+        "name": "d2_vs_d1",
+        "a": "runs/v2_1c_champion/model.pt",
+        "depth_a": 2,
+        "b": "runs/v2_1c_champion/model.pt",
+        "depth_b": 1,
+        "seed_offset": 0,
+        "pairs": 10000
+      },
+      {
+        "name": "sib_d1",
+        "a": "runs/v2_1c_champion/model.pt",
+        "depth_a": 1,
+        "b": "runs/v2_0c_champion/model.pt",
+        "depth_b": 1,
+        "seed_offset": 100,
+        "pairs": 10000
+      },
+      {
+        "name": "sib_d2",
+        "a": "runs/v2_1c_champion/model.pt",
+        "depth_a": 2,
+        "b": "runs/v2_0c_champion/model.pt",
+        "depth_b": 2,
+        "seed_offset": 100,
+        "pairs": 10000
+      },
+      {
+        "name": "d3_vs_d2",
+        "a": "runs/v2_1c_champion/model.pt",
+        "depth_a": 3,
+        "b": "runs/v2_1c_champion/model.pt",
+        "depth_b": 2,
+        "seed_offset": 200,
+        "pairs": 2000
+      }
+    ],
+    "chunks": 40,
+    "block": 2,
+    "workers": 8,
+    "max_turns": 500,
+    "kill_rate": 0.52,
+    "d3_budget_min": 67.5,
+    "timing": {
+      "positions": 500,
+      "depths": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "every": 3,
+      "seed": 5002900
+    }
+  },
+  "init": null,
+  "seeds": {
+    "values": {},
+    "base_n": null,
+    "policy": "n/a"
+  },
+  "checkpoints": [],
+  "training": {},
+  "selection": "n/a: fixed nets (V2.1c champion, V2.0c sibling); no checkpoint chosen",
+  "evals": [
+    {
+      "kind": "other",
+      "checkpoint": "runs/v2_1c_champion/model.pt",
+      "checkpoint_sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+      "opponent": "runs/v2_1c_champion/model.pt",
+      "opponent_name": "v2_1c_champion",
+      "opponent_sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+      "win_rate": 0.60395,
+      "ci": [
+        0.5971525495837688,
+        0.610707526120167
+      ],
+      "n_games": 20000,
+      "seeds": "5002000+c, c in 0..39",
+      "depth": 2,
+      "source": "runs/depth_study_v2_1c/eval/depth_study_b2.json",
+      "tag": "b2:d2_vs_d1",
+      "recorded": "2026-11-16T10:20:49+00:00",
+      "opponent_depth": 1,
+      "draws": 0,
+      "issue": "PILA-6",
+      "stopped_at_budget": false
+    },
+    {
+      "kind": "other",
+      "checkpoint": "runs/v2_1c_champion/model.pt",
+      "checkpoint_sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+      "opponent": "runs/v2_0c_champion/model.pt",
+      "opponent_name": "v2_0c_champion",
+      "opponent_sha256": "d25558ae22e5b2ebfaf0aee9f6885363afda5a9d1d8bf4d34bb86ef91a6629ec",
+      "win_rate": 0.5291,
+      "ci": [
+        0.5221773005616931,
+        0.5360115229398416
+      ],
+      "n_games": 20000,
+      "seeds": "5002100+c, c in 0..39",
+      "depth": 1,
+      "source": "runs/depth_study_v2_1c/eval/depth_study_b2.json",
+      "tag": "b2:sib_d1",
+      "recorded": "2026-11-16T10:20:49+00:00",
+      "opponent_depth": 1,
+      "draws": 0,
+      "issue": "PILA-6",
+      "stopped_at_budget": false
+    },
+    {
+      "kind": "other",
+      "checkpoint": "runs/v2_1c_champion/model.pt",
+      "checkpoint_sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+      "opponent": "runs/v2_0c_champion/model.pt",
+      "opponent_name": "v2_0c_champion",
+      "opponent_sha256": "d25558ae22e5b2ebfaf0aee9f6885363afda5a9d1d8bf4d34bb86ef91a6629ec",
+      "win_rate": 0.5165,
+      "ci": [
+        0.509571750737683,
+        0.5234219120724655
+      ],
+      "n_games": 20000,
+      "seeds": "5002100+c, c in 0..39",
+      "depth": 2,
+      "source": "runs/depth_study_v2_1c/eval/depth_study_b2.json",
+      "tag": "b2:sib_d2",
+      "recorded": "2026-11-16T10:20:49+00:00",
+      "opponent_depth": 2,
+      "draws": 0,
+      "issue": "PILA-6",
+      "stopped_at_budget": false
+    },
+    {
+      "kind": "other",
+      "checkpoint": "runs/v2_1c_champion/model.pt",
+      "checkpoint_sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+      "opponent": "runs/v2_1c_champion/model.pt",
+      "opponent_name": "v2_1c_champion",
+      "opponent_sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+      "win_rate": 0.58475,
+      "ci": [
+        0.5694051301643558,
+        0.5999322441980398
+      ],
+      "n_games": 4000,
+      "seeds": "5002200+c, c in 0..39",
+      "depth": 3,
+      "source": "runs/depth_study_v2_1c/eval/depth_study_b2.json",
+      "tag": "b2:d3_vs_d2",
+      "recorded": "2026-11-16T10:20:49+00:00",
+      "opponent_depth": 2,
+      "draws": 0,
+      "issue": "PILA-6",
+      "stopped_at_budget": false
+    }
+  ],
+  "sessions": [
+    {
+      "started": "2026-11-16T08:28:36+00:00",
+      "git_sha": "c621f7c5bcbee0647b6ced3d466142714cb04cac",
+      "git_dirty": true,
+      "command": "scripts/eval/depth_study.py --run-id depth_study_v2_1c --issue PILA-6 --workers 8",
+      "pid": 64325
+    }
+  ],
+  "notes": "Not a promotion run (EVAL_PROTOCOL \u00a71: deeper search is a different time budget)."
+}

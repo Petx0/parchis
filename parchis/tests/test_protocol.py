@@ -37,6 +37,7 @@ def test_next_block_never_reuses_and_merges_registries():
     home = [{"kind": "protocol", "block": 3}]
     repo = [{"kind": "protocol", "block": 5}, {"kind": "legacy_eval"}]
     assert P.next_block(home, repo) == 6
+    assert P.next_block(home, repo + [{"kind": "study", "block": 9}]) == 10   # studies burn blocks too
 
 
 def test_pass_needs_lower_bound_above_half():

@@ -1,0 +1,27 @@
+{
+  "name": "s3",
+  "method": "weight average (model soup)",
+  "weighting": "uniform",
+  "ingredients": [
+    {
+      "path": "runs/v2_1c_champion/model.pt",
+      "sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+      "weight": 0.5
+    },
+    {
+      "path": "runs/v2_1d_champion/model.pt",
+      "sha256": "66ab36a0186dfe2a8ac6b3869ff96a8647753385ef4aa0b095543dad1040610f",
+      "weight": 0.5
+    }
+  ],
+  "output": {
+    "path": "runs/soups_2026-11-16/s3/model.pt",
+    "sha256": "e5abe6a0451554fa15750a995350247e309407fdb85240bc5c8b5efd5e7db4f8"
+  },
+  "created": "2026-11-16T10:59:33+00:00",
+  "issue": "PILA-8",
+  "ingredient_names": [
+    "v2_1c",
+    "v2_1d"
+  ]
+}

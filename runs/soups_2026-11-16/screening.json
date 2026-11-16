@@ -1,0 +1,82 @@
+{
+  "issue": "PILA-8",
+  "opponent": "runs/v2_1c_champion/model.pt",
+  "depth": 1,
+  "pairs": 2000,
+  "seeds": [
+    11000000,
+    11000007
+  ],
+  "results": {
+    "s1": {
+      "wins": 2167,
+      "draws": 0,
+      "n_games": 4000,
+      "win_rate": 0.54175,
+      "ci": [
+        0.5262765360572657,
+        0.5571433504280442
+      ],
+      "seeds": "11000000+c, c<8 (same deals for every soup)",
+      "depth": 1,
+      "pairs": 2000,
+      "wall_clock_s": 37.8,
+      "opponent": "runs/v2_1c_champion/model.pt"
+    },
+    "s2": {
+      "wins": 2071,
+      "draws": 0,
+      "n_games": 4000,
+      "win_rate": 0.51775,
+      "ci": [
+        0.5022552818162396,
+        0.5332106579469761
+      ],
+      "seeds": "11000000+c, c<8 (same deals for every soup)",
+      "depth": 1,
+      "pairs": 2000,
+      "wall_clock_s": 37.4,
+      "opponent": "runs/v2_1c_champion/model.pt"
+    },
+    "s3": {
+      "wins": 2071,
+      "draws": 0,
+      "n_games": 4000,
+      "win_rate": 0.51775,
+      "ci": [
+        0.5022552818162396,
+        0.5332106579469761
+      ],
+      "seeds": "11000000+c, c<8 (same deals for every soup)",
+      "depth": 1,
+      "pairs": 2000,
+      "wall_clock_s": 38.1,
+      "opponent": "runs/v2_1c_champion/model.pt"
+    },
+    "s4": {
+      "wins": 2148,
+      "draws": 0,
+      "n_games": 4000,
+      "win_rate": 0.537,
+      "ci": [
+        0.5215194818294581,
+        0.552409519367104
+      ],
+      "seeds": "11000000+c, c<8 (same deals for every soup)",
+      "depth": 1,
+      "pairs": 2000,
+      "wall_clock_s": 37.3,
+      "opponent": "runs/v2_1c_champion/model.pt"
+    }
+  },
+  "dropped_by_health": [],
+  "ranking": [
+    "s1",
+    "s4",
+    "s2",
+    "s3"
+  ],
+  "winner": "s1",
+  "kill_criterion": "every soup below 50% vs V2.1c -> stop after screening, record the null",
+  "note": "ranking only; the winner is best-of-N and needs the protocol (--selection best-of-N) + confirmation"
+}

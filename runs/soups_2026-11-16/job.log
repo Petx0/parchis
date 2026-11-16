@@ -1,0 +1,27 @@
+soup s1 = avg(v2_1c, win3, win10) sha256 3a86d3cf99b1
+soup s2 = avg(win3, win10) sha256 7c3d946ad077
+soup s3 = avg(v2_1c, v2_1d) sha256 e5abe6a04515
+soup s4 = avg(v2_1c, v2_1d, win3, win10) sha256 9ce10bcfc37f
+health shards: 1500 games in 55s
+  v2_1c  value 0.58600  value(decisions) 0.58683  policy 0.75158
+  v2_1d  value 0.58610  value(decisions) 0.58784  policy 0.76357
+  win3   value 0.58680  value(decisions) 0.58831  policy 0.75416
+  win10  value 0.58635  value(decisions) 0.58821  policy 0.76161
+  s1     value 0.58532  value(decisions) 0.58663  policy 0.74405
+  s2     value 0.58582  value(decisions) 0.58741  policy 0.75039
+  s3     value 0.58536  value(decisions) 0.58646  policy 0.74781
+  s4     value 0.58514  value(decisions) 0.58650  policy 0.74436
+health s1: Δ vs worst -0.00148, Δ vs best -0.00068 -> keep
+health s2: Δ vs worst -0.00097, Δ vs best -0.00053 -> keep
+health s3: Δ vs worst -0.00074, Δ vs best -0.00063 -> keep
+health s4: Δ vs worst -0.00165, Δ vs best -0.00085 -> keep
+screen s1 vs V2.1c: 0.5417 [0.5263, 0.5571] n=4000 draws=0 (38s)
+screen s2 vs V2.1c: 0.5178 [0.5023, 0.5332] n=4000 draws=0 (37s)
+screen s3 vs V2.1c: 0.5178 [0.5023, 0.5332] n=4000 draws=0 (38s)
+screen s4 vs V2.1c: 0.5370 [0.5215, 0.5524] n=4000 draws=0 (37s)
+record soups_2026-11-16/s1: OK
+record soups_2026-11-16/s2: OK
+record soups_2026-11-16/s3: OK
+record soups_2026-11-16/s4: OK
+winner: s1   ranking ['s1', 's4', 's2', 's3']   wall-clock 211s
+SOUP EXPERIMENT DONE

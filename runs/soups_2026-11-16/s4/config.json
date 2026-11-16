@@ -1,0 +1,39 @@
+{
+  "name": "s4",
+  "method": "weight average (model soup)",
+  "weighting": "uniform",
+  "ingredients": [
+    {
+      "path": "runs/v2_1c_champion/model.pt",
+      "sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+      "weight": 0.25
+    },
+    {
+      "path": "runs/v2_1d_champion/model.pt",
+      "sha256": "66ab36a0186dfe2a8ac6b3869ff96a8647753385ef4aa0b095543dad1040610f",
+      "weight": 0.25
+    },
+    {
+      "path": "runs/window_test/win3/model.pt",
+      "sha256": "09ee1ddc5a0e825f8e708c282755b268c7e8e6003e44cf9bb49dcb4b7e67f245",
+      "weight": 0.25
+    },
+    {
+      "path": "runs/window_test/win10/model.pt",
+      "sha256": "0eb01a6f2f9c0bc45c22dd808d090d5cf31459da5981d377cab78501cba99fcb",
+      "weight": 0.25
+    }
+  ],
+  "output": {
+    "path": "runs/soups_2026-11-16/s4/model.pt",
+    "sha256": "9ce10bcfc37fc17d988c5d645d80ad90117459aa7a42392c805d1e0079b8821a"
+  },
+  "created": "2026-11-16T10:59:33+00:00",
+  "issue": "PILA-8",
+  "ingredient_names": [
+    "v2_1c",
+    "v2_1d",
+    "win3",
+    "win10"
+  ]
+}

@@ -2,8 +2,9 @@
 
 Ranked list of experiments most likely to make the agent stronger. Maintained by the Researcher
 (PILA-4). The list is re-ranked after every verdict, and the ledger at the bottom records every idea
-already tried. **First version: 2026-11-15. Re-ranked 2026-11-16 after the PILA-6 depth study, and again the
-same day after the PILA-8 verdict (weight soups).**
+already tried. **First version: 2026-11-15. Re-ranked 2026-11-16 after the PILA-6 depth study, again the
+same day after the PILA-8 verdict (weight soups), and a third time after the PILA-10 design
+challenge.**
 
 How to read it:
 - **Champion:** soup S1, `runs/soups_2026-11-16/s1/model.pt`, the uniform weight average of V2.1c,
@@ -55,21 +56,49 @@ on 8 workers, about 6.7 s of worker time per game, or about 250 decisions per ga
 
 ## Ranked list
 
-| # | Idea | Status | Expected effect | Compute (Mac) | Issue |
-|---|---|---|---|---|---|
-| 1 | Pruned and time-budgeted deeper search (Star2, depth 4 under a time cap) | not tried; unlocked by PILA-6 | **+3 to +7pp at play time**, depth 4 vs depth 3 | ~1 day code + ~1.5 h | — |
-| 2 | Harvest a 20-round continuation **from S1**, then soup its trajectory | not tried; **prior raised by PILA-8**; re-designed around S1 | +0 to +1.5pp vs S1 | ~1 h code + ~1.9 h | PILA-5 (re-scope pending) |
-| 3 | Depth-3 targets on a slice of decisions | dropped by the owner 2026-11-02 before depth 3 was measured; **re-proposed, see what's different** | +0 to +2pp | ~1 h code + ~4.5 h (~3 h if #1 lands first) | after #2 |
-| 4 | Weight averaging inside the loop (averaged generator and expert) | **new** after PILA-8 | +0.5 to +2pp vs #2's soup | ~2 h code + ~1.9 h | only if #2 is positive |
-| 5 | TD(λ) value targets for cheap (outcome-only) rows | not tried | +0.5 to +2.5pp | ~1 day code + ~1.9 h | after #2 |
-| 6 | 4-player bootstrap and 4-player evaluation harness (V2.3 stage 1) | not tried; new axis | new axis (target: beat the tuned heuristic at a 4-player table) | 1–2 days code + ~4 h | — |
-| 7 | Per-head early stopping / lower value weight after epoch 1 | not tried (§10.10 reading 3) | 0 to +1pp | ~2 h code + ~1.9 h | after #2 |
-| 8 | Exploiter probe against frozen S1, then a league pool | not tried | 0 to +2pp if S1 is exploitable | ~1.5 h probe | — |
-| 9 | Chance-resolved ("depth 1.5") targets on cheap rows | partly tried: C3 and deep_fraction 0.5 | 0 to +1pp | ~1 day code + ~2 h | only if #5 is flat |
-| 10 | Extra input features, zero-initialised for warm start | not tried | 0 to +1.5pp | ~1 day code + ~1.9 h | — |
-| 11 | Exact endgame race database (bear-off analogue) | not tried | +0.5 to +1pp at play time | 2–3 days code + hours of DP | — |
-| 12 | Population of recipe replicates, souped rather than selected | resembles §10.9/§10.11; re-read after PILA-8 | +0.5 to +1.5pp | ~5 h | — |
-| 13 | Revive PPO, or PUCT-MCTS on PPO checkpoints | **not recommended** | — | — | — |
+Items keep their `#` as a stable ID; the **Rank** column orders them. Items 14–17 come from the
+PILA-10 design challenge (`docs/DESIGN_CHALLENGE.md`).
+
+| Rank | # | Idea | Status | Expected effect | Compute (Mac) | Issue |
+|---|---|---|---|---|---|---|
+| 1 | 1 | Pruned and time-budgeted deeper search (Star2, depth 4 under a time cap) | not tried; unlocked by PILA-6 | **+3 to +7pp at play time**, depth 4 vs depth 3 | ~1 day code + ~1.5 h | — |
+| 2 | 14 | **Search follows the six-again rule after a bonus** (rules mismatch found in PILA-10), flagged; depth-2 study | **new**; correctness | +0 to +0.7pp at depth 2–3 | ~2 h code + ~35 min | PILA-11 |
+| 3 | 2 | Harvest a 20-round continuation **from S1**, then soup its trajectory | running | +0 to +1.5pp vs S1 | ~1 h code + ~1.9 h | PILA-5 |
+| 4 | 3 | Depth-3 targets on a slice of decisions | dropped by the owner 2026-11-02 before depth 3 was measured; **re-proposed, see what's different** | +0 to +2pp | ~1 h code + ~4.5 h (~3 h if #1 lands first) | after #2 and #14 |
+| 5 | 15 | **Offline representation probe**: Markov flags, side-to-move shots / opponent / blockade features, piece-permutation augmentation, conv and token trunks, symmetric aux targets | **new**; subsumes #10 | go/no-go per arm | ~1 day code + ~1.8 h | PILA-12 |
+| 6 | 16 | **KPI validation** against PILA-1 ratings, plus d3-vs-d1 headroom (Evaluator) | **new** | enables early kills | ~2 h code + ~40 min | PILA-13 |
+| 7 | 17 | **Low-variance value targets for cheap rows**: luck-corrected return (unbiased) vs TD(λ) | **new**; replaces #5 | +0.5 to +2pp vs #2's control | ~1 day code + ~4.1 h | PILA-14, after #2 |
+| 8 | 4 | Weight averaging inside the loop (averaged generator and expert); **add an EMA-of-weights arm** (PILA-10 §5) | **new** after PILA-8 | +0.5 to +2pp vs #2's soup | ~2 h code + ~1.9 h | only if #2 is positive |
+| 9 | 6 | 4-player bootstrap and 4-player evaluation harness (V2.3 stage 1) | not tried; new axis | new axis (target: beat the tuned heuristic at a 4-player table) | 1–2 days code + ~4 h | — |
+| 10 | 7 | Per-head early stopping / lower value weight after epoch 1 | not tried (§10.10 reading 3) | 0 to +1pp | ~2 h code + ~1.9 h | after #2 |
+| 11 | 8 | Exploiter probe against frozen S1, then a league pool | not tried | 0 to +2pp if S1 is exploitable | ~1.5 h probe | — |
+| 12 | 9 | Chance-resolved ("depth 1.5") targets on cheap rows | partly tried: C3 and deep_fraction 0.5 | 0 to +1pp | ~1 day code + ~2 h | only if #17 is flat |
+| 13 | 11 | Exact endgame race database (bear-off analogue) | not tried | +0.5 to +1pp at play time | 2–3 days code + hours of DP | — |
+| 14 | 12 | Population of recipe replicates, souped rather than selected | resembles §10.9/§10.11; re-read after PILA-8 | +0.5 to +1.5pp | ~5 h | — |
+| — | 5 | TD(λ) value targets for cheap rows | **superseded by #17** (now one of its two arms) | — | — | — |
+| — | 10 | Extra input features, zero-initialised | **superseded by #15** (feature arm, with an offline gate) | — | — | — |
+| — | 13 | Revive PPO, or PUCT-MCTS on PPO checkpoints | **not recommended** | — | — | — |
+
+**What changed after PILA-10 (2026-11-16, third re-rank: design challenge).** A first-principles
+review of the representation, targets and metrics (`docs/DESIGN_CHALLENGE.md`) adds four items:
+- **#14 (rank 2): a rules mismatch in search.** A capture or finish made with a 6 is followed in
+  the search by the opponent's turn, while the rules give the mover a reroll. Depth ≥ 2 play and the
+  depth-2 deep targets undervalue capturing with a 6. It is cheap, it is correctness, and it should
+  land before #1's pruning (same file) and before #3 (whose targets it changes).
+- **#15 (rank 5): an offline representation probe.** It tests the encoding's Markov gaps, the
+  missing side-to-move "shots" features (the likely cause of C8's under-resolved value head),
+  piece-permutation augmentation, structured trunks and symmetric aux targets. All arms are fitted
+  on one frozen dataset, and only the winners go to self-play. It subsumes #10.
+- **#16 (rank 6): KPI validation.** Checks five cheap between-promotion KPIs against the PILA-1
+  ratings, and measures d3 vs d1 directly.
+- **#17 (rank 7): low-variance value targets.** Replaces #5 with two arms: the unbiased C8
+  luck-corrected return and TD(λ).
+
+Two framing facts from PILA-10:
+- **The skill headroom above S1 at depth 1 is at least ~130 Elo** (search alone; chained, to be
+  measured by #16).
+- Per-round training is noise-dominated (PILA-8). Effects below ~1pp are not worth designing for
+  unless they are free.
 
 **What changed after PILA-8 (2026-11-16, second re-rank).** Weight soups (old #3) passed: S1 beats
 V2.1c 52.79% [52.09, 53.48] on the 20,000-game confirmation block, 53.08% [52.60, 53.57] pooled
@@ -273,6 +302,9 @@ other open item from the verdict.
 
 ### 5. TD(λ) value targets for cheap rows
 
+**Superseded by #17 (PILA-14, 2026-11-16):** TD(λ) is now one of two arms, next to the unbiased
+luck-corrected return. The text below is kept for the record.
+
 - **Hypothesis.** Under the V2.1c recipe, 75% of decisions are "cheap": their value target is the
   game outcome alone, with λ = 0. Two findings point at those targets as the problem:
   - The value head reaches its best held-out loss at epoch 0–2. Only 18,000 independent outcomes
@@ -373,6 +405,9 @@ other open item from the verdict.
 
 ### 10. Extra input features with zero-initialised weights
 
+**Superseded by #15 (PILA-12, 2026-11-16):** the feature arm of the offline representation probe,
+with a named mechanism (side-to-move shots) and an offline gate before any self-play.
+
 - **Idea.** Add features such as pip-count race, per-piece distance to home, and a count of
   safe-square moves. Their first-layer weights start at zero, so warm start from V2.1c is exact.
 - **Target.** The roll under-resolution that C8 found (the raw net reads the roll only through
@@ -403,6 +438,55 @@ other open item from the verdict.
   inference (`docs/SEARCH_MCTS.md`). Its iterative loop regressed to ~40%.
 - **Why not.** The AZ line already has exact expectimax with a better net. PILA-6 and item 1
   cover search at play time.
+
+### 14. Search follows the six-again rule after a bonus (PILA-11)
+
+- **Finding (PILA-10, code reading).** `Game.play_turn` gives a reroll after a 6 even when the move
+  triggers a capture or finish bonus. `search.py` decides six-again with
+  `pending_bonus is None and roll == 6`, and enters the bonus decision with `roll=None`. So inside
+  the search the opponent moves next.
+- **Consequence.** At depth ≥ 2, and in the depth-2 deep targets, capturing or finishing with a 6
+  is valued without its reroll.
+- **Plan.** A flagged fix (legacy stays reproducible), parity tests against the engine, then a
+  10,000-pair study of S1 fixed vs S1 legacy, both at depth 2 (~35 min).
+- **Ordering.** Arms compared against the PILA-5 control keep the legacy flag.
+- **Details.** `docs/DESIGN_CHALLENGE.md` §1.1.
+
+### 15. Offline representation probe (PILA-12)
+
+- **Arms.** Seven arms fitted from scratch on one frozen S1 dataset, two seeds each: Markov flags,
+  side-to-move shots plus opponent and blockade features, piece-permutation augmentation, a
+  circular-conv stem, a token trunk, and symmetric aux targets.
+- **Go bar.**
+  - held-out value loss −0.002 and more than twice the seed spread, or decision error vs a depth-3
+    reference −10%;
+  - **and** inference ≤ 2× the MLP's.
+- **After the probe.** Each winner gets its own self-play issue, judged against the PILA-5 control.
+- **Details.** `docs/DESIGN_CHALLENGE.md` §1–2, §3.4.
+
+### 16. KPI validation and headroom (PILA-13, Evaluator)
+
+- **Method.** Five candidate between-promotion KPIs are computed for the 15 rated nets and
+  rank-correlated with the PILA-1 Elo:
+  - K1 luck multiplier;
+  - K2 decision error vs a depth-3 reference;
+  - K3 frozen-set calibration;
+  - K4 search consistency;
+  - K5 high-stakes accuracy.
+
+  The study also plays S1 d3 vs S1 d1 at 1,000 pairs.
+- **Cost.** ~40 min.
+- **Details.** `docs/DESIGN_CHALLENGE.md` §4.
+
+### 17. Low-variance value targets for cheap rows (PILA-14)
+
+- **Arms.** Two 20-round arms from S1 on the PILA-5 recipe:
+  - the luck-corrected return z̃ = outcome − Σ future luck, which is unbiased (the C8 control
+    variate used as a training target);
+  - TD(λ = 0.7).
+- **Judging.** Soup against soup, with PILA-5 as the control.
+- **Cost.** ~4.1 h.
+- **Details.** `docs/DESIGN_CHALLENGE.md` §3.3.
 
 ---
 
@@ -514,5 +598,8 @@ Kept current after every verdict. Sources: `docs/V2_PLAN.md` §§1–10, `docs/L
 - Sturtevant 2002; Schadd & Winands 2011 (multiplayer search).
 - Superhuman Stratego with self-play RL and test-time search,
   [arXiv:2511.07312](https://arxiv.org/abs/2511.07312).
+- Veness, Lanctot & Bowling 2011, *Variance Reduction in Monte-Carlo Tree Search* (control variates
+  at chance nodes), NeurIPS.
+- Zaheer et al. 2017, *Deep Sets*; Lee et al. 2019, *Set Transformer* (permutation-symmetric trunks).
 - Ludo-specific work: Alvi & Ahmed 2011; Alhajry, Alvi & Ahmed 2012 (TD(λ)/Q-learning against
   heuristics). Nothing peer-reviewed beyond that, and nothing on Parchís.

@@ -9,10 +9,50 @@ skipped and keep their seeds.
 
 | Format | Champion | Evidence |
 |---|---|---|
-| **2-player** | **V2.1c** — `runs/v2_1c_champion/model.pt` (search depth 1) | Top Bradley-Terry rating in 494 of 500 bootstrap replicates (V2.1d in the other 6). Beats every other checkpoint head to head: see the table below |
+| **2-player** | **Soup S1** — `runs/soups_2026-11-16/s1/model.pt` (search depth 1), the uniform weight average of V2.1c, win3 and win10 | Protocol v1, PILA-8: beats V2.1c 52.79% [52.09, 53.48] over 20,000 games on the confirmation block, after 53.38% [52.69, 54.07] on the first block. See "Champion change: weight soup S1" below |
 | **4-player** | **none — no 4-player checkpoint exists** | Every surviving checkpoint is 2-player (216-dim input, 2-seat value head). See Gaps |
 
-V2.1c's margins: +7 Elo [+1, +12] over V2.1d, +16 [+10, +22] over the V2.0c/V2.0b/window group,
+## Champion change: weight soup S1 (PILA-8, 2026-11-16)
+
+S1 is `avg(v2_1c, win3, win10)`: a uniform average of the weights of three nets from the same
+lineage (`scripts/v2/soup.py`; ingredients and their sha256 are in `runs/soups_2026-11-16/s1/config.json`).
+No training is involved. It was picked as the **best of 4 soups** by the Engineer's screening against
+V2.1c (2,000 pairs each, seeds `11000000+c` in the run's own training band, `runs/soups_2026-11-16/screening.json`).
+Under `docs/EVAL_PROTOCOL.md` §4.4, a best-of-N pick needs a first protocol run (PROVISIONAL) and
+then a confirmation on a fresh block. Only the confirmation can give PASS.
+
+| Match | Block | Win rate | Wilson 95% CI | Games | Seeds | Depth |
+|---|---|---|---|---|---|---|
+| **S1 vs V2.1c (decisive, confirmation)** | 4 | **52.79%** | **[52.09, 53.48]** | 20,000 | 5004000+c, c<8 | 1 |
+| S1 vs V2.1c (decisive, first run) | 3 | 53.38% | [52.69, 54.07] | 20,000 | 5003000+c, c<8 | 1 |
+| S1 vs V2.1c, both blocks pooled | 3+4 | 53.08% | [52.60, 53.57] | 40,000 | as above | 1 |
+| S1 vs tuned heuristic | 4 | 74.00% | [72.03, 75.88] | 2,000 | 5004100+c | 1 |
+| V2.1c vs tuned heuristic (same deals) | 4 | 71.85% | [69.84, 73.78] | 2,000 | 5004100+c | 1 |
+| S1 vs tuned heuristic | 3 | 74.20% | [72.24, 76.07] | 2,000 | 5003100+c | 1 |
+| V2.1c vs tuned heuristic (same deals) | 3 | 70.30% | [68.26, 72.26] | 2,000 | 5003100+c | 1 |
+| S1 vs random | 4 | 97.10% | [96.27, 97.75] | 2,000 | 5004200+c | 1 |
+| S1 vs random | 3 | 97.75% | [97.00, 98.31] | 2,000 | 5003200+c | 1 |
+| S1 vs V2.0b (context) | 4 | 54.70% | [52.51, 56.87] | 2,000 | 5004300+c | 1 |
+| S1 vs V2.0b (context) | 3 | 56.30% | [54.12, 58.46] | 2,000 | 5003300+c | 1 |
+
+Checks on the confirmation block: decisive lower bound 52.09% (> 50%), heuristic Δ +2.15pp
+(≥ −3pp), random 97.10% (≥ 95%), no draws. Verdict: **PASS**. The first block passed the same
+checks (52.69%, +3.90pp, 97.75%) and was PROVISIONAL only because of the best-of-4 selection.
+The pooled edge is about +2.9pp per game, or about +21 Elo. This is the largest single-step gain in
+the lineage: V2.1c's own step over V2.0c was +2.5pp. The pooled row is an estimate. Each block is
+a fresh draw after the selection, so pooling them is not biased by it.
+
+Records: `runs/soups_2026-11-16/s1/eval/protocol_b3.json` and `protocol_b4.json` (code
+`eb1c8bb`; block 4 is flagged `git_dirty` only because block 3 had just written its own record
+and the seed registry), run record `runs/soups_2026-11-16/s1/meta.json`.
+
+S1 is not yet in the round robin or the rating table below. Those still rank V2.1c first among the
+checkpoints they include. The depth study (PILA-6) was measured on V2.1c, so it is not known
+whether the soup's edge holds at depth 2–3.
+
+The rest of this board is the PILA-1 baseline, in which V2.1c was champion.
+
+V2.1c's margins in the PILA-1 round robin: +7 Elo [+1, +12] over V2.1d, +16 [+10, +22] over the V2.0c/V2.0b/window group,
 +60 over the round-23 champion, +175 over the tuned heuristic, +592 over random.
 
 V2.1c head to head (duplicate pairs, depth 1, Wilson 95% CIs):
@@ -185,6 +225,7 @@ with `parchis.az`, and played at search depth 1. None comes from the MaskablePPO
 | v2_1d | `runs/v2_1d_champion/` | 2×256 | V2.1d: 20 rounds | v2_0b | V2.1c with deep_fraction 0.5 |
 | win3 | `runs/window_test/win3/` | 2×256 | 20-round continuation of V2.1c | v2_1c | V2.1c recipe, replay window 3 |
 | win10 | `runs/window_test/win10/` | 2×256 | 20-round continuation of V2.1c | v2_1c | V2.1c recipe, replay window 10 |
+| **soup_s1** | `runs/soups_2026-11-16/s1/` | 2×256 | Weight soup, no training (PILA-8): uniform average of v2_1c, win3, win10 | — | `scripts/v2/soup.py`; siblings s2–s4 in `runs/soups_2026-11-16/` were screened but not played under the protocol |
 | c10_start_2x256 | `runs/c10_precheck/start_2x256.pt` | 2×256 | C10 pre-check: fresh net fit on 24 shards (18k games) of V2.1c self-play | random init | lr 1e-3, patience 4 |
 | c10_start_3x512 | `runs/c10_precheck/start_3x512.pt` | 3×512 | Same as above | random init | same |
 
@@ -221,7 +262,7 @@ and `runs/v2_1a_champion/round04_candidate.pt` are mid-run candidates, not endpo
 5. **One search depth only in the ranking.** The round robin ranks checkpoints at depth 1.
    PILA-6 measured the depth axis on V2.1c: depth 2 beats depth 1 by 60.4%, and depth 3 beats
    depth 2 by 58.5% (see "Play-time search depth"). The strongest agent this repo can field is
-   therefore V2.1c at depth 3. Checkpoint rankings at depth 2 may be compressed: V2.1c's lead over
+   therefore V2.1c at depth 3. The soup S1 is stronger than V2.1c at depth 1, but it has not been measured at depth 2 or 3. Checkpoint rankings at depth 2 may be compressed: V2.1c's lead over
    V2.0c falls from +2.9pp at depth 1 to +1.7pp at depth 2.
 6. **Selection effect.** V2.1c was picked as the best of several runs (V2_PLAN §10.11), so some of
    its 0.7–2.5pp lead over its siblings is selection. Checkpoint-to-checkpoint spread around the

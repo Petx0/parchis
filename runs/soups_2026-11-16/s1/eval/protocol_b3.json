@@ -1,0 +1,154 @@
+{
+  "protocol": "docs/EVAL_PROTOCOL.md v1",
+  "run_id": "soups_2026-11-16/s1",
+  "issue": "PILA-8",
+  "candidate": {
+    "path": "runs/soups_2026-11-16/s1/model.pt",
+    "sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d"
+  },
+  "champion": {
+    "name": "v2_1c",
+    "path": "runs/v2_1c_champion/model.pt",
+    "sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+    "depth": 1,
+    "since": "2026-11-02",
+    "evidence": "docs/V2_PLAN.md \u00a710.7 (52.49% [51.80, 53.18] vs V2.0c, 20,000 games, seeds 70000+i); docs/LEADERBOARD.md (PILA-1 round robin)"
+  },
+  "previous": {
+    "name": "v2_0b",
+    "path": "runs/v2_0b_champion/model.pt",
+    "sha256": "8bdbfbc17b112bcba8940c585aa3736ed67432deffba6e2a0d49e442b1bfc9d8",
+    "depth": 1
+  },
+  "depth": 1,
+  "num_players": 2,
+  "max_turns": 500,
+  "workers": 8,
+  "block": 3,
+  "seeds": {
+    "decisive": "5003000+c, c<8",
+    "heuristic": "5003100+c, c<8",
+    "champion_heuristic": "5003100+c, c<8",
+    "random": "5003200+c, c<8",
+    "previous": "5003300+c, c<8"
+  },
+  "pairs": {
+    "decisive": 10000,
+    "heuristic": 1000,
+    "champion_heuristic": 1000,
+    "random": 1000,
+    "previous": 1000
+  },
+  "specs": {
+    "decisive": [
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-8-90460817d860/workdir/parchis/runs/soups_2026-11-16/s1/model.pt",
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-8-90460817d860/workdir/parchis/runs/v2_1c_champion/model.pt"
+    ],
+    "heuristic": [
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-8-90460817d860/workdir/parchis/runs/soups_2026-11-16/s1/model.pt",
+      "heuristic_tuned"
+    ],
+    "champion_heuristic": [
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-8-90460817d860/workdir/parchis/runs/v2_1c_champion/model.pt",
+      "heuristic_tuned"
+    ],
+    "random": [
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-8-90460817d860/workdir/parchis/runs/soups_2026-11-16/s1/model.pt",
+      "random"
+    ],
+    "previous": [
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-8-90460817d860/workdir/parchis/runs/soups_2026-11-16/s1/model.pt",
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-8-90460817d860/workdir/parchis/runs/v2_0b_champion/model.pt"
+    ]
+  },
+  "results": {
+    "decisive": {
+      "wins": 10676,
+      "draws": 0,
+      "n_games": 20000,
+      "score": 10676.0,
+      "win_rate": 0.5338,
+      "ci": [
+        0.5268805021304648,
+        0.5407065162321426
+      ]
+    },
+    "heuristic": {
+      "wins": 1484,
+      "draws": 0,
+      "n_games": 2000,
+      "score": 1484.0,
+      "win_rate": 0.742,
+      "ci": [
+        0.7223734262506246,
+        0.7606987228652489
+      ]
+    },
+    "champion_heuristic": {
+      "wins": 1406,
+      "draws": 0,
+      "n_games": 2000,
+      "score": 1406.0,
+      "win_rate": 0.703,
+      "ci": [
+        0.6826005004524727,
+        0.7226211783513385
+      ]
+    },
+    "random": {
+      "wins": 1955,
+      "draws": 0,
+      "n_games": 2000,
+      "score": 1955.0,
+      "win_rate": 0.9775,
+      "ci": [
+        0.9700270953304039,
+        0.9831421245159996
+      ]
+    },
+    "previous": {
+      "wins": 1126,
+      "draws": 0,
+      "n_games": 2000,
+      "score": 1126.0,
+      "win_rate": 0.563,
+      "ci": [
+        0.5411613153020641,
+        0.5845971367404978
+      ]
+    }
+  },
+  "verdict": {
+    "verdict": "PROVISIONAL",
+    "checks": [
+      {
+        "name": "decisive: Wilson 95% lower bound vs champion > 50%",
+        "value": 0.5268805021304648,
+        "threshold": 0.5,
+        "unit": "%",
+        "ok": true
+      },
+      {
+        "name": "guard: vs heuristic >= champion vs heuristic - 3pp (same seeds)",
+        "value": 0.039000000000000035,
+        "threshold": -0.03,
+        "unit": "pp",
+        "ok": true
+      },
+      {
+        "name": "guard: vs random >= 95%",
+        "value": 0.9775,
+        "threshold": 0.95,
+        "unit": "%",
+        "ok": true
+      }
+    ],
+    "draw_share": 0.0
+  },
+  "selection": "best-of-4",
+  "confirmation_of": null,
+  "git_sha": "eb1c8bbee7016e6d6157aff3710a0e3aaedc4b57",
+  "git_dirty": false,
+  "wall_clock_s": 213.0,
+  "finished": "2026-11-16T11:09:07+00:00"
+}

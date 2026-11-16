@@ -2,24 +2,25 @@
   "_doc": "Champion pointer (docs/EVAL_PROTOCOL.md §6). Changed only by a merged leaderboard PR after a PASS verdict approved by the owner. scripts/eval/protocol.py reads it and checks the sha256.",
   "2p": {
     "current": {
+      "name": "soup_s1",
+      "path": "runs/soups_2026-11-16/s1/model.pt",
+      "sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d",
+      "depth": 1,
+      "since": "2026-11-16",
+      "evidence": "PILA-8, protocol v1, best-of-4 confirmed: 53.38% [52.69, 54.07] vs V2.1c (block 3, PROVISIONAL) and 52.79% [52.09, 53.48] vs V2.1c (block 4, PASS), 20,000 games each, depth 1 (runs/soups_2026-11-16/s1/eval/protocol_b{3,4}.json)"
+    },
+    "previous": {
       "name": "v2_1c",
       "path": "runs/v2_1c_champion/model.pt",
       "sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
-      "depth": 1,
-      "since": "2026-11-02",
-      "evidence": "docs/V2_PLAN.md §10.7 (52.49% [51.80, 53.18] vs V2.0c, 20,000 games, seeds 70000+i); docs/LEADERBOARD.md (PILA-1 round robin)"
-    },
-    "previous": {
-      "name": "v2_0b",
-      "path": "runs/v2_0b_champion/model.pt",
-      "sha256": "8bdbfbc17b112bcba8940c585aa3736ed67432deffba6e2a0d49e442b1bfc9d8",
       "depth": 1
     },
     "history": [
       {"name": "champ23", "path": "runs/selfplay_2p_v1_champion/model.pt", "until": "2026-10-31"},
       {"name": "v2_0", "path": "runs/v2_0_champion/model.pt", "until": "2026-10-31"},
       {"name": "v2_0b", "path": "runs/v2_0b_champion/model.pt", "until": "2026-11-02"},
-      {"name": "v2_1c", "path": "runs/v2_1c_champion/model.pt", "until": null}
+      {"name": "v2_1c", "path": "runs/v2_1c_champion/model.pt", "until": "2026-11-16"},
+      {"name": "soup_s1", "path": "runs/soups_2026-11-16/s1/model.pt", "until": null}
     ]
   },
   "4p": {

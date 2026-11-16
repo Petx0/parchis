@@ -134,6 +134,7 @@ comparison against the same checkpoint's plain (unsearched) inference.
 - `docs/README_ENVIRONMENT.md` — observation/action space details
 - `docs/REWARD_STRUCTURE.md` — reward formulas
 - `docs/RL_DESIGN_REVIEW.md` — the RL design initiative: what was wrong, what changed and why, phase by phase
+- `docs/EXPERIMENT_REGISTRY.md` — run records (`runs/<run_id>/meta.json`) and `python -m parchis.registry compare`, the cross-run report
 - `docs/SEARCH_MCTS.md` — MCTS search: the confirmed-useful engine that's kept live, and what was tried and archived
 
 ## License

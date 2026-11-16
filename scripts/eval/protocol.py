@@ -97,6 +97,38 @@ def release_lock():
         pass
 
 
+def record_in_registry(record, out, specs, champ, prev):
+    """Fold the protocol result into runs/<run_id>/meta.json (docs/EXPERIMENT_REGISTRY.md). The
+    champion's guard-reference match is stored inside the decisive entry, not in the champion's record."""
+    from parchis.registry import record as registry
+
+    def write():
+        run_dir = REPO / "runs" / record["run_id"]
+        if registry.load_meta(run_dir) is None:
+            run_dir = registry.find_run_dir(registry.resolve(record["candidate"]["path"]))
+        if run_dir is None:
+            print(f"[registry] candidate run has no meta.json; protocol result only in {out}", flush=True)
+            return
+        names = {"decisive": champ["name"], "heuristic": "heuristic_tuned", "random": "random",
+                 "previous": prev["name"]}
+
+        def mutate(m):
+            for match, opp_name in names.items():
+                r = record["results"][match]
+                extra = dict(draws=r["draws"], block=record["block"], protocol=record["protocol"],
+                             selection=record["selection"])
+                if match == "decisive":
+                    extra.update(verdict=record["verdict"]["verdict"], checks=record["verdict"]["checks"],
+                                 guard_reference=record["results"]["champion_heuristic"],
+                                 confirmation_of=record["confirmation_of"], issue=record["issue"])
+                registry.add_eval(m, registry.eval_entry(
+                    "protocol", specs[match][0], specs[match][1], r["win_rate"], r["ci"], r["n_games"],
+                    seeds=record["seeds"][match], depth=record["depth"], source=out, opponent_name=opp_name,
+                    tag=f"b{record['block']}:{match}", **extra))
+        registry.update_run(run_dir, mutate)
+    registry.safe(write)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("candidate")
@@ -151,6 +183,11 @@ def main():
     print(f"candidate {cand} sha256 {cand_sha[:12]}  champion {champ['name']}  depth {depth}  "
           f"block {block} (seeds {seeds['decisive'][0]}..)  git {git_sha[:9]}{' DIRTY' if dirty else ''}",
           flush=True)
+    from parchis.registry import record as registry
+    run_dir = REPO / "runs" / a.run_id
+    meta = registry.load_meta(run_dir)
+    problems = registry.validate(meta) if meta else [f"no {run_dir.relative_to(REPO)}/meta.json"]
+    print("run record: " + ("complete" if not problems else "INCOMPLETE -- " + "; ".join(problems)), flush=True)
     if a.dry_run:
         for name in specs:
             print(f"  {name}: {pairs[name]} pairs, seeds {seeds[name][0]}..{seeds[name][-1]}")
@@ -199,6 +236,7 @@ def main():
                   confirmation_of=a.confirmation_of, git_sha=git_sha, git_dirty=dirty,
                   wall_clock_s=round(wall, 1), finished=datetime.now(timezone.utc).isoformat(timespec="seconds"))
     out.write_text(json.dumps(record, indent=2, default=float))
+    record_in_registry(record, out, specs, champ, prev)
     print()
     print(P.format_table(results, labels, seeds, depth))
     print()

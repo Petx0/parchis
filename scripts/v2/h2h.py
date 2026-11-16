@@ -41,3 +41,9 @@ if __name__ == "__main__":
         line += " " + format_luck(summary)
     Path(out).write_text(json.dumps(r, indent=2))
     print(f"{line} ({time.time() - t:.0f}s)", flush=True)
+    # run record of a's run (docs/EXPERIMENT_REGISTRY.md); never fails the match
+    from parchis.registry import record as registry
+    registry.safe(lambda: registry.record_eval(registry.eval_entry(
+        "h2h", a, b, w / n, [lo, hi], n, seeds=f"70000+i, i<{WORKERS}", depth=DEPTH, source=out,
+        wall_clock_s=round(time.time() - t, 1),
+        **({"adjusted_score": r["adjusted_score_a"], "adjusted_ci": r["adjusted_ci"]} if luck else {}))))

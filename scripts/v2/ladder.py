@@ -126,7 +126,29 @@ def run_ladder(ckpt, out_path, tag="", anchors=ANCHORS, pairs=PAIRS, workers=WOR
             line += " " + format_luck(summary)
         print(f"{line} ({time.time() - t:.0f}s)", flush=True)
     Path(out_path).write_text(json.dumps(out, indent=2))
+    _record_ladder(ckpt, out_path, tag, anchors, out, workers, depth)
     return out
+
+
+def _record_ladder(ckpt, out_path, tag, anchors, out, workers, depth):
+    """Append every anchor line to the run record owning `ckpt` (docs/EXPERIMENT_REGISTRY.md)."""
+    from parchis.registry import record as registry
+
+    def write():
+        run_dir = registry.find_run_dir(registry.resolve(registry.rel(ckpt)))
+        if run_dir is None:
+            print(f"[registry] no meta.json owns {ckpt}; ladder not recorded in a run record", flush=True)
+            return None
+
+        def mutate(m):
+            for name, r in out.items():
+                opp = "heuristic_tuned" if anchors[name] is None else anchors[name]
+                registry.add_eval(m, registry.eval_entry(
+                    "ladder", ckpt, opp, r["win_rate"], r["ci"], r["n_games"], seeds=f"9000+i, i<{workers}",
+                    depth=depth, source=out_path, opponent_name=name, tag=tag or None,
+                    **{k: r[k] for k in ("adjusted", "adjusted_ci") if k in r}))
+        registry.update_run(run_dir, mutate)
+    registry.safe(write)
 
 
 if __name__ == "__main__":

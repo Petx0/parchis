@@ -1,0 +1,28 @@
+{
+  "name": "h3",
+  "method": "weight average (model soup)",
+  "weighting": "explicit",
+  "ingredients": [
+    {
+      "path": "runs/soups_2026-11-16/s1/model.pt",
+      "sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d",
+      "weight": 0.5
+    },
+    {
+      "path": "runs/pila5_harvest_s1/soups/h2/model.pt",
+      "sha256": "0dd9c4d578416c86307af1566c90fc0a7cb7790720ec151bc564ca8064afbdf4",
+      "weight": 0.5
+    }
+  ],
+  "output": {
+    "path": "runs/pila5_harvest_s1/soups/h3/model.pt",
+    "sha256": "4fbc8309e44c795a73b7cb91c1d7be63808abdfa4ce22b0518e1321f5ba59d0f"
+  },
+  "created": "2026-11-16T16:52:00+00:00",
+  "issue": "PILA-5",
+  "ingredient_names": [
+    "s1",
+    "h2"
+  ],
+  "what": "0.5*S1 + 0.5*h2"
+}

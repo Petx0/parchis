@@ -1,0 +1,277 @@
+{
+  "issue": "PILA-5",
+  "recipe": "V2.1c (scripts/v2/run_v2_1c.py), window 3",
+  "generator": "runs/soups_2026-11-16/s1/model.pt",
+  "generator_sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d",
+  "games": 1500,
+  "shards": [
+    {
+      "n_games": 188,
+      "seed": 20500000,
+      "path": "~/parchis_scratch/pila5_harvest/health/health_00.npz",
+      "n_recorded_decisions": 29030
+    },
+    {
+      "n_games": 188,
+      "seed": 20500001,
+      "path": "~/parchis_scratch/pila5_harvest/health/health_01.npz",
+      "n_recorded_decisions": 30007
+    },
+    {
+      "n_games": 188,
+      "seed": 20500002,
+      "path": "~/parchis_scratch/pila5_harvest/health/health_02.npz",
+      "n_recorded_decisions": 28980
+    },
+    {
+      "n_games": 188,
+      "seed": 20500003,
+      "path": "~/parchis_scratch/pila5_harvest/health/health_03.npz",
+      "n_recorded_decisions": 30089
+    },
+    {
+      "n_games": 187,
+      "seed": 20500004,
+      "path": "~/parchis_scratch/pila5_harvest/health/health_04.npz",
+      "n_recorded_decisions": 29522
+    },
+    {
+      "n_games": 187,
+      "seed": 20500005,
+      "path": "~/parchis_scratch/pila5_harvest/health/health_05.npz",
+      "n_recorded_decisions": 30032
+    },
+    {
+      "n_games": 187,
+      "seed": 20500006,
+      "path": "~/parchis_scratch/pila5_harvest/health/health_06.npz",
+      "n_recorded_decisions": 29426
+    },
+    {
+      "n_games": 187,
+      "seed": 20500007,
+      "path": "~/parchis_scratch/pila5_harvest/health/health_07.npz",
+      "n_recorded_decisions": 29922
+    }
+  ],
+  "seeds": "20500000+i, i<8",
+  "generation_s": 51.2,
+  "rows": 472534,
+  "decision_rows": 59497,
+  "losses": {
+    "s1": {
+      "value_loss": 0.5830552710558923,
+      "value_loss_decisions": 0.5856739687078497,
+      "policy_loss": 0.7236755043846749,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c01": {
+      "value_loss": 0.5825448942149534,
+      "value_loss_decisions": 0.5860103714443454,
+      "policy_loss": 0.7202769529739945,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c02": {
+      "value_loss": 0.5831955945398902,
+      "value_loss_decisions": 0.586193704652388,
+      "policy_loss": 0.72023553725004,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c03": {
+      "value_loss": 0.5835647117042768,
+      "value_loss_decisions": 0.5865458921839022,
+      "policy_loss": 0.7312156671732135,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c04": {
+      "value_loss": 0.5825954796126442,
+      "value_loss_decisions": 0.5859335155882335,
+      "policy_loss": 0.7290101598478704,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c05": {
+      "value_loss": 0.5827697891596821,
+      "value_loss_decisions": 0.5861272468389294,
+      "policy_loss": 0.7313324871717534,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c06": {
+      "value_loss": 0.5832313630887539,
+      "value_loss_decisions": 0.5863865629024625,
+      "policy_loss": 0.7318790450601763,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c07": {
+      "value_loss": 0.5841839328129034,
+      "value_loss_decisions": 0.5872224420191354,
+      "policy_loss": 0.733660292548889,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c08": {
+      "value_loss": 0.5842619870921325,
+      "value_loss_decisions": 0.5875407753867186,
+      "policy_loss": 0.7321061319104062,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c09": {
+      "value_loss": 0.5833124935768511,
+      "value_loss_decisions": 0.5865730034182396,
+      "policy_loss": 0.7307507486918984,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c10": {
+      "value_loss": 0.5839936439262836,
+      "value_loss_decisions": 0.5875071817893655,
+      "policy_loss": 0.7326512556567978,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c11": {
+      "value_loss": 0.5838113560760311,
+      "value_loss_decisions": 0.5871227250362938,
+      "policy_loss": 0.7326764013574214,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c12": {
+      "value_loss": 0.5835304642099828,
+      "value_loss_decisions": 0.5867333626557589,
+      "policy_loss": 0.7370305509429572,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c13": {
+      "value_loss": 0.5829616197673739,
+      "value_loss_decisions": 0.5861796371347373,
+      "policy_loss": 0.7351626517309959,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c14": {
+      "value_loss": 0.5843828292977331,
+      "value_loss_decisions": 0.5875367201911178,
+      "policy_loss": 0.7323055556175626,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c15": {
+      "value_loss": 0.5830749455660863,
+      "value_loss_decisions": 0.5863776708115273,
+      "policy_loss": 0.7309210956310035,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c16": {
+      "value_loss": 0.5837928357899907,
+      "value_loss_decisions": 0.5868583094591429,
+      "policy_loss": 0.7306025519636231,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c17": {
+      "value_loss": 0.5852931814909748,
+      "value_loss_decisions": 0.588220278651786,
+      "policy_loss": 0.732538046659653,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c18": {
+      "value_loss": 0.5835242663259417,
+      "value_loss_decisions": 0.5865774227915378,
+      "policy_loss": 0.7330521793969129,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c19": {
+      "value_loss": 0.5833165256114508,
+      "value_loss_decisions": 0.5867759960668316,
+      "policy_loss": 0.7314735398620413,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "c20": {
+      "value_loss": 0.5832318105185288,
+      "value_loss_decisions": 0.586686923331284,
+      "policy_loss": 0.7320603604160189,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "h1": {
+      "value_loss": 0.582530578528807,
+      "value_loss_decisions": 0.5856434485650931,
+      "policy_loss": 0.7225215370792067,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "h2": {
+      "value_loss": 0.5827682515719107,
+      "value_loss_decisions": 0.5859195875865458,
+      "policy_loss": 0.7264185626120067,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "h3": {
+      "value_loss": 0.5826402556565374,
+      "value_loss_decisions": 0.5854521896193295,
+      "policy_loss": 0.7215576766869548,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    },
+    "h4": {
+      "value_loss": 0.5823231974114561,
+      "value_loss_decisions": 0.5854608714104677,
+      "policy_loss": 0.7220067744684081,
+      "n_rows": 472534,
+      "n_decision_rows": 59497
+    }
+  },
+  "verdicts": {
+    "h1": {
+      "value_loss": 0.582530578528807,
+      "worst_ingredient": 0.5839936439262836,
+      "best_ingredient": 0.5830552710558923,
+      "margin": 0.01,
+      "keep": true,
+      "delta_vs_worst": -0.0014630653974766483,
+      "delta_vs_best": -0.0005246925270853131
+    },
+    "h2": {
+      "value_loss": 0.5827682515719107,
+      "worst_ingredient": 0.5852931814909748,
+      "best_ingredient": 0.5829616197673739,
+      "margin": 0.01,
+      "keep": true,
+      "delta_vs_worst": -0.002524929919064056,
+      "delta_vs_best": -0.00019336819546322825
+    },
+    "h3": {
+      "value_loss": 0.5826402556565374,
+      "worst_ingredient": 0.5830552710558923,
+      "best_ingredient": 0.5827682515719107,
+      "margin": 0.01,
+      "keep": true,
+      "delta_vs_worst": -0.00041501539935484555,
+      "delta_vs_best": -0.00012799591537326904
+    },
+    "h4": {
+      "value_loss": 0.5823231974114561,
+      "worst_ingredient": 0.5852931814909748,
+      "best_ingredient": 0.5825448942149534,
+      "margin": 0.01,
+      "keep": true,
+      "delta_vs_worst": -0.0029699840795186505,
+      "delta_vs_best": -0.00022169680349726217
+    }
+  },
+  "caveat": "data generated by S1 with S1 depth-2 deep targets: biased towards S1's own value head"
+}

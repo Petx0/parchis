@@ -1,0 +1,127 @@
+{
+  "schema": "parchis.run/1",
+  "run_id": "pila5_harvest_s1/soups/h1",
+  "title": "PILA-5 harvest soup H1 = avg(S1, c10, c20): the S1 shape (start + two trajectory points)",
+  "kind": "training",
+  "issue": "PILA-5",
+  "status": "finished",
+  "created": "2026-11-16T16:56:07+00:00",
+  "finished": "2026-11-16T16:56:07+00:00",
+  "git": {
+    "sha": "5ba911a73461ad51bda5f5d8b5d8caaf65fe3e45",
+    "dirty": false,
+    "branch": "agent/engineer/pila-5-harvest",
+    "source": "recorded"
+  },
+  "script": "scripts/v2/run_harvest.py",
+  "command": "scripts/v2/run_harvest.py --base 20000000",
+  "config": {
+    "method": "weight average (model soup) of the harvest trajectory, no gradient steps",
+    "ingredients": [
+      {
+        "path": "runs/soups_2026-11-16/s1/model.pt",
+        "sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d",
+        "weight": 0.3333333333333333
+      },
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c10.pt",
+        "sha256": "7d2fb00fd8cbf15e4e9399bcd3a2e4ebb145aacf93d809ca0e3c97a4d2858a2d",
+        "weight": 0.3333333333333333
+      },
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c20.pt",
+        "sha256": "279401384dd5ab19b58d38fad83eb884ea7b4025b5db24072787ccab4410c282",
+        "weight": 0.3333333333333333
+      }
+    ],
+    "weights": null,
+    "what": "avg(S1, c10, c20): the S1 shape (start + two trajectory points)",
+    "generation_seed": 20000000,
+    "train_seed": 20000000,
+    "promotion_seed": 20000000,
+    "seed_use": "health-check shards base+500000+i; screening deals base+1000000+c; the trajectory itself was trained on this base (parent run)"
+  },
+  "init": {
+    "note": "weight average of the ingredients in config.ingredients",
+    "path": null,
+    "sha256": null,
+    "run_id": "pila5_harvest_s1"
+  },
+  "seeds": {
+    "values": {
+      "generation_seed": 20000000,
+      "train_seed": 20000000,
+      "promotion_seed": 20000000
+    },
+    "base_n": 2,
+    "policy": "ok",
+    "registered_to": [
+      "pila5_harvest_s1"
+    ],
+    "derivation": "generation = generation_seed + round*1000 + shard; promotion = promotion_seed + round; train = train_seed"
+  },
+  "checkpoints": [
+    {
+      "role": "final",
+      "path": "runs/pila5_harvest_s1/soups/h1/model.pt",
+      "sha256": "1b927992206fe9724e29a7c26821f3843834184c7dda68f457a47967ad217b22",
+      "label": "h1",
+      "primary": true
+    }
+  ],
+  "training": {
+    "rounds_completed": 0,
+    "selfplay_games": 0,
+    "wall_clock_s": 247.0,
+    "note": "no training: weights averaged; trained trajectory in ../../ (pila5_harvest_s1)"
+  },
+  "selection": {
+    "method": "not selected",
+    "rank": 4,
+    "of": 5,
+    "source": "runs/pila5_harvest_s1/screening.json",
+    "reason": null
+  },
+  "evals": [
+    {
+      "kind": "h2h",
+      "checkpoint": "runs/pila5_harvest_s1/soups/h1/model.pt",
+      "checkpoint_sha256": "1b927992206fe9724e29a7c26821f3843834184c7dda68f457a47967ad217b22",
+      "opponent": "runs/soups_2026-11-16/s1/model.pt",
+      "opponent_name": "soups_2026-11-16/s1",
+      "opponent_sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d",
+      "win_rate": 0.5035,
+      "ci": [
+        0.4880095802348625,
+        0.5189837036621094
+      ],
+      "n_games": 4000,
+      "seeds": "21000000+c, c<8 (same deals for every net)",
+      "depth": 1,
+      "source": "runs/pila5_harvest_s1/screening.json",
+      "tag": "pila5_screening",
+      "recorded": "2026-11-16T16:56:07+00:00",
+      "draws": 0,
+      "wall_clock_s": 35.9,
+      "note": "screening only (ranks the harvest nets); not a verdict"
+    }
+  ],
+  "sessions": [
+    {
+      "started": "2026-11-16T16:56:07+00:00",
+      "git_sha": "5ba911a73461ad51bda5f5d8b5d8caaf65fe3e45",
+      "git_dirty": false,
+      "command": "scripts/v2/run_harvest.py --base 20000000"
+    }
+  ],
+  "notes": "Soup of the pila5_harvest_s1 trajectory; see ../../harvest.json.",
+  "health_check": {
+    "value_loss": 0.582530578528807,
+    "worst_ingredient": 0.5839936439262836,
+    "best_ingredient": 0.5830552710558923,
+    "margin": 0.01,
+    "keep": true,
+    "delta_vs_worst": -0.0014630653974766483,
+    "delta_vs_best": -0.0005246925270853131
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "name": "h2",
+  "method": "weight average (model soup)",
+  "weighting": "uniform",
+  "ingredients": [
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c11.pt",
+      "sha256": "8c73a6d15f0df8ea541048a5c9ea44567e9391dc36848971f3e03e68b7876d31",
+      "weight": 0.1
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c12.pt",
+      "sha256": "45e2c3f030d832710863134eb5d5dfc44d8858c164d52d547bd8e199de8a8496",
+      "weight": 0.1
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c13.pt",
+      "sha256": "ea4ab6603f89625611b38e2051a8f22bb1faeeef2a7cfbce08597b9f009f6da3",
+      "weight": 0.1
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c14.pt",
+      "sha256": "f3f77b36a4f8f166b0e6aeae8a58a63adb5139d9bc317ec242dc01219e55e5df",
+      "weight": 0.1
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c15.pt",
+      "sha256": "cbc925428a4ca224bf906e123fdefb8f98dae8d4a0a6b8b8e15958a7f33e0457",
+      "weight": 0.1
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c16.pt",
+      "sha256": "fa59d20b63c14c753bd807ce273b5e4933efb6ea16b06c23b04dd8189e287bfa",
+      "weight": 0.1
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c17.pt",
+      "sha256": "6a0bcd3981d083128f00467215099e18504f34d2bf998609508cfc6248dcfaa2",
+      "weight": 0.1
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c18.pt",
+      "sha256": "0c514ad03cc6918a2c112c43ef39088fe33ece76e992a59c3a47756da5b95e59",
+      "weight": 0.1
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c19.pt",
+      "sha256": "58f56dec6651afdd219585d762f07dc86cecfe8ec77046c20391e88b03b08aee",
+      "weight": 0.1
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c20.pt",
+      "sha256": "279401384dd5ab19b58d38fad83eb884ea7b4025b5db24072787ccab4410c282",
+      "weight": 0.1
+    }
+  ],
+  "output": {
+    "path": "runs/pila5_harvest_s1/soups/h2/model.pt",
+    "sha256": "0dd9c4d578416c86307af1566c90fc0a7cb7790720ec151bc564ca8064afbdf4"
+  },
+  "created": "2026-11-16T16:52:00+00:00",
+  "issue": "PILA-5",
+  "ingredient_names": [
+    "c11",
+    "c12",
+    "c13",
+    "c14",
+    "c15",
+    "c16",
+    "c17",
+    "c18",
+    "c19",
+    "c20"
+  ],
+  "what": "SWA-10: avg(c11..c20)"
+}

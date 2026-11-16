@@ -1,0 +1,226 @@
+{
+  "issue": "PILA-5",
+  "run_id": "pila5_harvest_s1",
+  "start": {
+    "path": "runs/soups_2026-11-16/s1/model.pt",
+    "sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d"
+  },
+  "seed_base": 20000000,
+  "rounds": 20,
+  "endpoint": "c20",
+  "endpoint_is_model_pt": true,
+  "candidates": {
+    "c01": {
+      "path": "runs/pila5_harvest_s1/candidates/c01.pt",
+      "sha256": "cea8a6cba1826b550b3388c93cd9a99538fa10d44c9390b0068a913a1b53217f"
+    },
+    "c02": {
+      "path": "runs/pila5_harvest_s1/candidates/c02.pt",
+      "sha256": "74b9e924bba92aa884dbe704f13359f606bc9fc732a2d1f9db8bf919506653e0"
+    },
+    "c03": {
+      "path": "runs/pila5_harvest_s1/candidates/c03.pt",
+      "sha256": "7af29e092290b0ad65453fdc53b4d3bed94a57f6d7707b9c10721a86298db547"
+    },
+    "c04": {
+      "path": "runs/pila5_harvest_s1/candidates/c04.pt",
+      "sha256": "c6b1ae05600cbfcda28f3cbc5d96b78c299582c16d7c55da25ec3316a34298c4"
+    },
+    "c05": {
+      "path": "runs/pila5_harvest_s1/candidates/c05.pt",
+      "sha256": "0448dbbdd668d8c029aa6033e7dd3a23236373376a6792719519649ec1da9a50"
+    },
+    "c06": {
+      "path": "runs/pila5_harvest_s1/candidates/c06.pt",
+      "sha256": "b4ee8ba078d24074a5ed100517aac319401155d6c4f792a9560caba1c8846db4"
+    },
+    "c07": {
+      "path": "runs/pila5_harvest_s1/candidates/c07.pt",
+      "sha256": "e018300902962f2dfa71cf6ebf2c40a0859fdd78918d1785308d4ba92ef189fb"
+    },
+    "c08": {
+      "path": "runs/pila5_harvest_s1/candidates/c08.pt",
+      "sha256": "36ed47f0944702b957aad8a955833adbcbbe5ffb239bd4ea2b626eb270e8d760"
+    },
+    "c09": {
+      "path": "runs/pila5_harvest_s1/candidates/c09.pt",
+      "sha256": "12ecd6f65226a0b537f877a4e3449200891bbe786a5e86bd38136cac326c1726"
+    },
+    "c10": {
+      "path": "runs/pila5_harvest_s1/candidates/c10.pt",
+      "sha256": "7d2fb00fd8cbf15e4e9399bcd3a2e4ebb145aacf93d809ca0e3c97a4d2858a2d"
+    },
+    "c11": {
+      "path": "runs/pila5_harvest_s1/candidates/c11.pt",
+      "sha256": "8c73a6d15f0df8ea541048a5c9ea44567e9391dc36848971f3e03e68b7876d31"
+    },
+    "c12": {
+      "path": "runs/pila5_harvest_s1/candidates/c12.pt",
+      "sha256": "45e2c3f030d832710863134eb5d5dfc44d8858c164d52d547bd8e199de8a8496"
+    },
+    "c13": {
+      "path": "runs/pila5_harvest_s1/candidates/c13.pt",
+      "sha256": "ea4ab6603f89625611b38e2051a8f22bb1faeeef2a7cfbce08597b9f009f6da3"
+    },
+    "c14": {
+      "path": "runs/pila5_harvest_s1/candidates/c14.pt",
+      "sha256": "f3f77b36a4f8f166b0e6aeae8a58a63adb5139d9bc317ec242dc01219e55e5df"
+    },
+    "c15": {
+      "path": "runs/pila5_harvest_s1/candidates/c15.pt",
+      "sha256": "cbc925428a4ca224bf906e123fdefb8f98dae8d4a0a6b8b8e15958a7f33e0457"
+    },
+    "c16": {
+      "path": "runs/pila5_harvest_s1/candidates/c16.pt",
+      "sha256": "fa59d20b63c14c753bd807ce273b5e4933efb6ea16b06c23b04dd8189e287bfa"
+    },
+    "c17": {
+      "path": "runs/pila5_harvest_s1/candidates/c17.pt",
+      "sha256": "6a0bcd3981d083128f00467215099e18504f34d2bf998609508cfc6248dcfaa2"
+    },
+    "c18": {
+      "path": "runs/pila5_harvest_s1/candidates/c18.pt",
+      "sha256": "0c514ad03cc6918a2c112c43ef39088fe33ece76e992a59c3a47756da5b95e59"
+    },
+    "c19": {
+      "path": "runs/pila5_harvest_s1/candidates/c19.pt",
+      "sha256": "58f56dec6651afdd219585d762f07dc86cecfe8ec77046c20391e88b03b08aee"
+    },
+    "c20": {
+      "path": "runs/pila5_harvest_s1/candidates/c20.pt",
+      "sha256": "279401384dd5ab19b58d38fad83eb884ea7b4025b5db24072787ccab4410c282"
+    }
+  },
+  "soups": {
+    "h1": {
+      "ingredients": [
+        "s1",
+        "c10",
+        "c20"
+      ],
+      "weights": null,
+      "what": "avg(S1, c10, c20): the S1 shape (start + two trajectory points)",
+      "path": "runs/pila5_harvest_s1/soups/h1/model.pt",
+      "sha256": "1b927992206fe9724e29a7c26821f3843834184c7dda68f457a47967ad217b22"
+    },
+    "h2": {
+      "ingredients": [
+        "c11",
+        "c12",
+        "c13",
+        "c14",
+        "c15",
+        "c16",
+        "c17",
+        "c18",
+        "c19",
+        "c20"
+      ],
+      "weights": null,
+      "what": "SWA-10: avg(c11..c20)",
+      "path": "runs/pila5_harvest_s1/soups/h2/model.pt",
+      "sha256": "0dd9c4d578416c86307af1566c90fc0a7cb7790720ec151bc564ca8064afbdf4"
+    },
+    "h3": {
+      "ingredients": [
+        "s1",
+        "h2"
+      ],
+      "weights": [
+        0.5,
+        0.5
+      ],
+      "what": "0.5*S1 + 0.5*h2",
+      "path": "runs/pila5_harvest_s1/soups/h3/model.pt",
+      "sha256": "4fbc8309e44c795a73b7cb91c1d7be63808abdfa4ce22b0518e1321f5ba59d0f"
+    },
+    "h4": {
+      "ingredients": [
+        "c01",
+        "c02",
+        "c03",
+        "c04",
+        "c05",
+        "c06",
+        "c07",
+        "c08",
+        "c09",
+        "c10",
+        "c11",
+        "c12",
+        "c13",
+        "c14",
+        "c15",
+        "c16",
+        "c17",
+        "c18",
+        "c19",
+        "c20"
+      ],
+      "weights": null,
+      "what": "SWA-20: avg(c01..c20)",
+      "path": "runs/pila5_harvest_s1/soups/h4/model.pt",
+      "sha256": "d7b2b08552b5c210e0cfbf325ec90f03688d7dca6c2b82de0429c27f80285bea"
+    }
+  },
+  "health": {
+    "h1": true,
+    "h2": true,
+    "h3": true,
+    "h4": true
+  },
+  "screening": {
+    "h1": {
+      "win_rate": 0.5035,
+      "ci": [
+        0.4880095802348625,
+        0.5189837036621094
+      ],
+      "n_games": 4000
+    },
+    "h2": {
+      "win_rate": 0.50525,
+      "ci": [
+        0.4897583750757614,
+        0.5207315507696967
+      ],
+      "n_games": 4000
+    },
+    "h3": {
+      "win_rate": 0.51075,
+      "ci": [
+        0.4952558217014822,
+        0.5262235502677893
+      ],
+      "n_games": 4000
+    },
+    "h4": {
+      "win_rate": 0.527,
+      "ci": [
+        0.5115092297121852,
+        0.542438960350171
+      ],
+      "n_games": 4000
+    },
+    "c20": {
+      "win_rate": 0.45775,
+      "ci": [
+        0.44235843359590304,
+        0.4732226393620768
+      ],
+      "n_games": 4000
+    }
+  },
+  "ranking": [
+    "h4",
+    "h3",
+    "h2",
+    "h1",
+    "c20"
+  ],
+  "winner": "h4",
+  "killed": false,
+  "winner_path": "runs/pila5_harvest_s1/soups/h4/model.pt",
+  "post_wall_clock_s": 247.0,
+  "health_generation_s": 51.2
+}

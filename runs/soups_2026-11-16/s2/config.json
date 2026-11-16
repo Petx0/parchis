@@ -1,0 +1,27 @@
+{
+  "name": "s2",
+  "method": "weight average (model soup)",
+  "weighting": "uniform",
+  "ingredients": [
+    {
+      "path": "runs/window_test/win3/model.pt",
+      "sha256": "09ee1ddc5a0e825f8e708c282755b268c7e8e6003e44cf9bb49dcb4b7e67f245",
+      "weight": 0.5
+    },
+    {
+      "path": "runs/window_test/win10/model.pt",
+      "sha256": "0eb01a6f2f9c0bc45c22dd808d090d5cf31459da5981d377cab78501cba99fcb",
+      "weight": 0.5
+    }
+  ],
+  "output": {
+    "path": "runs/soups_2026-11-16/s2/model.pt",
+    "sha256": "7c3d946ad0772835703155ff18007b1c09fbd7e428fd8c041e4ffc2b9e38b6be"
+  },
+  "created": "2026-11-16T10:59:33+00:00",
+  "issue": "PILA-8",
+  "ingredient_names": [
+    "win3",
+    "win10"
+  ]
+}

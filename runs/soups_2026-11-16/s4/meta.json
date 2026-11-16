@@ -1,0 +1,132 @@
+{
+  "schema": "parchis.run/1",
+  "run_id": "soups_2026-11-16/s4",
+  "title": "PILA-8 weight soup S4 = avg(v2_1c, v2_1d, win3, win10)",
+  "kind": "training",
+  "issue": "PILA-8",
+  "status": "finished",
+  "created": "2026-11-16T11:03:04+00:00",
+  "finished": "2026-11-16T11:03:04+00:00",
+  "git": {
+    "sha": "3af3b729b8eec1b728d17074cab8c77d24dcb544",
+    "dirty": false,
+    "branch": "agent/engineer/pila-8-soups",
+    "source": "recorded"
+  },
+  "script": "scripts/v2/soup_experiment.py",
+  "command": "scripts/v2/soup_experiment.py runs/soups_2026-11-16 --base 10000000 --issue PILA-8",
+  "config": {
+    "method": "uniform weight average (model soup), no gradient steps",
+    "ingredients": [
+      {
+        "path": "runs/v2_1c_champion/model.pt",
+        "sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+        "weight": 0.25
+      },
+      {
+        "path": "runs/v2_1d_champion/model.pt",
+        "sha256": "66ab36a0186dfe2a8ac6b3869ff96a8647753385ef4aa0b095543dad1040610f",
+        "weight": 0.25
+      },
+      {
+        "path": "runs/window_test/win3/model.pt",
+        "sha256": "09ee1ddc5a0e825f8e708c282755b268c7e8e6003e44cf9bb49dcb4b7e67f245",
+        "weight": 0.25
+      },
+      {
+        "path": "runs/window_test/win10/model.pt",
+        "sha256": "0eb01a6f2f9c0bc45c22dd808d090d5cf31459da5981d377cab78501cba99fcb",
+        "weight": 0.25
+      }
+    ],
+    "generation_seed": 10000000,
+    "train_seed": 10000000,
+    "promotion_seed": 10000000,
+    "seed_use": "generation_seed: health-check shards base+i; screening deals base+1_000_000+c; no training, so train_seed/promotion_seed are unused",
+    "health_check_recipe": "V2.1c recipe (scripts/v2/run_v2_1c.py), generator = V2.1c champion"
+  },
+  "init": {
+    "note": "weight average of the ingredients in config.ingredients",
+    "path": null,
+    "sha256": null,
+    "run_id": null
+  },
+  "seeds": {
+    "values": {
+      "generation_seed": 10000000,
+      "train_seed": 10000000,
+      "promotion_seed": 10000000
+    },
+    "base_n": 1,
+    "policy": "ok",
+    "registered_to": [
+      "soups_2026-11-16"
+    ],
+    "derivation": "generation = generation_seed + round*1000 + shard; promotion = promotion_seed + round; train = train_seed"
+  },
+  "checkpoints": [
+    {
+      "role": "final",
+      "path": "runs/soups_2026-11-16/s4/model.pt",
+      "sha256": "9ce10bcfc37fc17d988c5d645d80ad90117459aa7a42392c805d1e0079b8821a",
+      "label": "s4",
+      "primary": true
+    }
+  ],
+  "training": {
+    "rounds_completed": 0,
+    "selfplay_games": 0,
+    "wall_clock_s": 211.5,
+    "note": "no training: weights averaged; wall-clock is the whole PILA-8 job"
+  },
+  "selection": {
+    "method": "not selected",
+    "rank": 2,
+    "of": 4,
+    "source": "runs/soups_2026-11-16/screening.json",
+    "reason": null
+  },
+  "evals": [
+    {
+      "kind": "h2h",
+      "checkpoint": "runs/soups_2026-11-16/s4/model.pt",
+      "checkpoint_sha256": "9ce10bcfc37fc17d988c5d645d80ad90117459aa7a42392c805d1e0079b8821a",
+      "opponent": "runs/v2_1c_champion/model.pt",
+      "opponent_name": "v2_1c_champion",
+      "opponent_sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+      "win_rate": 0.537,
+      "ci": [
+        0.5215194818294581,
+        0.552409519367104
+      ],
+      "n_games": 4000,
+      "seeds": "11000000+c, c<8 (same deals for every soup)",
+      "depth": 1,
+      "source": "runs/soups_2026-11-16/screening.json",
+      "tag": "pila8_screening",
+      "recorded": "2026-11-16T11:03:04+00:00",
+      "draws": 0,
+      "wall_clock_s": 37.3,
+      "note": "screening only (ranks the soups); not a verdict"
+    }
+  ],
+  "sessions": [
+    {
+      "started": "2026-11-16T11:03:04+00:00",
+      "git_sha": "3af3b729b8eec1b728d17074cab8c77d24dcb544",
+      "git_dirty": false,
+      "command": "scripts/v2/soup_experiment.py runs/soups_2026-11-16 --base 10000000 --issue PILA-8",
+      "pid": 67809
+    }
+  ],
+  "notes": "Weight soup (SWA / model soups) of existing checkpoints; no training. Health check and screening in ../health_check.json and ../screening.json. Screening is a best-of-N ranking, not a verdict.",
+  "health_check": {
+    "value_loss": 0.5851437624747673,
+    "worst_ingredient": 0.5867975128132223,
+    "best_ingredient": 0.5859980568632094,
+    "margin": 0.01,
+    "keep": true,
+    "delta_vs_worst": -0.0016537503384550511,
+    "delta_vs_best": -0.0008542943884420895
+  }
+}

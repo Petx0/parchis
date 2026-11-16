@@ -2,14 +2,23 @@
 
 Ranked list of experiments most likely to make the agent stronger. Maintained by the Researcher
 (PILA-4). The list is re-ranked after every verdict, and the ledger at the bottom records every idea
-already tried. **First version: 2026-11-15. Re-ranked 2026-11-16 after the PILA-6 depth study.**
+already tried. **First version: 2026-11-15. Re-ranked 2026-11-16 after the PILA-6 depth study, and again the
+same day after the PILA-8 verdict (weight soups).**
 
 How to read it:
-- **Champion:** V2.1c, `runs/v2_1c_champion/model.pt`. It is ranked at depth 1
-  (`docs/EVAL_PROTOCOL.md` §1), and the recommended play depth is 3 (PILA-6, below).
+- **Champion:** soup S1, `runs/soups_2026-11-16/s1/model.pt`, the uniform weight average of V2.1c,
+  win3 and win10. It passed protocol v1 against V2.1c in PILA-8 (below); the pointer moves when the
+  owner merges PR #7. It is ranked at depth 1 (`docs/EVAL_PROTOCOL.md` §1). The recommended play
+  depth is 3, but that was measured on V2.1c (PILA-6). S1 has not been measured above depth 1.
 - **"pp"** means percentage points of head-to-head win rate against the champion in duplicate
   pairs, **at depth 1** unless stated. Every expected effect below is a **hypothesis** unless a
   recorded run is cited.
+- **Training arms are judged by their soup, not their endpoint.** The 20-round endpoints of the
+  V2.1c recipe lose to their start (48.2% and 48.4%, §10.11), yet the average of the start and
+  those two endpoints beats the start by +3.1pp (PILA-8). An endpoint-only comparison therefore
+  understates a recipe by several pp. From now on every training item starts from S1, keeps its
+  per-round candidates, and is compared soup against soup with the PILA-5 harvest (#2) as the
+  matched control. That makes #2 a prerequisite for #3, #4, #5 and #7.
 - **Search shrinks net-to-net gaps.** V2.1c's lead over V2.0c is 52.91% [52.22, 53.60] at depth 1
   and 51.65% [50.96, 52.34] at depth 2, over 20,000 games on the same deals each (PILA-6, seeds
   5002100+c). So a net gain measured at depth 1 is worth roughly half to two thirds as much to the
@@ -49,29 +58,47 @@ on 8 workers, about 6.7 s of worker time per game, or about 250 decisions per ga
 | # | Idea | Status | Expected effect | Compute (Mac) | Issue |
 |---|---|---|---|---|---|
 | 1 | Pruned and time-budgeted deeper search (Star2, depth 4 under a time cap) | not tried; unlocked by PILA-6 | **+3 to +7pp at play time**, depth 4 vs depth 3 | ~1 day code + ~1.5 h | — |
-| 2 | Depth-3 targets on a slice of decisions | dropped by the owner 2026-11-02 before depth 3 was measured; **re-proposed, see what's different** | +0 to +2pp | ~1 h code + ~4.5 h (~3 h if #1 lands first) | — |
-| 3 | Weight soups of existing checkpoints | not tried (named open in §10.11) | 0 to +1.5pp | ~1 h code + ~20 min | PILA-8 (backlog) |
-| 4 | Continuation that keeps every candidate, then SWA and selection | not tried; differs from §10.11 | +0.5 to +1.5pp | ~2.5 h | PILA-5 (re-scoped) |
-| 5 | TD(λ) value targets for cheap (outcome-only) rows | not tried | +0.5 to +2.5pp | ~1 day code + ~1.8 h | — |
+| 2 | Harvest a 20-round continuation **from S1**, then soup its trajectory | not tried; **prior raised by PILA-8**; re-designed around S1 | +0 to +1.5pp vs S1 | ~1 h code + ~1.9 h | PILA-5 (re-scope pending) |
+| 3 | Depth-3 targets on a slice of decisions | dropped by the owner 2026-11-02 before depth 3 was measured; **re-proposed, see what's different** | +0 to +2pp | ~1 h code + ~4.5 h (~3 h if #1 lands first) | after #2 |
+| 4 | Weight averaging inside the loop (averaged generator and expert) | **new** after PILA-8 | +0.5 to +2pp vs #2's soup | ~2 h code + ~1.9 h | only if #2 is positive |
+| 5 | TD(λ) value targets for cheap (outcome-only) rows | not tried | +0.5 to +2.5pp | ~1 day code + ~1.9 h | after #2 |
 | 6 | 4-player bootstrap and 4-player evaluation harness (V2.3 stage 1) | not tried; new axis | new axis (target: beat the tuned heuristic at a 4-player table) | 1–2 days code + ~4 h | — |
-| 7 | Per-head early stopping / lower value weight after epoch 1 | not tried (§10.10 reading 3) | 0 to +1pp | ~2 h code + ~1.8 h | — |
-| 8 | Exploiter probe against frozen V2.1c, then a league pool | not tried | 0 to +2pp if V2.1c is exploitable | ~1.5 h probe | — |
+| 7 | Per-head early stopping / lower value weight after epoch 1 | not tried (§10.10 reading 3) | 0 to +1pp | ~2 h code + ~1.9 h | after #2 |
+| 8 | Exploiter probe against frozen S1, then a league pool | not tried | 0 to +2pp if S1 is exploitable | ~1.5 h probe | — |
 | 9 | Chance-resolved ("depth 1.5") targets on cheap rows | partly tried: C3 and deep_fraction 0.5 | 0 to +1pp | ~1 day code + ~2 h | only if #5 is flat |
-| 10 | Extra input features, zero-initialised for warm start | not tried | 0 to +1.5pp | ~1 day code + ~1.8 h | — |
+| 10 | Extra input features, zero-initialised for warm start | not tried | 0 to +1.5pp | ~1 day code + ~1.9 h | — |
 | 11 | Exact endgame race database (bear-off analogue) | not tried | +0.5 to +1pp at play time | 2–3 days code + hours of DP | — |
-| 12 | Population of recipe replicates, keep the best | resembles §10.9/§10.11 | +0.5 to +1pp, mostly selection | ~5 h | — |
+| 12 | Population of recipe replicates, souped rather than selected | resembles §10.9/§10.11; re-read after PILA-8 | +0.5 to +1.5pp | ~5 h | — |
 | 13 | Revive PPO, or PUCT-MCTS on PPO checkpoints | **not recommended** | — | — | — |
 
-**What changed on 2026-11-16.** PILA-6 measured play-time depth on V2.1c (closed below). Search is
+**What changed after PILA-8 (2026-11-16, second re-rank).** Weight soups (old #3) passed: S1 beats
+V2.1c 52.79% [52.09, 53.48] on the 20,000-game confirmation block, 53.08% [52.60, 53.57] pooled
+over 40,000 (closed below). That is the largest single step in the lineage and twice the top of my
+predicted range. Four consequences:
+- S1 is the new start point and the new bar for every item.
+- The PILA-5 harvest moves from #4 to #2. It is now cheap insurance for every later training item,
+  because it doubles as their matched control.
+- A new #4 tests averaging inside the loop, but only if #2 shows that averaging compounds.
+- #12 (replicates) is re-read: replicates are soup ingredients, not lottery tickets.
+
+**What changed on 2026-11-16 (first re-rank).** PILA-6 measured play-time depth on V2.1c (closed below). Search is
 now the largest measured lever, so the two search ideas move to the top. Old #6 (pruned search) is
 now #1, because its kill criterion (depth 2 below 52% vs depth 1) did not fire. Depth-3 targets
-are #2. Net-only ideas (#3–#12) keep their order, but their value to the deployed agent is
+are #2. Net-only ideas keep their order, but their value to the deployed agent is
 discounted (see "Search shrinks net-to-net gaps" above).
 
 **Not an experiment, for the owner:** deploying V2.1c at depth 3 is a configuration choice. It
 costs 51 ms per decision on average and 161 ms at most. It does not change the champion pointer,
 which ranks nets at depth 1. Whether to add a separate depth class to the leaderboard is also
 the owner's call (EVAL_PROTOCOL §1).
+
+**Also for the owner, after PILA-8:** whether the deployed agent should switch from V2.1c to S1
+depends on a measurement nobody has made: S1 vs V2.1c at depth 2 and 3. Net gaps shrink with
+search (V2.1c's lead over V2.0c fell from +2.9 to +1.7pp at depth 2), so my expectation is that S1
+keeps roughly +1.5 to +2pp at depth 2 and somewhat less at depth 3. That is a hypothesis. It is an
+Evaluator `study`, not an experiment. At the PILA-6 cost calibration, 2,000 pairs with both sides at
+depth 2 take about 6 min on 8 workers, and 1,000 pairs with both sides at depth 3 about 1 h. Adding S1 to the round robin is the
+other open item from the verdict.
 
 ### 1. Pruned and time-budgeted deeper search (depth 3–4)
 
@@ -103,6 +130,7 @@ the owner's call (EVAL_PROTOCOL §1).
   | Timing at depths 3–4 on PILA-6's 500 positions | 500 positions | ~10 min |
   | Pruned depth 4 vs depth 3 | 500 pairs (≈ ±2.5pp), hard cap 90 min | ~60–90 min |
 
+- **Net.** Use S1 once PR #7 merges. The exactness and timing steps do not depend on the net.
 - **Evaluation.**
   - A study, not a promotion (EVAL_PROTOCOL §1). The Evaluator allocates a `study` block.
   - Report a strength-vs-ms row for pruned depth 3, pruned depth 4, and the time-budgeted agent at
@@ -122,7 +150,59 @@ the owner's call (EVAL_PROTOCOL §1).
   - Hauk, Buro, Schaeffer 2004, *\*-Minimax performance in backgammon*.
   - Superhuman Stratego with test-time search, [arXiv:2511.07312](https://arxiv.org/abs/2511.07312).
 
-### 2. Depth-3 targets on a slice of decisions
+### 2. Harvest a continuation from S1, then soup its trajectory (PILA-5, re-scoped again)
+
+- **Hypothesis.** PILA-8 averaged a start (V2.1c) with two 20-round continuations of it and beat the
+  start by +3.1pp, although each continuation on its own loses to the start (48.2%, 48.4%).
+  Running the same recipe from S1 and keeping every per-round candidate tests whether that step
+  **compounds**: a soup of S1 and its own trajectory should beat S1.
+- **Expected effect.** +0 to +1.5pp vs S1, probability ~0.35 (hypothesis). Lower than PILA-8's gain:
+  S1 already sits nearer the centre of the basin, so a second averaging step should return less.
+- **What is different from the 2026-11-15 re-scope** (my comment on PILA-5, not yet approved):
+  - Start from S1 and compare against S1. A continuation from V2.1c could only add one more
+    ingredient to S1's own recipe.
+  - Candidates are soups of the trajectory, including S1 itself: the shape that won in PILA-8.
+    Single per-round candidates are no longer screened. On average they lose to their start
+    (§10.11), and screening ten of them inflates the best-of-N bias. PILA-8's best-of-4 screen read
+    54.17%, against 53.08% under the protocol: about 1.1pp of winner's curse with N = 4.
+  - The run's endpoint and soups are the matched control for #3, #4, #5 and #7 (same start, same
+    recipe, no change), so it runs before them.
+- **Change.**
+  - `scripts/v2/run_harvest.py`, based on `run_window.py`:
+    - start from `runs/soups_2026-11-16/s1/model.pt`;
+    - the exact V2.1c recipe: 6,000 games/round, `deep_fraction` 0.25 at depth 2, replay window 3,
+      8 workers, 20 ungated rounds;
+    - a new `10_000_000 × n` seed base;
+    - copy every round's `candidate.pt` to `runs/<run_id>/candidates/` (~0.5 MB each).
+  - Soups with `scripts/v2/soup.py` (PILA-8), five candidates in all:
+    - H1 = avg(S1, c10, c20), the S1 shape (start plus two points of the trajectory);
+    - H2 = avg(c11 … c20), SWA-10;
+    - H3 = 0.5·S1 + 0.5·H2;
+    - H4 = avg(c1 … c20), SWA-20;
+    - c20, the endpoint, which also replicates §10.11 from a new start.
+  - The PILA-8 health check (value log-loss on fresh shards) before any match.
+- **Compute.** About 1.9 h, cap 2.8 h (1.5×).
+
+  | Step | Size | Estimated time |
+  |---|---|---|
+  | 20-round run (win3 took 97 min) | — | ~100 min |
+  | Soups and health check | 1,500 games | ~2 min |
+  | Screen 5 nets vs S1 (Engineer, run's own seed band) | 2,000 pairs each | ~4 min |
+  | Protocol run and confirmation of the winner (Evaluator) | 10,000 pairs × 2 | ~8 min |
+
+- **Evaluation.** Protocol v1 vs S1 with best-of-5 selection, so a PROVISIONAL first block and then a
+  confirmation block. Also report c20 vs S1 at 2,000 pairs, as the replicate of the §10.11 endpoint
+  result.
+- **Kill criterion.**
+  - Drop any soup whose value log-loss is more than 0.01 worse than its worst ingredient.
+  - If every soup screens below 50% vs S1, skip the protocol and record the null.
+- **What a null would mean.** S1's gain was a one-off harvest of noise that had already
+  accumulated, not a step that repeats. #4 would then be dropped. Comparing arms soup against soup
+  stays, because it is still the fairer comparison.
+- **Sources.** Izmailov et al. 2018, SWA, [arXiv:1803.05407](https://arxiv.org/abs/1803.05407);
+  Wortsman et al. 2022, model soups, [arXiv:2203.05482](https://arxiv.org/abs/2203.05482).
+
+### 3. Depth-3 targets on a slice of decisions
 
 - **Hypothesis.** C2 (V2.1c) is the only training change that moved strength in this lineage. Its
   mechanism: the depth-2 expert that writes the targets is stronger than the depth-1 apprentice.
@@ -130,7 +210,7 @@ the owner's call (EVAL_PROTOCOL §1).
   more rows from the same expert are saturated. A **stronger expert** has never been tried: depth 3
   beats depth 2 by 58.48% [56.94, 59.99] on V2.1c (4,000 games, PILA-6, seeds 5002200+c).
   Hypothesis: depth-3 targets on a small slice of decisions raise the net's fixed point, at
-  +0 to +2pp vs V2.1c at depth 1, with probability ~0.25. The gain to the deployed agent at depth
+  +0 to +2pp vs S1 at depth 1, with probability ~0.25. The gain to the deployed agent at depth
   3 would be smaller.
 - **What is different from the 2026-11-02 drop.** The owner dropped depth-3 targets in §10.9 as the
   cheaper alternative to C10. At that point:
@@ -143,87 +223,53 @@ the owner's call (EVAL_PROTOCOL §1).
   - Add a second gate, `deep3_fraction`, checked before the existing `deep_fraction` gate. When it
     fires, search at depth 3; those rows get the same blended targets as depth-2 deep rows.
   - Arm: `deep3_fraction=0.05`, `deep_fraction=0.20`, so the deep share stays 0.25 as in V2.1c.
-    Everything else is the win3 recipe, from V2.1c, for 20 rounds.
+    Everything else is the #2 harvest recipe, from S1, for 20 rounds, keeping every candidate.
   - With both fractions at 0, the code is byte-identical to today (add a test).
   - The no-code alternative, `deep_depth=3, deep_fraction=0.05`, is confounded: it also removes
     80% of the depth-2 rows. Do not use it.
 - **Compute.** Estimate: ~13 min per round. That is V2.1c's ~5 min plus about 8 min for the depth-3
   slice (6,000 games × ~250 decisions × 0.05 × 51 ms ÷ 8 workers), plus 20–30% parallel slowdown.
   - Run: 20 rounds, ~4.5 h. If #1's pruning halves the cost of depth 3 first, ~3 h.
-  - Matches: vs V2.1c, and vs win3 (`runs/window_test/win3/model.pt`, the matched control), 10,000
-    pairs each, ~6 min.
-- **Evaluation.** EVAL_PROTOCOL v1 promotion match vs V2.1c at depth 1. If it promotes, add a
+  - Matches: the arm's best soup vs S1, and its SWA-10 vs #2's SWA-10 (the matched control),
+    10,000 pairs each, ~6 min.
+- **Evaluation.** EVAL_PROTOCOL v1 promotion match vs S1 at depth 1. If it promotes, add a
   depth-2 confirmation study, since that is closer to how the agent is deployed.
 - **Kill criterion.**
-  - At round 10: 2,000 pairs vs V2.1c below 47%.
+  - At round 10: 2,000 pairs vs #2's round-10 candidate below 47%.
   - Or the realised round time above 20 min, which is 1.5× the estimate.
 - **Prior evidence.** `docs/V2_PLAN.md` §10.7 (C2), §10.9 (deep_fraction 0.5 flat, depth-3 targets
-  dropped), §10.11 (20-round endpoints of the V2.1c recipe read 48.2–48.4% vs V2.1c; that is why
-  win3 is the matched control).
+  dropped), §10.11 (20-round endpoints of the V2.1c recipe read 48.2–48.4% vs V2.1c), PILA-8 (why
+  the comparison is soup against soup, with #2 as the matched control).
 - **Sources.**
   - Veness, Silver, Uther, Blair 2009, *Bootstrapping from Game Tree Search*
     ([NeurIPS](https://papers.nips.cc/paper/3722-bootstrapping-from-game-tree-search)).
   - Wu 2019, KataGo playout-cap randomisation, [arXiv:1902.10565](https://arxiv.org/abs/1902.10565).
 
-### 3. Weight soups of existing checkpoints (PILA-8)
+### 4. Weight averaging inside the loop (averaged generator and expert)
 
-- **Hypothesis.** Checkpoints of one recipe scatter about ±1.5pp around the recipe's level
-  (§10.11 reading 2). Averaging their weights should land nearer the centre of the basin and lower
-  the variance of the value head. Three of the candidate ingredients share a lineage: win3 and win10
-  are 20-round continuations from V2.1c. V2.1d is a sibling, trained from the same V2.0b
-  start. AZNet uses LayerNorm, not BatchNorm, so an average needs no statistics recomputed.
-- **Expected effect.** About 0 to +1.5pp vs V2.1c, with probability ~0.3 of a CI-confirmed gain.
-- **Code.**
-  - `scripts/v2/soup.py <out.pt> <a.pt> <b.pt> ... [weights=...]`: a uniform average of state
-    dicts, with a check that architectures match.
-  - The soups:
-    - S1 = avg(V2.1c, win3, win10)
-    - S2 = avg(win3, win10)
-    - S3 = avg(V2.1c, V2.1d)
-    - S4 = avg(V2.1c, V2.1d, win3, win10)
-  - A free health check: each soup's value log-loss on 2 freshly generated V2.1c shards, against
-    its ingredients. A soup much worse than its ingredients sits on a loss barrier.
-- **Compute.** About 20 min of heavy compute plus ~1 h of code.
-  - Screening: each soup vs V2.1c at 2,000 pairs, ~40 s each.
-  - Confirmation: the best soup vs V2.1c at 10,000 pairs on fresh seeds, ~3 min.
-  - Sanity: the best soup vs the tuned heuristic at 1,000 pairs.
-- **Kill criterion.** If every soup screens below 50% against V2.1c, stop and record it.
-- **Prior evidence.** `docs/V2_PLAN.md` §10.11 names weight averaging as an open, untried direction.
-- **Sources.**
-  - Izmailov et al. 2018, SWA, [arXiv:1803.05407](https://arxiv.org/abs/1803.05407).
-  - Wortsman et al. 2022, model soups, [arXiv:2203.05482](https://arxiv.org/abs/2203.05482).
-
-### 4. Continuation that keeps every candidate, then SWA and selection (re-scope of PILA-5)
-
-- **Hypothesis.** §10.11 showed that the *endpoint* of a 20-round V2.1c continuation loses to V2.1c
-  (48.2–48.4%). The cause is checkpoint-to-checkpoint scatter plus selection, not a declining
-  recipe. Only the endpoint was kept: the per-round candidates of every V2 run have since been
-  deleted, and `~/parchis_training_archive` holds only `selfplay_2p_v1`. Keeping all 20 candidates
-  makes two things possible:
-  - an SWA average of the last 5 and the last 10;
-  - picking the best of the last 10 by match, then confirming it on fresh seeds.
-- **Expected effect.** About +0.5 to +1.5pp vs V2.1c. The SWA average is the likelier winner.
-- **What is different from §10.11.**
-  - The deliverable is an averaged or selected net, not the endpoint.
-  - New seed base. The run doubles as the missing seed replicate of the continuation.
-- **Code.** A `run_harvest.py` based on `run_window.py`:
-  - Start from V2.1c with the V2.1c recipe and replay window 3, for 20 rounds.
-  - Copy each round's `candidate.pt` into `runs/<run_id>/candidates/` (~0.5 MB each).
-  - Reuse `soup.py` from item 3.
-- **Compute.** About 2.5 h, one heavy job.
-
-  | Step | Pairs | Estimated time |
-  |---|---|---|
-  | Run (win3 took 97 min) | — | ~100 min |
-  | Screen 12 nets vs V2.1c: rounds 11–20, SWA-5, SWA-10 | 2,000 each | ~10 min |
-  | Top 3 vs V2.1c | 10,000 each | ~10 min |
-  | Confirm the winner on fresh seeds | 10,000 | ~3 min |
-
-- **Evaluation.** The matched control is `runs/window_test/win3/model.pt`, the same recipe's
-  endpoint. Promotion requires beating V2.1c under EVAL_PROTOCOL v1, after the
-  fresh-seed re-confirmation.
-- **Kill criterion.** If SWA-10 screens below 49% against V2.1c, skip the 10,000-pair stage.
-- **Sources.** Same as item 3.
+- **Hypothesis.** PILA-8 suggests that each round's trained net is a noisy sample around a better
+  mean. S2 = avg(win3, win10) screened at 51.78% [50.23, 53.32] vs V2.1c (4,000 games, seeds
+  11000000+c, a ranking screen only), while each of its ingredients loses to V2.1c (48.2%, 48.4%,
+  20,000 games each). Today the loop generates self-play games and depth-2 targets with that noisy
+  sample. Using an average of recent candidates as the generator **and** the depth-2 expert makes
+  the expert stronger. That is the same mechanism as C2, the only training lever that has moved.
+- **Expected effect.** +0.5 to +2pp vs #2's best soup, probability ~0.3 (hypothesis).
+- **Change.**
+  - `parchis/az/round_loop.py`: a `generator_avg_window=k` option. The self-play generator and
+    deep-target searcher for round r+1 is the uniform average of the last k candidates; training
+    still warm-starts from the latest candidate, as in standard SWA.
+  - Arm: k = 5, from S1, otherwise the #2 recipe, keeping every candidate.
+  - `generator_avg_window=0` keeps today's behaviour byte for byte (add a test).
+- **Compute.** About 2 h of code plus ~1.9 h: a 20-round run (~100 min), soups, and matches.
+- **Evaluation.** The arm's best soup vs S1 under protocol v1, and its SWA-10 vs #2's SWA-10 (the
+  matched control) at 10,000 pairs.
+- **Kill criterion.** At round 10, the averaged generator vs #2's avg(c6 … c10) at 2,000 pairs below
+  48%.
+- **Run only if** #2 is positive. If averaging after the fact does not compound, building it into
+  the loop has no evidence behind it.
+- **Sources.** Izmailov et al. 2018 (SWA); Tarvainen & Valpola 2017, *Mean teachers*
+  ([arXiv:1703.01780](https://arxiv.org/abs/1703.01780)): an averaged model as the source of
+  training targets.
 
 ### 5. TD(λ) value targets for cheap rows
 
@@ -243,6 +289,8 @@ the owner's call (EVAL_PROTOCOL §1).
   - "λ not implicated" (§10.1 item 7) concerned the blend at deep decisions.
   - deep_fraction 0.5 added more depth-2 targets.
   - Neither changes the 75% of rows trained on raw outcomes.
+  - PILA-8 adds indirect support: averaging weights gained +3.1pp, which says per-round training
+    is noise-dominated. TD(λ) attacks the same noise from the target side, so the two can stack.
 - **Code.**
   - `selfplay.py`: record each decision's depth-1 root value vector. It is already computed during
     search; cheap rows discard it today.
@@ -251,9 +299,11 @@ the owner's call (EVAL_PROTOCOL §1).
   - Config: `cheap_value_target="td_lambda"`, `td_lambda=0.7`.
   - Tests: λ = 0 is byte-identical to today; λ = 1 reproduces the plain bootstrap chain.
 - **Compute.** About 1.8 h.
-  - Run: 20 rounds from V2.1c, otherwise the exact win3 recipe, ~100 min.
-  - Matches: vs win3 (the matched control) and vs V2.1c, 10,000 pairs each, ~6 min.
-- **Kill criterion.** If the ladder at round 10 reads below 47% against win3 at 2,000 pairs, stop.
+  - Run: 20 rounds from S1, otherwise the exact #2 recipe, keeping every candidate, ~100 min.
+  - Matches: SWA-10 vs #2's SWA-10 (the matched control), and the best soup vs S1, 10,000 pairs
+    each, ~6 min.
+- **Kill criterion.** If the round-10 candidate reads below 47% against #2's round-10 candidate at
+  2,000 pairs, stop.
 - **Sources.**
   - Tesauro 1995, TD-Gammon.
   - Sutton & Barto, ch. 12, λ-returns.
@@ -285,8 +335,8 @@ the owner's call (EVAL_PROTOCOL §1).
 - **Sources.**
   - Sturtevant 2002; Schadd & Winands 2011 (multiplayer search).
   - `docs/V2_PLAN.md` §4 C11.
-- **Needs the owner.** Is 4 players a goal now? If yes, it moves up to #3, just
-  after the two search items.
+- **Needs the owner.** Is 4 players a goal now? If yes, it moves up to #3, after pruned search and
+  the PILA-5 harvest.
 
 ### 7. Per-head early stopping / lower value weight after epoch 1
 
@@ -296,14 +346,14 @@ the owner's call (EVAL_PROTOCOL §1).
 - **Change.** Keep the best value head and the best policy head separately, or drop
   `value_loss_weight` to 0.5 after the first epoch.
 - **Expected effect.** Small, about 0 to +1pp.
-- **Plan.** Same as item 5: a run from V2.1c with win3 as the control.
+- **Plan.** Same as item 5: a run from S1, judged soup against soup with #2 as the control.
 
 ### 8. Exploiter probe, then a league pool
 
-- **Probe.** Train a copy of V2.1c for 10 rounds against frozen V2.1c only. Self-play from V2.1c
-  is excluded, and the pool holds V2.1c alone.
+- **Probe.** Train a copy of S1 for 10 rounds against frozen S1 only. Self-play from S1 is
+  excluded, and the pool holds S1 alone.
 - **Reading the result.**
-  - If the exploiter beats V2.1c by more than 3pp, V2.1c has a hole the self-play pool never
+  - If the exploiter beats S1 by more than 3pp, S1 has a hole the self-play pool never
     showed. The exploiter then joins the pool (AlphaStar-style league / prioritized fictitious
     self-play).
   - If not, single-lineage self-play is not the problem, and that is worth recording.
@@ -337,12 +387,14 @@ the owner's call (EVAL_PROTOCOL §1).
 - **State space.** Needs measuring first (a 5-minute diagnostic).
 - **Expected effect.** Small, because races are a minority of decisions.
 
-### 12. Population of recipe replicates, keep the best
+### 12. Population of recipe replicates, souped rather than selected
 
-- **Idea.** Three seed replicates of the V2.1c recipe, keeping the best.
-- **Expected effect.** Harvests the ±1.5pp scatter by selection: an expected max of 3 draws is
-  about +1.3pp over the mean. V2.1c is already a high draw, so the gain over it is smaller.
-- **Ranking.** Five hours for mostly selection; items 3–4 harvest the same scatter more cheaply.
+- **Idea.** Three seed replicates of the recipe from S1, averaged rather than picked.
+- **After PILA-8.** Selection harvests about +1.3pp from the best of 3 draws. Averaging beat that in
+  PILA-8: three nets gave +3.1pp. Replicates are now soup ingredients, and more independent
+  ingredients may average out more noise than one trajectory's candidates.
+- **Ranking.** Five hours. #2 tests the cheaper single-trajectory version first; run this only if
+  #2 is positive and its soups gain more from more ingredients (H4 over H2).
 
 ### 13. Not recommended: revive PPO, or PUCT-MCTS on PPO checkpoints
 
@@ -356,6 +408,40 @@ the owner's call (EVAL_PROTOCOL §1).
 
 ## Closed since the first version
 
+### Weight soups of existing checkpoints (PILA-8, was #3): positive, new champion
+
+- **Verdict (Evaluator, 2026-11-16): PASS** under protocol v1, best-of-4 selection, code `eb1c8bb`.
+  Duplicate pairs at depth 1, Wilson 95% CIs:
+  - S1 = avg(V2.1c, win3, win10) vs V2.1c, confirmation block 4: **52.79% [52.09, 53.48]**, 20,000
+    games, seeds 5004000+c (c < 8).
+  - First run, block 3 (PROVISIONAL because of the selection): 53.38% [52.69, 54.07], 20,000 games,
+    seeds 5003000+c.
+  - Both blocks were drawn after the selection, so they pool: 53.08% [52.60, 53.57] over 40,000
+    games, about +21 Elo.
+  - Generalisation anchor, block 4: S1 74.00% [72.03, 75.88] vs the tuned heuristic, against
+    V2.1c's 71.85% [69.84, 73.78] on the same 2,000 games (seeds 5004100+c). S1 vs random: 97.10%.
+  - Engineer's screen (2,000 pairs each, seeds 11000000+c in the run's training band; a ranking
+    only): S1 54.17%, S4 53.70%, S2 51.78%, S3 51.78%. Every soup's value log-loss was below that
+    of all its ingredients.
+- **What it changes.**
+  - S1 is the champion once PR #7 merges. Every item now starts from S1 and is measured against it.
+  - The PILA-5 harvest moves to #2, re-designed around S1. Training arms are judged soup against
+    soup, with #2 as their control.
+  - New #4: averaging inside the loop.
+- **What my predictions got wrong.** I expected 0 to +1.5pp with probability ~0.3. The model behind
+  that was "the soup lands at the centre of the ±1.5pp checkpoint scatter". The measured gain is
+  +3.1pp, twice the top of that range, and the soup beats V2.1c, the strongest of its ingredients. S2
+  makes the point most clearly: avg(win3, win10) screened above V2.1c, although both of its
+  ingredients lose to V2.1c. So the error that averaging removes is per-round training noise, and
+  it is larger than the scatter between selected checkpoints suggested.
+- **Calibration for later screens.**
+  - The best-of-4 screen overstated the protocol result by about 1.1pp (54.17% vs 53.08%).
+  - Value log-loss on self-play data moved by only ~0.001 for a +3pp gain, and it ranked S4 above
+    S1. Use it as a barrier check, not to pick a winner.
+- **Record.** `runs/soups_2026-11-16/` (PR #6); protocol records
+  `runs/soups_2026-11-16/s1/eval/protocol_b3.json` and `protocol_b4.json`; leaderboard and champion
+  pointer in PR #7.
+
 ### Play-time search depth on V2.1c (PILA-6, was #1): positive
 
 - **Verdict (Evaluator, 2026-11-16).** Search depth is the largest measured lever. Results, all
@@ -367,7 +453,7 @@ the owner's call (EVAL_PROTOCOL §1).
   - V2.1c vs V2.0c: 52.91% at depth 1 and 51.65% at depth 2, on the same deals, seeds 5002100+c.
 - **What it changes.**
   - Recommended play depth: 3, at 51 ms per decision on average and 161 ms at most.
-  - Pruned deeper search moves from #6 to #1. Depth-3 targets are re-proposed as #2.
+  - Pruned deeper search moves from #6 to #1. Depth-3 targets are re-proposed (now #3).
   - Net-only ideas are worth less to the deployed agent than their depth-1 pp suggest.
 - **What my predictions got wrong.** I expected a smaller depth-2 gain on V2.1c than on round 23,
   because V2.1c's depth-1/depth-2 inconsistency is smaller (§10.7 item 4). The gain was larger
@@ -398,11 +484,12 @@ Kept current after every verdict. Sources: `docs/V2_PLAN.md` §§1–10, `docs/L
 | deep_fraction 0.5 (V2.1d) | 0: 49.3% vs V2.1c | A quarter of the decisions already carries the signal | §10.9 |
 | C8 luck-adjusted scoring | Built; ×1.3 only | The value head is under-resolved with respect to the roll | §10.8 |
 | C10 capacity 3×512 | 0 (pre-check) | Value overfits at once; capacity is not binding at 6k games/round | §10.10 |
-| Depth-3 targets | Dropped by the owner, never run | Dropped before depth 3 was measured; re-proposed as #2 after PILA-6 | §10.9 note |
+| Depth-3 targets | Dropped by the owner, never run | Dropped before depth 3 was measured; re-proposed after PILA-6 (now #3) | §10.9 note |
 | Replay window 10 vs 3 | 0: 49.2% | Stale games cancel the extra outcomes | §10.11 |
-| Continue V2.1c 20 rounds (endpoint) | −: 48.2% / 48.4% vs V2.1c | Checkpoint scatter + selection; only the endpoint was kept | §10.11 |
+| Continue V2.1c 20 rounds (endpoint) | −: 48.2% / 48.4% vs V2.1c | Most likely per-round training noise: averaging these two endpoints with V2.1c gives +3.1pp (PILA-8) | §10.11 |
 | Depth 2 vs 1 at play time, same net | +: 57.1% [53.7, 60.5], 800 games (round 23) | Superseded on V2.1c by PILA-6 (next row) | M9 |
 | **Play-time depth on V2.1c (PILA-6)** | **+: d2 vs d1 60.39% [59.72, 61.07], 20k games; d3 vs d2 58.48% [56.94, 59.99], 4k games** | **Returns not diminishing yet; deeper search shrinks net gaps (V2.1c vs V2.0c 52.9% → 51.7%)** | LEADERBOARD (PR #5), `runs/depth_study_v2_1c/` |
+| **Weight soups of existing checkpoints (PILA-8)** | **+: S1 = avg(V2.1c, win3, win10) vs V2.1c 52.79% [52.09, 53.48], 20k games, confirmation block 4; pooled 53.08% [52.60, 53.57], 40k games** | **Shared lineage and LayerNorm, so no loss barrier; the average most likely cancels per-round training noise; it beats V2.1c, its strongest ingredient** | LEADERBOARD (PR #7), `runs/soups_2026-11-16/` |
 
 ## Literature consulted
 
@@ -417,6 +504,8 @@ Kept current after every verdict. Sources: `docs/V2_PLAN.md` §§1–10, `docs/L
 - Veness et al. 2009, *Bootstrapping from Game Tree Search*
   ([NeurIPS](https://papers.nips.cc/paper/3722-bootstrapping-from-game-tree-search)).
 - Izmailov et al. 2018, SWA, [arXiv:1803.05407](https://arxiv.org/abs/1803.05407).
+- Tarvainen & Valpola 2017, *Mean teachers are better role models*,
+  [arXiv:1703.01780](https://arxiv.org/abs/1703.01780).
 - Wortsman et al. 2022, model soups, [arXiv:2203.05482](https://arxiv.org/abs/2203.05482).
 - Jaderberg et al. 2017, PBT, [arXiv:1711.09846](https://arxiv.org/abs/1711.09846).
 - Vinyals et al. 2019, AlphaStar (league training).

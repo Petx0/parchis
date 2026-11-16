@@ -2,37 +2,45 @@
 
 Ranked list of experiments most likely to make the agent stronger. Maintained by the Researcher
 (PILA-4). The list is re-ranked after every verdict, and the ledger at the bottom records every idea
-already tried. **First version: 2026-11-15.**
+already tried. **First version: 2026-11-15. Re-ranked 2026-11-16 after the PILA-6 depth study.**
 
 How to read it:
-- **Champion:** V2.1c, `runs/v2_1c_champion/model.pt`, played at depth 1 (`docs/LEADERBOARD.md`).
+- **Champion:** V2.1c, `runs/v2_1c_champion/model.pt`. It is ranked at depth 1
+  (`docs/EVAL_PROTOCOL.md` §1), and the recommended play depth is 3 (PILA-6, below).
 - **"pp"** means percentage points of head-to-head win rate against the champion in duplicate
-  pairs. Every expected effect below is a **hypothesis** unless a recorded run is cited.
+  pairs, **at depth 1** unless stated. Every expected effect below is a **hypothesis** unless a
+  recorded run is cited.
+- **Search shrinks net-to-net gaps.** V2.1c's lead over V2.0c is 52.91% [52.22, 53.60] at depth 1
+  and 51.65% [50.96, 52.34] at depth 2, over 20,000 games on the same deals each (PILA-6, seeds
+  5002100+c). So a net gain measured at depth 1 is worth roughly half to two thirds as much to the
+  deployed agent. This is one pair of nets, so read it as a rule of thumb.
 - **Ranking** uses expected gain × probability ÷ compute. Ideas that open a new axis (search at
   play time, 4 players) get a bonus. Ideas that resemble a closed negative result get a penalty.
-- **Evaluation** follows the interim protocol (`parchis-eval-protocol` skill) until PILA-2 merges
-  `docs/EVAL_PROTOCOL.md`:
+- **Evaluation** follows `docs/EVAL_PROTOCOL.md` (protocol v1, merged in PILA-2):
   - 10,000 duplicate pairs (20,000 games).
   - Wilson 95% lower bound above 50% to promote.
   - Anything chosen as best of N is re-confirmed on fresh seeds.
-  - The Evaluator allocates every new seed range.
+  - The Evaluator allocates every new seed block.
+  - Studies at a different depth are a different time budget, so they are not promotions (§1).
 - **Training seeds** use a base of `10_000_000 × n`, with n unique per run (lab rules).
 - **Compute** is wall-clock on the Mac mini (M4, 10 cores), one heavy job at a time.
 
-### Timing baseline (diagnostic, 2026-11-15)
+### Search cost and strength by depth (PILA-6, recorded)
 
-This is a sizing measurement, not a strength claim. V2.1c played itself in one process with
-one-thread BLAS, both seats searching, seed 990000, script `diag/depth_timing.py` (not committed).
+V2.1c with one process and one-thread BLAS. Times are per decision over 500 self-play positions
+(seeds 5002900+i). Strength comes from duplicate-pair matches in seed block 2 (kind `study`),
+code `c621f7c`. Raw results: `runs/depth_study_v2_1c/eval/depth_study_b2.json`.
 
-| Depth | Games | Seconds per game | Approx. ms per move |
-|---|---|---|---|
-| 1 | 20 | 0.04 | 0.15 |
-| 2 | 8 | 0.49 | 1.6 |
-| 3 | 2 | 9.9 | 33 |
+| Depth | Mean ms | p90 ms | Max ms | Match | Win rate [Wilson 95%] | Games |
+|---|---|---|---|---|---|---|
+| 1 | 0.27 | 0.36 | 0.49 | — | — | — |
+| 2 | 2.9 | 5.9 | 6.4 | d2 vs d1 | 60.39% [59.72, 61.07] | 20,000 |
+| 3 | 51 | 132 | 161 | d3 vs d2 | 58.48% [56.94, 59.99] | 4,000 |
+| 4 | 993 | 3,077 | 3,397 | not played | — | — |
 
-Each extra ply costs about 12–20× more. Depth 3 is cheap enough for interactive play but expensive
-to evaluate at 10,000 pairs. The depth-3 figure comes from only 2 games, so read it as an order of
-magnitude.
+Each ply costs about 10–20× more than the one before, and returns are not yet diminishing
+(+10.4pp, then +8.5pp). Cost calibration for planning: the 2,000-pair d3-vs-d2 match took 56 min
+on 8 workers, about 6.7 s of worker time per game, or about 250 decisions per game.
 
 ---
 
@@ -40,59 +48,124 @@ magnitude.
 
 | # | Idea | Status | Expected effect | Compute (Mac) | Issue |
 |---|---|---|---|---|---|
-| 1 | Play-time search depth on V2.1c | not tried on V2.1c (+7pp measured on round 23) | **+5 to +8pp** at depth 2 vs depth 1 | ~1.5 h, measurement only | PILA-6 (re-scoped) |
-| 2 | Weight soups of existing checkpoints | not tried (named open in §10.11) | 0 to +1.5pp | ~1 h code + ~20 min | new (backlog) |
-| 3 | Continuation that keeps every candidate, then SWA and selection | not tried; differs from §10.11 | +0.5 to +1.5pp | ~2.5 h | PILA-5 (re-scoped) |
-| 4 | TD(λ) value targets for cheap (outcome-only) rows | not tried | +0.5 to +2.5pp | ~1 day code + ~1.8 h | — |
-| 5 | 4-player bootstrap and 4-player evaluation harness (V2.3 stage 1) | not tried; new axis | new axis (target: beat the tuned heuristic at a 4-player table) | 1–2 days code + ~4 h | — |
-| 6 | Pruned deeper search (Star2 + policy-ordered moves) for depth 3–4 | not tried (C7 named it) | depth-3 strength at a fraction of the cost | ~1 day code + ~1 h | depends on #1 |
+| 1 | Pruned and time-budgeted deeper search (Star2, depth 4 under a time cap) | not tried; unlocked by PILA-6 | **+3 to +7pp at play time**, depth 4 vs depth 3 | ~1 day code + ~1.5 h | — |
+| 2 | Depth-3 targets on a slice of decisions | dropped by the owner 2026-11-02 before depth 3 was measured; **re-proposed, see what's different** | +0 to +2pp | ~1 h code + ~4.5 h (~3 h if #1 lands first) | — |
+| 3 | Weight soups of existing checkpoints | not tried (named open in §10.11) | 0 to +1.5pp | ~1 h code + ~20 min | PILA-8 (backlog) |
+| 4 | Continuation that keeps every candidate, then SWA and selection | not tried; differs from §10.11 | +0.5 to +1.5pp | ~2.5 h | PILA-5 (re-scoped) |
+| 5 | TD(λ) value targets for cheap (outcome-only) rows | not tried | +0.5 to +2.5pp | ~1 day code + ~1.8 h | — |
+| 6 | 4-player bootstrap and 4-player evaluation harness (V2.3 stage 1) | not tried; new axis | new axis (target: beat the tuned heuristic at a 4-player table) | 1–2 days code + ~4 h | — |
 | 7 | Per-head early stopping / lower value weight after epoch 1 | not tried (§10.10 reading 3) | 0 to +1pp | ~2 h code + ~1.8 h | — |
 | 8 | Exploiter probe against frozen V2.1c, then a league pool | not tried | 0 to +2pp if V2.1c is exploitable | ~1.5 h probe | — |
-| 9 | Chance-resolved ("depth 1.5") targets on cheap rows | partly tried: C3 and deep_fraction 0.5 | 0 to +1pp | ~1 day code + ~2 h | only if #4 is flat |
+| 9 | Chance-resolved ("depth 1.5") targets on cheap rows | partly tried: C3 and deep_fraction 0.5 | 0 to +1pp | ~1 day code + ~2 h | only if #5 is flat |
 | 10 | Extra input features, zero-initialised for warm start | not tried | 0 to +1.5pp | ~1 day code + ~1.8 h | — |
 | 11 | Exact endgame race database (bear-off analogue) | not tried | +0.5 to +1pp at play time | 2–3 days code + hours of DP | — |
 | 12 | Population of recipe replicates, keep the best | resembles §10.9/§10.11 | +0.5 to +1pp, mostly selection | ~5 h | — |
 | 13 | Revive PPO, or PUCT-MCTS on PPO checkpoints | **not recommended** | — | — | — |
 
-### 1. Play-time search depth on V2.1c (re-scope of PILA-6)
+**What changed on 2026-11-16.** PILA-6 measured play-time depth on V2.1c (closed below). Search is
+now the largest measured lever, so the two search ideas move to the top. Old #6 (pruned search) is
+now #1, because its kill criterion (depth 2 below 52% vs depth 1) did not fire. Depth-3 targets
+are #2. Net-only ideas (#3–#12) keep their order, but their value to the deployed agent is
+discounted (see "Search shrinks net-to-net gaps" above).
 
-- **Hypothesis.** The cheapest strength on the table is search at play time. The same net at depth
-  2 beat itself at depth 1 by 57.1% [53.7, 60.5] over 800 games (round-23 net, `docs/V2_PLAN.md` M9).
-  That has never been measured on V2.1c or at depth 3. Expected effects:
-  - V2.1c at depth 2 vs depth 1: +5 to +8pp. V2.1c's depth-1/depth-2 inconsistency is smaller than
-    round 23's (§10.7 item 4), so the gain may sit at the low end.
-  - Depth 3 vs depth 2: +1 to +4pp.
-  - The puzzle set is too small to settle this: V2.1c solves 4/4/7/6/6 of 10 puzzles at depths 1–5
-    (`runs/puzzles_2026-11-03/report.json`).
-- **Second question.** Does checkpoint choice still matter at depth 2? V2.1c leads V2.0c by 2.5pp
-  at depth 1. If the lead disappears at depth 2, net improvements of 1–2pp matter less than search
-  for the deployed agent.
-- **Code.** None in `parchis/az`. Add a `depth_a=/depth_b=` option to `scripts/v2/h2h.py`; today
-  `DEPTH` is fixed at 1 and applies to both sides. Also add a ms/move script over a fixed set of
-  positions, run at depths 1–4.
-- **Not in scope.** `parchis/search/` (PUCT-MCTS) only loads MaskablePPO checkpoints, and those are
-  not on this machine. The AZ line's search is the exact expectimax in `parchis/az/search.py`, so
-  "MCTS on top of the champion" becomes "deeper expectimax on top of the champion".
-- **Compute.** About 1.5 h, one heavy job.
+**Not an experiment, for the owner:** deploying V2.1c at depth 3 is a configuration choice. It
+costs 51 ms per decision on average and 161 ms at most. It does not change the champion pointer,
+which ranks nets at depth 1. Whether to add a separate depth class to the leaderboard is also
+the owner's call (EVAL_PROTOCOL §1).
 
-  | Step | Pairs | Estimated time |
+### 1. Pruned and time-budgeted deeper search (depth 3–4)
+
+- **Hypothesis.** Depth 3 beats depth 2 by +8.5pp and the returns are not yet diminishing
+  (PILA-6). Depth 4 is the next step, but full width costs 993 ms per decision on average and up to
+  3.4 s. Two changes can bring depth 4 to interactive speed:
+  - Star1/Star2 pruning at chance nodes, on the mover's value channel, which is bounded in [0, 1].
+  - Ordering moves by the policy head, so the cutoffs come early.
+
+  Star2 is exact: it returns the same value as full-width expectimax, only cheaper.
+  - Expected node savings: 2–5× at depth 3–4, judging by backgammon (Hauk et al. 2004). That is a
+    hypothesis for Parchís.
+  - Expected strength: depth 4 vs depth 3 at +3 to +7pp, extrapolating the +10.4 then +8.5pp
+    sequence. Also a hypothesis.
+- **Change.**
+  - `parchis/az/search.py`: add `prune="star2"` with probing at chance nodes and policy-ordered
+    children. Keep full width as the default, so all recorded results stay reproducible.
+  - Add a time-budgeted mode: iterative deepening (2 → 3 → 4) that returns the deepest completed
+    search within `max_ms`. This gives the deployed agent a latency guarantee.
+  - Risks:
+    - Parchís gives an extra turn on a 6, so the same player can move on consecutive plies. The
+      bound bookkeeping must follow the mover, not alternate.
+    - Leaf values are a vector. Pruning must use only the root mover's channel and stay exact.
+- **Compute.** About 1 day of code (Engineer), then about 1.5 h of Mac time, one heavy job.
+
+  | Step | Size | Estimated time |
   |---|---|---|
-  | V2.1c depth 2 vs V2.1c depth 1 | 10,000 | ~11 min |
-  | V2.1c depth 2 vs V2.0c depth 2 | 10,000 | ~20 min |
-  | V2.1c depth 3 vs V2.1c depth 2 | 2,000 | ~45 min |
-  | ms/move curve, depths 1–4, 500 positions | — | ~10 min |
+  | Exactness: pruned and full-width pick the same move and value (to 1e-6) at depth 3 | 1,000 positions | ~5 min, light |
+  | Timing at depths 3–4 on PILA-6's 500 positions | 500 positions | ~10 min |
+  | Pruned depth 4 vs depth 3 | 500 pairs (≈ ±2.5pp), hard cap 90 min | ~60–90 min |
 
-- **Evaluation.** Interim protocol, with seeds from the Evaluator. Report Wilson CIs. Report the
-  depth-3 result as a 2,000-pair estimate (±1.5pp), not as a promotion.
-- **Kill criterion.** If depth 2 vs depth 1 on V2.1c reads below 52% at 10,000 pairs, skip depth 3
-  and drop item 6.
+- **Evaluation.**
+  - A study, not a promotion (EVAL_PROTOCOL §1). The Evaluator allocates a `study` block.
+  - Report a strength-vs-ms row for pruned depth 3, pruned depth 4, and the time-budgeted agent at
+    100 ms and 500 ms caps.
+- **Kill criteria.**
+  - Exactness: any move disagreement at depth 3 is a bug. Fix it before any match.
+  - If pruned depth 4 still averages above 500 ms per decision, skip the strength match. Ship
+    pruned depth 3 (cheaper evaluation and targets) and record depth 4 as too slow.
+  - If depth 4 vs depth 3 reads below 52% at 500 pairs, the deployed agent stays at depth 3.
+- **Prior evidence.**
+  - PILA-6 (above); `docs/V2_PLAN.md` C7 named Star1 for a depth-3 "strongest" setting. It was
+    never built.
+  - V2.1c solves 4/4/7/6/6 of 10 puzzles at depths 1–5 (`runs/puzzles_2026-11-03/report.json`).
+    That is too few puzzles to show diminishing returns.
 - **Sources.**
-  - `docs/V2_PLAN.md` M9 and C7; `docs/LEADERBOARD.md` caveat 5.
-  - Hauk, Buro, Schaeffer 2004, *-Minimax in backgammon.
-  - Superhuman Stratego with test-time search (arXiv 2511.07312): search at play time adds
-    strength on top of a self-play net.
+  - Ballard 1983, *The \*-minimax search procedure for trees containing chance nodes*.
+  - Hauk, Buro, Schaeffer 2004, *\*-Minimax performance in backgammon*.
+  - Superhuman Stratego with test-time search, [arXiv:2511.07312](https://arxiv.org/abs/2511.07312).
 
-### 2. Weight soups of existing checkpoints
+### 2. Depth-3 targets on a slice of decisions
+
+- **Hypothesis.** C2 (V2.1c) is the only training change that moved strength in this lineage. Its
+  mechanism: the depth-2 expert that writes the targets is stronger than the depth-1 apprentice.
+  Doubling the share of depth-2 rows bought nothing (V2.1d, deep_fraction 0.5: 49.3% vs V2.1c), so
+  more rows from the same expert are saturated. A **stronger expert** has never been tried: depth 3
+  beats depth 2 by 58.48% [56.94, 59.99] on V2.1c (4,000 games, PILA-6, seeds 5002200+c).
+  Hypothesis: depth-3 targets on a small slice of decisions raise the net's fixed point, at
+  +0 to +2pp vs V2.1c at depth 1, with probability ~0.25. The gain to the deployed agent at depth
+  3 would be smaller.
+- **What is different from the 2026-11-02 drop.** The owner dropped depth-3 targets in §10.9 as the
+  cheaper alternative to C10. At that point:
+  - no match had measured depth 3 vs depth 2 on this lineage (only 10 puzzles);
+  - its cost was unknown.
+
+  Now both are measured: +8.5pp of headroom, and 51 ms per decision. This idea **needs the
+  owner's explicit go**, not just a promotion, because it reverses an owner decision.
+- **Change.** Small, in `parchis/az/selfplay.py` and `config.py`:
+  - Add a second gate, `deep3_fraction`, checked before the existing `deep_fraction` gate. When it
+    fires, search at depth 3; those rows get the same blended targets as depth-2 deep rows.
+  - Arm: `deep3_fraction=0.05`, `deep_fraction=0.20`, so the deep share stays 0.25 as in V2.1c.
+    Everything else is the win3 recipe, from V2.1c, for 20 rounds.
+  - With both fractions at 0, the code is byte-identical to today (add a test).
+  - The no-code alternative, `deep_depth=3, deep_fraction=0.05`, is confounded: it also removes
+    80% of the depth-2 rows. Do not use it.
+- **Compute.** Estimate: ~13 min per round. That is V2.1c's ~5 min plus about 8 min for the depth-3
+  slice (6,000 games × ~250 decisions × 0.05 × 51 ms ÷ 8 workers), plus 20–30% parallel slowdown.
+  - Run: 20 rounds, ~4.5 h. If #1's pruning halves the cost of depth 3 first, ~3 h.
+  - Matches: vs V2.1c, and vs win3 (`runs/window_test/win3/model.pt`, the matched control), 10,000
+    pairs each, ~6 min.
+- **Evaluation.** EVAL_PROTOCOL v1 promotion match vs V2.1c at depth 1. If it promotes, add a
+  depth-2 confirmation study, since that is closer to how the agent is deployed.
+- **Kill criterion.**
+  - At round 10: 2,000 pairs vs V2.1c below 47%.
+  - Or the realised round time above 20 min, which is 1.5× the estimate.
+- **Prior evidence.** `docs/V2_PLAN.md` §10.7 (C2), §10.9 (deep_fraction 0.5 flat, depth-3 targets
+  dropped), §10.11 (20-round endpoints of the V2.1c recipe read 48.2–48.4% vs V2.1c; that is why
+  win3 is the matched control).
+- **Sources.**
+  - Veness, Silver, Uther, Blair 2009, *Bootstrapping from Game Tree Search*
+    ([NeurIPS](https://papers.nips.cc/paper/3722-bootstrapping-from-game-tree-search)).
+  - Wu 2019, KataGo playout-cap randomisation, [arXiv:1902.10565](https://arxiv.org/abs/1902.10565).
+
+### 3. Weight soups of existing checkpoints (PILA-8)
 
 - **Hypothesis.** Checkpoints of one recipe scatter about ±1.5pp around the recipe's level
   (§10.11 reading 2). Averaging their weights should land nearer the centre of the basin and lower
@@ -120,7 +193,7 @@ magnitude.
   - Izmailov et al. 2018, SWA, [arXiv:1803.05407](https://arxiv.org/abs/1803.05407).
   - Wortsman et al. 2022, model soups, [arXiv:2203.05482](https://arxiv.org/abs/2203.05482).
 
-### 3. Continuation that keeps every candidate, then SWA and selection (re-scope of PILA-5)
+### 4. Continuation that keeps every candidate, then SWA and selection (re-scope of PILA-5)
 
 - **Hypothesis.** §10.11 showed that the *endpoint* of a 20-round V2.1c continuation loses to V2.1c
   (48.2–48.4%). The cause is checkpoint-to-checkpoint scatter plus selection, not a declining
@@ -136,7 +209,7 @@ magnitude.
 - **Code.** A `run_harvest.py` based on `run_window.py`:
   - Start from V2.1c with the V2.1c recipe and replay window 3, for 20 rounds.
   - Copy each round's `candidate.pt` into `runs/<run_id>/candidates/` (~0.5 MB each).
-  - Reuse `soup.py` from item 2.
+  - Reuse `soup.py` from item 3.
 - **Compute.** About 2.5 h, one heavy job.
 
   | Step | Pairs | Estimated time |
@@ -147,12 +220,12 @@ magnitude.
   | Confirm the winner on fresh seeds | 10,000 | ~3 min |
 
 - **Evaluation.** The matched control is `runs/window_test/win3/model.pt`, the same recipe's
-  endpoint. Promotion requires beating V2.1c under the interim protocol, after the
+  endpoint. Promotion requires beating V2.1c under EVAL_PROTOCOL v1, after the
   fresh-seed re-confirmation.
 - **Kill criterion.** If SWA-10 screens below 49% against V2.1c, skip the 10,000-pair stage.
-- **Sources.** Same as item 2.
+- **Sources.** Same as item 3.
 
-### 4. TD(λ) value targets for cheap rows
+### 5. TD(λ) value targets for cheap rows
 
 - **Hypothesis.** Under the V2.1c recipe, 75% of decisions are "cheap": their value target is the
   game outcome alone, with λ = 0. Two findings point at those targets as the problem:
@@ -188,7 +261,7 @@ magnitude.
     ([NeurIPS](https://papers.nips.cc/paper/3722-bootstrapping-from-game-tree-search)): training
     toward search values beats training toward outcomes.
 
-### 5. 4-player bootstrap and evaluation harness (V2.3, stage 1)
+### 6. 4-player bootstrap and evaluation harness (V2.3, stage 1)
 
 - **Hypothesis.** No 4-player net exists (`docs/LEADERBOARD.md` gap 1). The 2-player loop's lessons
   carry over directly: generator temperatures, no gate, deep targets. Its fixed point does not:
@@ -212,16 +285,8 @@ magnitude.
 - **Sources.**
   - Sturtevant 2002; Schadd & Winands 2011 (multiplayer search).
   - `docs/V2_PLAN.md` §4 C11.
-- **Needs the owner.** Is 4 players a goal now? If yes, this moves to #2.
-
-### 6. Pruned deeper search for depth 3–4
-
-- **Idea.** Add Star1/Star2 pruning on the mover's channel (values bounded in [0, 1]) and order
-  moves by the policy head. The aim is depth 3 at near depth-2 cost, and depth 4 interactively.
-- **Value.** Only worth building if item 1 shows depth 3 beats depth 2.
-- **Correctness test.** Same chosen move as full-width search on 1,000 positions.
-- **Compute.** ~1 day of code, ~1 h of evaluation.
-- **Source.** Hauk, Buro, Schaeffer 2004.
+- **Needs the owner.** Is 4 players a goal now? If yes, it moves up to #3, just
+  after the two search items.
 
 ### 7. Per-head early stopping / lower value weight after epoch 1
 
@@ -231,7 +296,7 @@ magnitude.
 - **Change.** Keep the best value head and the best policy head separately, or drop
   `value_loss_weight` to 0.5 after the first epoch.
 - **Expected effect.** Small, about 0 to +1pp.
-- **Plan.** Same as item 4: a run from V2.1c with win3 as the control.
+- **Plan.** Same as item 5: a run from V2.1c with win3 as the control.
 
 ### 8. Exploiter probe, then a league pool
 
@@ -254,7 +319,7 @@ magnitude.
   pre-roll/post-roll consistency directly. The gate (< 0.5pp) is still unmet: 1.12pp for V2.1c
   (§10.7 item 4).
 - **Ledger penalty.** It overlaps C3 (null) and deep_fraction 0.5 (null).
-- **When to run.** Only as the follow-up arm if item 4 is flat.
+- **When to run.** Only as the follow-up arm if item 5 is flat.
 
 ### 10. Extra input features with zero-initialised weights
 
@@ -277,15 +342,39 @@ magnitude.
 - **Idea.** Three seed replicates of the V2.1c recipe, keeping the best.
 - **Expected effect.** Harvests the ±1.5pp scatter by selection: an expected max of 3 draws is
   about +1.3pp over the mean. V2.1c is already a high draw, so the gain over it is smaller.
-- **Ranking.** Five hours for mostly selection; items 2–3 harvest the same scatter more cheaply.
+- **Ranking.** Five hours for mostly selection; items 3–4 harvest the same scatter more cheaply.
 
 ### 13. Not recommended: revive PPO, or PUCT-MCTS on PPO checkpoints
 
 - **PPO checkpoints.** They are not on this machine.
 - **PUCT-MCTS.** The PPO line's MCTS gave 56.2% [51.4, 61.0] over 400 games over plain PPO
   inference (`docs/SEARCH_MCTS.md`). Its iterative loop regressed to ~40%.
-- **Why not.** The AZ line already has exact expectimax with a better net. Item 1 covers search at
-  play time.
+- **Why not.** The AZ line already has exact expectimax with a better net. PILA-6 and item 1
+  cover search at play time.
+
+---
+
+## Closed since the first version
+
+### Play-time search depth on V2.1c (PILA-6, was #1): positive
+
+- **Verdict (Evaluator, 2026-11-16).** Search depth is the largest measured lever. Results, all
+  duplicate pairs with Wilson 95% CIs, seed block 2 (kind `study`), code `c621f7c`:
+  - Depth 2 vs depth 1: 60.39% [59.72, 61.07], 20,000 games, seeds 5002000+c. The prediction was
+    +5 to +8pp; the measurement is +10.4pp.
+  - Depth 3 vs depth 2: 58.48% [56.94, 59.99], 4,000 games, seeds 5002200+c. The prediction was
+    +1 to +4pp; the measurement is +8.5pp.
+  - V2.1c vs V2.0c: 52.91% at depth 1 and 51.65% at depth 2, on the same deals, seeds 5002100+c.
+- **What it changes.**
+  - Recommended play depth: 3, at 51 ms per decision on average and 161 ms at most.
+  - Pruned deeper search moves from #6 to #1. Depth-3 targets are re-proposed as #2.
+  - Net-only ideas are worth less to the deployed agent than their depth-1 pp suggest.
+- **What my predictions got wrong.** I expected a smaller depth-2 gain on V2.1c than on round 23,
+  because V2.1c's depth-1/depth-2 inconsistency is smaller (§10.7 item 4). The gain was larger
+  (+10.4 vs +7.1pp). So a better net does not make shallow search redundant here; it makes deeper
+  search pay more.
+- **Record.** `runs/depth_study_v2_1c/` (`meta.json` validates). Leaderboard section and caveat 5
+  in PR #5.
 
 ---
 
@@ -309,10 +398,11 @@ Kept current after every verdict. Sources: `docs/V2_PLAN.md` §§1–10, `docs/L
 | deep_fraction 0.5 (V2.1d) | 0: 49.3% vs V2.1c | A quarter of the decisions already carries the signal | §10.9 |
 | C8 luck-adjusted scoring | Built; ×1.3 only | The value head is under-resolved with respect to the roll | §10.8 |
 | C10 capacity 3×512 | 0 (pre-check) | Value overfits at once; capacity is not binding at 6k games/round | §10.10 |
-| Depth-3 targets | Dropped by the owner, never run | — | §10.9 note |
+| Depth-3 targets | Dropped by the owner, never run | Dropped before depth 3 was measured; re-proposed as #2 after PILA-6 | §10.9 note |
 | Replay window 10 vs 3 | 0: 49.2% | Stale games cancel the extra outcomes | §10.11 |
 | Continue V2.1c 20 rounds (endpoint) | −: 48.2% / 48.4% vs V2.1c | Checkpoint scatter + selection; only the endpoint was kept | §10.11 |
-| Depth 2 vs 1 at play time, same net | +: 57.1% [53.7, 60.5], 800 games (round 23) | Not yet measured on V2.1c → item 1 | M9 |
+| Depth 2 vs 1 at play time, same net | +: 57.1% [53.7, 60.5], 800 games (round 23) | Superseded on V2.1c by PILA-6 (next row) | M9 |
+| **Play-time depth on V2.1c (PILA-6)** | **+: d2 vs d1 60.39% [59.72, 61.07], 20k games; d3 vs d2 58.48% [56.94, 59.99], 4k games** | **Returns not diminishing yet; deeper search shrinks net gaps (V2.1c vs V2.0c 52.9% → 51.7%)** | LEADERBOARD (PR #5), `runs/depth_study_v2_1c/` |
 
 ## Literature consulted
 
@@ -330,7 +420,8 @@ Kept current after every verdict. Sources: `docs/V2_PLAN.md` §§1–10, `docs/L
 - Wortsman et al. 2022, model soups, [arXiv:2203.05482](https://arxiv.org/abs/2203.05482).
 - Jaderberg et al. 2017, PBT, [arXiv:1711.09846](https://arxiv.org/abs/1711.09846).
 - Vinyals et al. 2019, AlphaStar (league training).
-- Hauk, Buro, Schaeffer 2004, *-Minimax in backgammon.
+- Ballard 1983, *The \*-minimax search procedure for trees containing chance nodes*.
+- Hauk, Buro, Schaeffer 2004, *\*-Minimax performance in backgammon*.
 - Sturtevant 2002; Schadd & Winands 2011 (multiplayer search).
 - Superhuman Stratego with self-play RL and test-time search,
   [arXiv:2511.07312](https://arxiv.org/abs/2511.07312).

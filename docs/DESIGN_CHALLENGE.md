@@ -1,8 +1,8 @@
 # Design challenge: state view, board view, targets and progress metrics
 
 PILA-10, Researcher, 2026-11-16. Desk research plus one sub-minute diagnostic
-(`scripts/research/pila10_markov_diag.py`, §1.1; its results are pending the compute lock). No
-training, and no change to candidate code or to the promotion rule.
+(`scripts/research/pila10_markov_diag.py`: 300 games, 15 s, §1.1 and §3.1). No training, and no
+change to candidate code or to the promotion rule.
 
 Every experiment so far tuned the recipe (targets, soups, replay window, search depth). This
 document steps back and asks whether the fixed parts of the design fit a high-variance dice game:
@@ -127,10 +127,36 @@ move, it compares depth-2 search as shipped against a patched copy that carries 
 patch lives only in the script.
 
 <!-- DIAG_RESULTS -->
-**Pending.** The 200-game run waits for the compute lock: PILA-5 held it when this was written,
-and the issue allows measurements only while the lock is free. The run takes about 20 s on one
-process. Its results will be added here on this PR. Until then, the frequency and size of the
-effect are unmeasured. The mismatch itself is established from the code, as cited above.
+**Results.** S1 vs S1 at depth 1, 300 games, seeds 91000000+g (g < 300), one process, 15 s, run
+2026-11-16 after the PILA-5 lock was released. Raw output: `runs/research_pila10/markov_diag.json`.
+Depth-2 comparisons are shipped search vs the script's patched copy, on the same positions.
+
+| Measure | Count | Per game | Share |
+|---|---|---|---|
+| Decisions (all) | 49,537 | 165 | — |
+| Roll-6 decisions with a capturing or finishing move | 326 | 1.09 | 0.66% of decisions |
+| … of those with > 1 legal move, depth-2 choice changes | 50 / 286 | 0.17 | 17.5% of checked |
+| Bonus decisions that follow a 6 (a reroll is owed) | 156 | 0.52 | 7.9% of bonus decisions |
+| … with > 1 legal move, depth-2 choice changes at the root | 34 / 116 | 0.11 | 29% of checked |
+| Decisions at six-streak 2 (penalty target not encoded) | 1,057 | 3.5 | 2.1% of decisions |
+| Value of capture/finish-on-6 moves, patched minus shipped (depth 2) | n = 290 | — | mean **+2.13pp**, median +1.62pp |
+
+Readings:
+- **Rare but not negligible.** The shipped depth-2 search picks a different move about **0.28
+  times per game** (84 changes in 300 games). Every one is a high-stakes moment: a capture, a
+  finish, or a bonus move.
+- **The bias is the size of a typical decision.** The shipped search undervalues capturing or
+  finishing with a 6 by ~2pp. The median gap between the best and second-best move is 2.4pp
+  (V2_PLAN M6).
+- **Deep targets are hit harder than play.** The policy target is a softmax at τ = 0.015. A 2pp
+  value shift moves its logit by ~1.4 nats, so on deep rows at these decisions the policy target
+  is substantially wrong, not slightly.
+- **Effect on strength (hypothesis).** If each changed decision is worth 1–3pp of win
+  probability, the fix is worth about +0.3 to +0.8pp per game at depth 2. That is consistent with
+  PILA-11's +0 to +0.7pp range, and at the edge of what 10,000 pairs (±0.7pp) can resolve. The
+  case for the fix stays correctness first.
+- The streak-2 encoding gap (1b) affects 2.1% of decisions, but only depth-1 leaves and training
+  rows. Search at depth ≥ 2 resolves the penalty exactly.
 
 ### 1.2 Is anything missing that decides games?
 
@@ -264,13 +290,31 @@ Two measured anchors and one new measurement:
 - The value head's held-out log-loss is 0.584 for V2.1c on its own data, against ln 2 = 0.693 for
   a coin. Averaged over all positions, the net resolves ~16% of the outcome entropy (§10.10).
 - C8 found the net captures roughly half of what each roll is worth (c ≈ 0.5, §10.8).
-- The same diagnostic (§1.1) also reports, for S1 at depth 1, the share of outcome variance
-  already resolved (1 − Brier / base Brier), by fraction of the game played. That measurement is
-  pending the compute lock.
+- **New:** the share of outcome variance that S1's own depth-1 value has already resolved
+  (1 − Brier / base Brier), by fraction of the game played. Same diagnostic run as §1.1 (300
+  games, seeds 91000000+g). The game fraction is the turn number ÷ the median game length (139
+  turns).
 
-Expectation (a hypothesis until that table is in): early on, nearly everything left is dice, and
-most of the outcome variance is resolved in the second half. Either way, every row is a noisy
-label: 18,000 independent outcomes per training step sit behind 2.6M rows (§10.10).
+| Fraction of game | Decisions | Brier | Resolved share | Mean \|V − 0.5\| |
+|---|---|---|---|---|
+| 0–10% | 4,585 | 0.2495 | 0.2% | 0.02 |
+| 10–25% | 7,381 | 0.2500 | 0.0% | 0.05 |
+| 25–50% | 12,722 | 0.2420 | 3.2% | 0.10 |
+| 50–75% | 12,864 | 0.1885 | 24.5% | 0.20 |
+| 75–100% | 9,129 | 0.1322 | 47.1% | 0.27 |
+| 100–150% (long games) | 2,824 | 0.1208 | 51.6% | 0.29 |
+
+Readings:
+- **The first half of the game is almost pure dice as a label.** Half of all decisions (24,688 of
+  49,537) come before the median game's midpoint. There, the champion's value explains under 4%
+  of the outcome's variance. Each such row's outcome label is almost all noise relative to what
+  the net can know.
+- This is why per-round training is noise-bound. It also says where low-variance targets (3.3)
+  should help most: early rows, where the luck still to come is nearly everything. One option is
+  to report PILA-14's effect by game phase.
+- This does not mean early decisions are unimportant. Their value differences are small but
+  real, and search still picks among them. What it means is that raw outcomes are a poor teacher
+  for them.
 
 ### 3.2 Distributional or equity targets
 

@@ -62,7 +62,7 @@ PILA-10 design challenge (`docs/DESIGN_CHALLENGE.md`).
 | Rank | # | Idea | Status | Expected effect | Compute (Mac) | Issue |
 |---|---|---|---|---|---|---|
 | 1 | 1 | Pruned and time-budgeted deeper search (Star2, depth 4 under a time cap) | not tried; unlocked by PILA-6 | **+3 to +7pp at play time**, depth 4 vs depth 3 | ~1 day code + ~1.5 h | — |
-| 2 | 14 | **Search follows the six-again rule after a bonus** (rules mismatch found in PILA-10), flagged; depth-2 study | **new**; correctness | +0 to +0.7pp at depth 2–3 | ~2 h code + ~35 min | PILA-11 |
+| 2 | 14 | **Search follows the six-again rule after a bonus** (rules mismatch found in PILA-10), flagged; depth-2 study | **new**; correctness; measured: depth-2 move changes 0.28×/game, capture-on-6 undervalued ~2pp | +0 to +0.7pp at depth 2–3 | ~2 h code + ~35 min | PILA-11 |
 | 3 | 2 | Harvest a 20-round continuation **from S1**, then soup its trajectory | running | +0 to +1.5pp vs S1 | ~1 h code + ~1.9 h | PILA-5 |
 | 4 | 3 | Depth-3 targets on a slice of decisions | dropped by the owner 2026-11-02 before depth 3 was measured; **re-proposed, see what's different** | +0 to +2pp | ~1 h code + ~4.5 h (~3 h if #1 lands first) | after #2 and #14 |
 | 5 | 15 | **Offline representation probe**: Markov flags, side-to-move shots / opponent / blockade features, piece-permutation augmentation, conv and token trunks, symmetric aux targets | **new**; subsumes #10 | go/no-go per arm | ~1 day code + ~1.8 h | PILA-12 |

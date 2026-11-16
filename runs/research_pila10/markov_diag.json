@@ -1,0 +1,78 @@
+{
+  "decisions": 49537,
+  "roll6_decisions": 7469,
+  "roll6_bonus_move_decisions": 326,
+  "bonus_decisions": 1974,
+  "bonus_after_six": 156,
+  "streak2_decisions": 1057,
+  "d2_disagree": 50,
+  "d2_checked": 286,
+  "d1_disagree_bonus_root": 0,
+  "d2_disagree_bonus_root": 34,
+  "bonus_root_checked": 116,
+  "median_game_turns": 139.0,
+  "phase": [
+    {
+      "turn_frac": "[0,0.1)",
+      "n": 4585,
+      "brier": 0.2495,
+      "base_brier": 0.25,
+      "resolved_share": 0.002,
+      "mean_abs_v_minus_half": 0.022
+    },
+    {
+      "turn_frac": "[0.1,0.25)",
+      "n": 7381,
+      "brier": 0.25,
+      "base_brier": 0.25,
+      "resolved_share": -0.0,
+      "mean_abs_v_minus_half": 0.047
+    },
+    {
+      "turn_frac": "[0.25,0.5)",
+      "n": 12722,
+      "brier": 0.242,
+      "base_brier": 0.2499,
+      "resolved_share": 0.032,
+      "mean_abs_v_minus_half": 0.104
+    },
+    {
+      "turn_frac": "[0.5,0.75)",
+      "n": 12864,
+      "brier": 0.1885,
+      "base_brier": 0.2499,
+      "resolved_share": 0.245,
+      "mean_abs_v_minus_half": 0.201
+    },
+    {
+      "turn_frac": "[0.75,1.0)",
+      "n": 9129,
+      "brier": 0.1322,
+      "base_brier": 0.25,
+      "resolved_share": 0.471,
+      "mean_abs_v_minus_half": 0.274
+    },
+    {
+      "turn_frac": "[1.0,1.5)",
+      "n": 2824,
+      "brier": 0.1208,
+      "base_brier": 0.2495,
+      "resolved_share": 0.516,
+      "mean_abs_v_minus_half": 0.287
+    },
+    {
+      "turn_frac": "[1.5,inf)",
+      "n": 32,
+      "brier": 0.019,
+      "base_brier": 0.1318,
+      "resolved_share": 0.856,
+      "mean_abs_v_minus_half": 0.403
+    }
+  ],
+  "games": 300,
+  "seeds": "91000000+g, g<300",
+  "capture_or_finish_on_6_value_shift_pp_mean": 2.13,
+  "capture_or_finish_on_6_value_shift_pp_median": 1.62,
+  "n_value_shift": 290,
+  "seconds": 14.7
+}

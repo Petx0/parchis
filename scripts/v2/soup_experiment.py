@@ -54,7 +54,7 @@ ETA_MINUTES = 15
 TRAINING_BASE_UNIT = 10_000_000
 
 
-def acquire_lock(issue, what):
+def acquire_lock(issue, what, eta_minutes=ETA_MINUTES):
     if LOCK.exists():
         try:
             held = json.loads(LOCK.read_text())
@@ -67,7 +67,7 @@ def acquire_lock(issue, what):
     now = datetime.now(timezone.utc)
     LOCK.write_text(json.dumps(dict(issue=issue, agent="Engineer", pid=os.getpid(),
                                     started=now.isoformat(timespec="seconds"),
-                                    eta=(now + timedelta(minutes=ETA_MINUTES)).isoformat(timespec="seconds"),
+                                    eta=(now + timedelta(minutes=eta_minutes)).isoformat(timespec="seconds"),
                                     what=what)))
     return None
 
@@ -80,12 +80,12 @@ def release_lock():
         pass
 
 
-def recipe_config(base):
+def recipe_config(base, run_name="pila8_health"):
     """The V2.1c recipe (scripts/v2/run_v2_1c.py), seeds on the allocated training base."""
     from parchis.az import config as C
     from parchis.registry import record as registry
     cfg = C.SelfPlayRoundConfig(
-        run_name="pila8_health", num_players=2, n_games_per_round=6000, games_per_shard=750,
+        run_name=run_name, num_players=2, n_games_per_round=6000, games_per_shard=750,
         generation_workers=8, tau_start=0.03, tau_end=0.005, dirichlet_epsilon=0.0, tau_target=0.015,
         enable_escalation=False, aux_loss_weight=0.2, gate_enabled=False, promotion_n_pairs=100,
         learning_rate=3e-4, pool_random_anchor=False, pool_heuristic_fraction=1 / 15,
@@ -94,14 +94,14 @@ def recipe_config(base):
     return registry.apply_seed_base(cfg, base)
 
 
-def generate_health_shards(cfg, base, n_games, workers, scratch):
-    """n_games of V2.1c-recipe self-play by the V2.1c champion (pool = champion + tuned heuristic,
-    as round 1 of a run from V2.1c), split over `workers` shards with seeds base + i."""
+def generate_health_shards(cfg, base, n_games, workers, scratch, generator=CHAMPION):
+    """n_games of V2.1c-recipe self-play by `generator` (default the V2.1c champion; pool = generator
+    + tuned heuristic, as round 1 of a run from it), split over `workers` shards with seeds base + i."""
     import torch
     from parchis.az import encoding, round_loop
     from parchis.az.net import AZNet, NumpyAZNet
     model = AZNet(encoding.encoding_size(2), 2, hidden_sizes=cfg.hidden_sizes)
-    model.load_state_dict_compat(torch.load(CHAMPION, map_location="cpu"))
+    model.load_state_dict_compat(torch.load(generator, map_location="cpu"))
     model.eval()
     net = NumpyAZNet.from_torch(model)
     sizes = [n_games // workers + (i < n_games % workers) for i in range(workers)]
@@ -132,11 +132,11 @@ def _match_job(args):
     return r["wins_a"], draws, r["n_games"]
 
 
-def screen(path, seeds, pairs):
+def screen(path, seeds, pairs, opponent=CHAMPION):
     from parchis.evaluation import stats
     per = pairs // len(seeds)
     with single_thread_blas(), ProcessPoolExecutor(len(seeds), mp_context=mp.get_context("spawn")) as ex:
-        res = list(ex.map(_match_job, [(str(path), str(CHAMPION), s, per) for s in seeds]))
+        res = list(ex.map(_match_job, [(str(path), str(opponent), s, per) for s in seeds]))
     wins, draws, n = (sum(r[i] for r in res) for i in range(3))
     score = wins + 0.5 * draws
     lo, hi = stats.wilson_score_interval(score, n)

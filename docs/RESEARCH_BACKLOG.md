@@ -3,8 +3,8 @@
 Ranked list of experiments most likely to make the agent stronger. Maintained by the Researcher
 (PILA-4). The list is re-ranked after every verdict, and the ledger at the bottom records every idea
 already tried. **First version: 2026-11-15. Re-ranked 2026-11-16 after the PILA-6 depth study, again the
-same day after the PILA-8 verdict (weight soups), and a third time after the PILA-10 design
-challenge.**
+same day after the PILA-8 verdict (weight soups), a third time after the PILA-10 design
+challenge, and a fourth time after the PILA-5 verdict (harvest from S1).**
 
 How to read it:
 - **Champion:** soup S1, `runs/soups_2026-11-16/s1/model.pt`, the uniform weight average of V2.1c,
@@ -19,7 +19,9 @@ How to read it:
   those two endpoints beats the start by +3.1pp (PILA-8). An endpoint-only comparison therefore
   understates a recipe by several pp. From now on every training item starts from S1, keeps its
   per-round candidates, and is compared soup against soup with the PILA-5 harvest (#2) as the
-  matched control. That makes #2 a prerequisite for #3, #4, #5 and #7.
+  matched control. **That control now exists** (`runs/pila5_harvest_s1/`, PR #10): candidates
+  c01–c20, soups h1–h4, and their screens vs S1 on seeds 21000000+c (c20 45.77%, SWA-10 50.52%,
+  SWA-20 52.70%; 4,000 games each, a ranking only).
 - **Search shrinks net-to-net gaps.** V2.1c's lead over V2.0c is 52.91% [52.22, 53.60] at depth 1
   and 51.65% [50.96, 52.34] at depth 2, over 20,000 games on the same deals each (PILA-6, seeds
   5002100+c). So a net gain measured at depth 1 is worth roughly half to two thirds as much to the
@@ -63,21 +65,37 @@ PILA-10 design challenge (`docs/DESIGN_CHALLENGE.md`).
 |---|---|---|---|---|---|---|
 | 1 | 1 | Pruned and time-budgeted deeper search (Star2, depth 4 under a time cap) | not tried; unlocked by PILA-6 | **+3 to +7pp at play time**, depth 4 vs depth 3 | ~1 day code + ~1.5 h | — |
 | 2 | 14 | **Search follows the six-again rule after a bonus** (rules mismatch found in PILA-10), flagged; depth-2 study | **new**; correctness; measured: depth-2 move changes 0.28×/game, capture-on-6 undervalued ~2pp | +0 to +0.7pp at depth 2–3 | ~2 h code + ~35 min | PILA-11 |
-| 3 | 2 | Harvest a 20-round continuation **from S1**, then soup its trajectory | running | +0 to +1.5pp vs S1 | ~1 h code + ~1.9 h | PILA-5 |
-| 4 | 3 | Depth-3 targets on a slice of decisions | dropped by the owner 2026-11-02 before depth 3 was measured; **re-proposed, see what's different** | +0 to +2pp | ~1 h code + ~4.5 h (~3 h if #1 lands first) | after #2 and #14 |
+| 3 | 12 | **Soup of S1 with independent replicates** (re-scoped after PILA-5: one more 20-round run, window 10, reuses PILA-5's c20; one pre-registered soup) | **re-scoped**; raised from rank 14 by PILA-5 | +0 to +2pp vs S1 | ~30 min code + ~1.8 h | — |
+| 4 | 3 | Depth-3 targets on a slice of decisions | dropped by the owner 2026-11-02 before depth 3 was measured; **re-proposed, see what's different**; control now exists | +0 to +2pp | ~1 h code + ~4.5 h (~3 h if #1 lands first) | after #14 |
 | 5 | 15 | **Offline representation probe**: Markov flags, side-to-move shots / opponent / blockade features, piece-permutation augmentation, conv and token trunks, symmetric aux targets | **new**; subsumes #10 | go/no-go per arm | ~1 day code + ~1.8 h | PILA-12 |
 | 6 | 16 | **KPI validation** against PILA-1 ratings, plus d3-vs-d1 headroom (Evaluator) | **new** | enables early kills | ~2 h code + ~40 min | PILA-13 |
-| 7 | 17 | **Low-variance value targets for cheap rows**: luck-corrected return (unbiased) vs TD(λ) | **new**; replaces #5 | +0.5 to +2pp vs #2's control | ~1 day code + ~4.1 h | PILA-14, after #2 |
-| 8 | 4 | Weight averaging inside the loop (averaged generator and expert); **add an EMA-of-weights arm** (PILA-10 §5) | **new** after PILA-8 | +0.5 to +2pp vs #2's soup | ~2 h code + ~1.9 h | only if #2 is positive |
-| 9 | 6 | 4-player bootstrap and 4-player evaluation harness (V2.3 stage 1) | not tried; new axis | new axis (target: beat the tuned heuristic at a 4-player table) | 1–2 days code + ~4 h | — |
-| 10 | 7 | Per-head early stopping / lower value weight after epoch 1 | not tried (§10.10 reading 3) | 0 to +1pp | ~2 h code + ~1.9 h | after #2 |
-| 11 | 8 | Exploiter probe against frozen S1, then a league pool | not tried | 0 to +2pp if S1 is exploitable | ~1.5 h probe | — |
+| 7 | 17 | **Low-variance value targets for cheap rows**: luck-corrected return (unbiased) vs TD(λ) | **new**; replaces #5; control now exists | +0.5 to +2pp vs #2's control | ~1 day code + ~4.1 h | PILA-14 |
+| 8 | 6 | 4-player bootstrap and 4-player evaluation harness (V2.3 stage 1) | not tried; new axis | new axis (target: beat the tuned heuristic at a 4-player table) | 1–2 days code + ~4 h | — |
+| 9 | 8 | Exploiter probe against frozen S1, then a league pool | not tried; **prior raised a little by PILA-5** (h4 gains in-lineage, loses vs the heuristic) | 0 to +2pp if S1 is exploitable | ~1.5 h probe | — |
+| 10 | 7 | Per-head early stopping / lower value weight after epoch 1 | not tried (§10.10 reading 3) | 0 to +1pp | ~2 h code + ~1.9 h | — |
+| 11 | 4 | Weight averaging inside the loop (averaged generator and expert); EMA-of-weights arm | **lowered by PILA-5**: post-hoc averaging of one trajectory gave only +0.8pp | +0 to +1pp vs S1 | ~2 h code + ~1.9 h | only if #12 is positive |
 | 12 | 9 | Chance-resolved ("depth 1.5") targets on cheap rows | partly tried: C3 and deep_fraction 0.5 | 0 to +1pp | ~1 day code + ~2 h | only if #17 is flat |
 | 13 | 11 | Exact endgame race database (bear-off analogue) | not tried | +0.5 to +1pp at play time | 2–3 days code + hours of DP | — |
-| 14 | 12 | Population of recipe replicates, souped rather than selected | resembles §10.9/§10.11; re-read after PILA-8 | +0.5 to +1.5pp | ~5 h | — |
+| — | 2 | Harvest a 20-round continuation from S1, then soup its trajectory | **closed (PILA-5): FAIL**, h4 vs S1 50.83% [50.14, 51.53], heuristic guard −3.5pp | — | — | PILA-5 |
 | — | 5 | TD(λ) value targets for cheap rows | **superseded by #17** (now one of its two arms) | — | — | — |
 | — | 10 | Extra input features, zero-initialised | **superseded by #15** (feature arm, with an offline gate) | — | — | — |
 | — | 13 | Revive PPO, or PUCT-MCTS on PPO checkpoints | **not recommended** | — | — | — |
+
+**What changed after PILA-5 (2026-11-16, fourth re-rank: harvest from S1).** The harvest (#2) is
+closed: SWA-20 of the trajectory (h4) beat S1 head to head by +0.83pp, 50.83% [50.14, 51.53] over
+20,000 games (block 5), but failed the heuristic guard by 0.5pp (closed below). Four consequences:
+- **Averaging compounds, but weakly.** The second averaging step returned about a quarter of the
+  first (+0.8pp vs PILA-8's +3.1pp). That sits at the low end of my +0 to +1.5pp prediction.
+- **Independent ingredients look like the active part (hypothesis).** S1 averaged its start with
+  two *independent* runs. h1 = avg(S1, c10, c20) has the same shape but two *correlated* points of
+  one trajectory, and it screened at 50.35% [48.80, 51.90]. #12 tests independence directly, and it
+  is cheap now that PILA-5's c20 is one ingredient. It moves from rank 14 to rank 3.
+- **#4 (averaging inside the loop) drops to rank 11.** Its premise was that averaging compounds
+  strongly; PILA-5 says +0.8pp. It now waits for #12.
+- **Screens and guards.** The best-of-5 screen read 1.9pp high (52.70% vs 50.83%). From now on each
+  arm pre-registers **one** soup (`--selection fixed`, no confirmation block), and the Engineer's
+  screen includes the heuristic guard on the same deals, so a guard failure is found before the
+  protocol run.
 
 **What changed after PILA-10 (2026-11-16, third re-rank: design challenge).** A first-principles
 review of the representation, targets and metrics (`docs/DESIGN_CHALLENGE.md`) adds four items:
@@ -179,57 +197,11 @@ other open item from the verdict.
   - Hauk, Buro, Schaeffer 2004, *\*-Minimax performance in backgammon*.
   - Superhuman Stratego with test-time search, [arXiv:2511.07312](https://arxiv.org/abs/2511.07312).
 
-### 2. Harvest a continuation from S1, then soup its trajectory (PILA-5, re-scoped again)
+### 2. Harvest a continuation from S1, then soup its trajectory (PILA-5): closed
 
-- **Hypothesis.** PILA-8 averaged a start (V2.1c) with two 20-round continuations of it and beat the
-  start by +3.1pp, although each continuation on its own loses to the start (48.2%, 48.4%).
-  Running the same recipe from S1 and keeping every per-round candidate tests whether that step
-  **compounds**: a soup of S1 and its own trajectory should beat S1.
-- **Expected effect.** +0 to +1.5pp vs S1, probability ~0.35 (hypothesis). Lower than PILA-8's gain:
-  S1 already sits nearer the centre of the basin, so a second averaging step should return less.
-- **What is different from the 2026-11-15 re-scope** (my comment on PILA-5, not yet approved):
-  - Start from S1 and compare against S1. A continuation from V2.1c could only add one more
-    ingredient to S1's own recipe.
-  - Candidates are soups of the trajectory, including S1 itself: the shape that won in PILA-8.
-    Single per-round candidates are no longer screened. On average they lose to their start
-    (§10.11), and screening ten of them inflates the best-of-N bias. PILA-8's best-of-4 screen read
-    54.17%, against 53.08% under the protocol: about 1.1pp of winner's curse with N = 4.
-  - The run's endpoint and soups are the matched control for #3, #4, #5 and #7 (same start, same
-    recipe, no change), so it runs before them.
-- **Change.**
-  - `scripts/v2/run_harvest.py`, based on `run_window.py`:
-    - start from `runs/soups_2026-11-16/s1/model.pt`;
-    - the exact V2.1c recipe: 6,000 games/round, `deep_fraction` 0.25 at depth 2, replay window 3,
-      8 workers, 20 ungated rounds;
-    - a new `10_000_000 × n` seed base;
-    - copy every round's `candidate.pt` to `runs/<run_id>/candidates/` (~0.5 MB each).
-  - Soups with `scripts/v2/soup.py` (PILA-8), five candidates in all:
-    - H1 = avg(S1, c10, c20), the S1 shape (start plus two points of the trajectory);
-    - H2 = avg(c11 … c20), SWA-10;
-    - H3 = 0.5·S1 + 0.5·H2;
-    - H4 = avg(c1 … c20), SWA-20;
-    - c20, the endpoint, which also replicates §10.11 from a new start.
-  - The PILA-8 health check (value log-loss on fresh shards) before any match.
-- **Compute.** About 1.9 h, cap 2.8 h (1.5×).
-
-  | Step | Size | Estimated time |
-  |---|---|---|
-  | 20-round run (win3 took 97 min) | — | ~100 min |
-  | Soups and health check | 1,500 games | ~2 min |
-  | Screen 5 nets vs S1 (Engineer, run's own seed band) | 2,000 pairs each | ~4 min |
-  | Protocol run and confirmation of the winner (Evaluator) | 10,000 pairs × 2 | ~8 min |
-
-- **Evaluation.** Protocol v1 vs S1 with best-of-5 selection, so a PROVISIONAL first block and then a
-  confirmation block. Also report c20 vs S1 at 2,000 pairs, as the replicate of the §10.11 endpoint
-  result.
-- **Kill criterion.**
-  - Drop any soup whose value log-loss is more than 0.01 worse than its worst ingredient.
-  - If every soup screens below 50% vs S1, skip the protocol and record the null.
-- **What a null would mean.** S1's gain was a one-off harvest of noise that had already
-  accumulated, not a step that repeats. #4 would then be dropped. Comparing arms soup against soup
-  stays, because it is still the fairer comparison.
-- **Sources.** Izmailov et al. 2018, SWA, [arXiv:1803.05407](https://arxiv.org/abs/1803.05407);
-  Wortsman et al. 2022, model soups, [arXiv:2203.05482](https://arxiv.org/abs/2203.05482).
+Closed by the PILA-5 verdict (FAIL, 2026-11-16). The result, what it changes and the full original
+design are under "Closed since the first version" below and in PR #8 (`scripts/v2/run_harvest.py`).
+Its run, `runs/pila5_harvest_s1/`, is the matched control for #3, #7 and #17.
 
 ### 3. Depth-3 targets on a slice of decisions
 
@@ -282,7 +254,9 @@ other open item from the verdict.
   20,000 games each). Today the loop generates self-play games and depth-2 targets with that noisy
   sample. Using an average of recent candidates as the generator **and** the depth-2 expert makes
   the expert stronger. That is the same mechanism as C2, the only training lever that has moved.
-- **Expected effect.** +0.5 to +2pp vs #2's best soup, probability ~0.3 (hypothesis).
+- **Expected effect.** +0 to +1pp vs S1, probability ~0.2 (hypothesis; lowered after PILA-5, was
+  +0.5 to +2pp at ~0.3). Post-hoc SWA-20 of one trajectory from S1 gained only +0.83pp
+  (50.83% [50.14, 51.53], 20,000 games, seeds 5005000+c).
 - **Change.**
   - `parchis/az/round_loop.py`: a `generator_avg_window=k` option. The self-play generator and
     deep-target searcher for round r+1 is the uniform average of the last k candidates; training
@@ -294,8 +268,9 @@ other open item from the verdict.
   matched control) at 10,000 pairs.
 - **Kill criterion.** At round 10, the averaged generator vs #2's avg(c6 … c10) at 2,000 pairs below
   48%.
-- **Run only if** #2 is positive. If averaging after the fact does not compound, building it into
-  the loop has no evidence behind it.
+- **Run only if** #12 is positive. #2 was positive head to head but small (+0.83pp) and failed the
+  heuristic guard. If independent replicates do not lift the soup either, averaging has run out at
+  this level and building it into the loop has little evidence behind it.
 - **Sources.** Izmailov et al. 2018 (SWA); Tarvainen & Valpola 2017, *Mean teachers*
   ([arXiv:1703.01780](https://arxiv.org/abs/1703.01780)): an averaged model as the source of
   training targets.
@@ -389,8 +364,13 @@ luck-corrected return. The text below is kept for the record.
     showed. The exploiter then joins the pool (AlphaStar-style league / prioritized fictitious
     self-play).
   - If not, single-lineage self-play is not the problem, and that is worth recording.
-- **Supporting signal.** Bradley-Terry overdispersion (χ²/df ≈ 2.1) shows strength here is not
-  one-dimensional, so exploitability is plausible.
+- **Supporting signals.**
+  - Bradley-Terry overdispersion (χ²/df ≈ 2.1) shows strength here is not one-dimensional, so
+    exploitability is plausible.
+  - PILA-5: h4 beat S1 (50.83%, 20,000 games) and V2.1c (54.40% [52.21, 56.57], 2,000 games), yet
+    lost 3.5pp to S1 against the tuned heuristic on the same 2,000 deals (73.75% vs 77.25%, block
+    5). A net that gains inside its own lineage and loses outside it is what non-transitive
+    self-play looks like. One run, so a hypothesis.
 - **Compute.** ~1.5 h.
 - **Sources.** Vinyals et al. 2019, AlphaStar, *Nature* 575; Jaderberg et al. 2017, PBT
   ([arXiv:1711.09846](https://arxiv.org/abs/1711.09846)).
@@ -422,14 +402,58 @@ with a named mechanism (side-to-move shots) and an offline gate before any self-
 - **State space.** Needs measuring first (a 5-minute diagnostic).
 - **Expected effect.** Small, because races are a minority of decisions.
 
-### 12. Population of recipe replicates, souped rather than selected
+### 12. Soup of S1 with independent replicates (re-scoped after PILA-5)
 
-- **Idea.** Three seed replicates of the recipe from S1, averaged rather than picked.
-- **After PILA-8.** Selection harvests about +1.3pp from the best of 3 draws. Averaging beat that in
-  PILA-8: three nets gave +3.1pp. Replicates are now soup ingredients, and more independent
-  ingredients may average out more noise than one trajectory's candidates.
-- **Ranking.** Five hours. #2 tests the cheaper single-trajectory version first; run this only if
-  #2 is positive and its soups gain more from more ingredients (H4 over H2).
+- **Hypothesis.** S1's +3.1pp came from averaging V2.1c with two **independent** 20-round
+  continuations (win3, win10: different seeds and replay windows). PILA-5 repeated the averaging
+  from S1 with points of **one** trajectory, and the exact S1 shape built from correlated points,
+  h1 = avg(S1, c10, c20), screened at 50.35% [48.80, 51.90] (4,000 games, seeds 21000000+c). The
+  best soup, SWA-20, gained only +0.83pp under the protocol. Two readings remain:
+  - (a) S1 is already near the centre of the basin, so any second averaging step returns little;
+  - (b) correlated ingredients cancel little noise. Consecutive warm-started rounds share most of
+    their training data (replay window 3) and their whole history.
+
+  Repeating S1's construction one level up, with an independent replicate, separates the two. If
+  (b) is right, R = avg(S1, A, B) beats S1 by roughly the PILA-8 margin, with diminishing returns.
+- **Expected effect.** +0 to +2pp vs S1, probability ~0.3 (hypothesis).
+- **What is different from what was tried.**
+  - PILA-8 souped V2.1c with two independent runs; this souping starts from S1, the new champion.
+  - PILA-5 souped one trajectory's correlated candidates; this uses an independent second run.
+  - The earlier version of this item asked for three new replicates (~5 h). PILA-5's c20 is
+    already one independent ingredient, so one new run is enough.
+- **Change.**
+  - `scripts/v2/run_harvest.py`: add a `--window` option (replay window, default 3, so PILA-5
+    stays reproducible) and a soup spec for R. About 30 min of code.
+  - Run B: from S1, the V2.1c recipe with **replay window 10**, 20 ungated rounds, a new
+    `10_000_000 × n` seed base, keeping every candidate. Window 10 mirrors win10, S1's second
+    ingredient.
+  - **Pre-registered candidate:** R = avg(S1, A, B), where A = PILA-5's c20
+    (`runs/pila5_harvest_s1/candidates/c20.pt`) and B = run B's c20. This is S1's exact shape.
+  - Diagnostics only, never promoted from this issue: R' = avg(S1, h2, SWA-10 of B), and
+    B's c20 vs S1.
+- **Compute.** About 1.8 h, cap 2.7 h (1.5×), one heavy job.
+
+  | Step | Size | Estimated time |
+  |---|---|---|
+  | Run B, 20 rounds (PILA-5 took 96.7 min at window 3; window 10 trains on more rows) | — | ~100–110 min |
+  | Soup R, health check | 1,500 games | ~2 min |
+  | Screen R vs S1 on PILA-5's screening deals (21000000+c), plus R and S1 vs the tuned heuristic on the same 1,000 pairs | 2,000 + 1,000 + 1,000 pairs | ~3 min |
+  | Protocol v1 on R vs S1, `--selection fixed` (Evaluator) | 10,000 pairs + guards | ~4 min |
+
+- **Evaluation.** Protocol v1 vs S1 at depth 1, `--selection fixed`, because R is named here before
+  any result exists. No confirmation block is needed (EVAL_PROTOCOL §4).
+- **Kill criteria.**
+  - R's value log-loss more than 0.01 worse than its worst ingredient's: stop.
+  - R screens below 50.5% vs S1 at 2,000 pairs, or more than 2pp below S1 against the heuristic on
+    the same deals: skip the protocol and record the result.
+- **What each outcome means.**
+  - R promotes: independence is the active part. #4 is then re-read, and more replicates (C, D)
+    become the cheapest strength left.
+  - R is flat: reading (a). Weight averaging has run out at this level, #4 is dropped, and the
+    soup-against-soup comparison stays only as the fairer way to judge training arms.
+- **Sources.** Wortsman et al. 2022, model soups, [arXiv:2203.05482](https://arxiv.org/abs/2203.05482)
+  (souping independently fine-tuned models from one start); Izmailov et al. 2018, SWA,
+  [arXiv:1803.05407](https://arxiv.org/abs/1803.05407); PILA-8 and PILA-5 records.
 
 ### 13. Not recommended: revive PPO, or PUCT-MCTS on PPO checkpoints
 
@@ -491,6 +515,49 @@ with a named mechanism (side-to-move shots) and an offline gate before any self-
 ---
 
 ## Closed since the first version
+
+### Harvest from S1 and soup its trajectory (PILA-5, was #2): FAIL, small head-to-head gain
+
+- **Verdict (Evaluator, 2026-11-16): FAIL** under protocol v1, best-of-5 selection, code `13cd24f`.
+  Candidate h4 = SWA-20 = avg(c01 … c20), `runs/pila5_harvest_s1/soups/h4/model.pt` (sha256
+  `d7b2b08552b5`). Duplicate pairs at depth 1, seed block 5, Wilson 95% CIs:
+  - h4 vs S1 (decisive): **50.83% [50.14, 51.53]**, 20,000 games, seeds 5005000+c (c < 8). The
+    lower bound clears 50%; about +6 Elo.
+  - Heuristic guard: h4 73.75% [71.78, 75.63] against S1's 77.25% [75.36, 79.03] on the same 2,000
+    games (seeds 5005100+c). Δ −3.50pp against a −3pp limit: **fails**. On an unpaired SE (1.36pp)
+    the drop is 2.6σ, and the paired SE on shared deals is smaller, so I read it as probably real
+    rather than bad luck. S1 scored 74.0% and 74.2% on blocks 3 and 4, so these deals are easier
+    than average; that does not change the same-deal comparison.
+  - h4 vs random 98.25% [97.58, 98.74]; h4 vs V2.1c 54.40% [52.21, 56.57], 2,000 games, seeds
+    5005300+c.
+  - Under §4.5 a FAIL is final: h4 is not retried on new seeds.
+- **The run.** 20 ungated rounds of the V2.1c recipe (window 3) from S1, 120,000 games, 96.7 min;
+  every candidate kept. Engineer's screen vs S1 (2,000 pairs each, seeds 21000000+c in the run's
+  band; a ranking only): h4 52.70%, h3 51.08%, h2 50.52%, h1 50.35%, c20 45.77% [44.24, 47.32].
+  Every soup passed the value log-loss health check.
+- **What it changes.**
+  - S1 stays champion. The run is the matched control for #3, #7 and #17.
+  - #12 (independent replicates) moves up to rank 3; #4 (averaging inside the loop) moves down to
+    rank 11 and waits for #12.
+  - Each arm pre-registers one soup, and the screen includes the heuristic guard.
+- **What my prediction got right and wrong.** I predicted +0 to +1.5pp vs S1 with probability
+  ~0.35. The head-to-head result (+0.83pp) is inside that range. I did not anticipate a guard
+  failure: I assumed averaging only removes noise, and noise removal should not cost strength
+  against an outside opponent. h4 gains inside its lineage (vs S1, vs V2.1c) and loses outside it,
+  which points to some drift in the trajectory's style, not only noise.
+- **Other findings.**
+  - The endpoint loses to its start again, and by more than in §10.11: c20 45.77% vs S1, against
+    48.2–48.4% for the V2.1c endpoints vs V2.1c. Twenty rounds of the recipe from a soup start drift
+    further downhill than from a trained start (hypothesis: the soup sits off the trajectory's own
+    path, so the first rounds pull it away).
+  - Winner's curse: the best-of-5 screen read 1.9pp high (52.70% vs 50.83%); best-of-4 in PILA-8
+    read 1.1pp high.
+  - More ingredients screened better (SWA-20 52.70% vs SWA-10 50.52%, same deals), which fits
+    noise cancelling with N but is inside the curse.
+  - The round-11 "PROMOTED" log label was cosmetic: the gate is off in the V2.1c recipe (PR #10
+    renames it).
+- **Record.** `runs/pila5_harvest_s1/` (PR #10); protocol record
+  `runs/pila5_harvest_s1/soups/h4/eval/protocol_b5.json` and leaderboard in PR #11 (stacked on #10).
 
 ### Weight soups of existing checkpoints (PILA-8, was #3): positive, new champion
 
@@ -574,6 +641,7 @@ Kept current after every verdict. Sources: `docs/V2_PLAN.md` §§1–10, `docs/L
 | Depth 2 vs 1 at play time, same net | +: 57.1% [53.7, 60.5], 800 games (round 23) | Superseded on V2.1c by PILA-6 (next row) | M9 |
 | **Play-time depth on V2.1c (PILA-6)** | **+: d2 vs d1 60.39% [59.72, 61.07], 20k games; d3 vs d2 58.48% [56.94, 59.99], 4k games** | **Returns not diminishing yet; deeper search shrinks net gaps (V2.1c vs V2.0c 52.9% → 51.7%)** | LEADERBOARD (PR #5), `runs/depth_study_v2_1c/` |
 | **Weight soups of existing checkpoints (PILA-8)** | **+: S1 = avg(V2.1c, win3, win10) vs V2.1c 52.79% [52.09, 53.48], 20k games, confirmation block 4; pooled 53.08% [52.60, 53.57], 40k games** | **Shared lineage and LayerNorm, so no loss barrier; the average most likely cancels per-round training noise; it beats V2.1c, its strongest ingredient** | LEADERBOARD (PR #7), `runs/soups_2026-11-16/` |
+| Harvest from S1, SWA-20 of one trajectory (PILA-5) | FAIL: h4 vs S1 50.83% [50.14, 51.53], 20k games, block 5; heuristic guard Δ −3.5pp (73.75% vs 77.25%, 2k games) | A second averaging step from S1 returns ~¼ of the first; correlated ingredients from one trajectory (hypothesis); in-lineage gain with an out-of-lineage loss | LEADERBOARD (PR #11), `runs/pila5_harvest_s1/` |
 
 ## Literature consulted
 

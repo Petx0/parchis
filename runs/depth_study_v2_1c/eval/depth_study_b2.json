@@ -1,0 +1,153 @@
+{
+  "study": "PILA-6 play-time depth",
+  "issue": "PILA-6",
+  "run_id": "depth_study_v2_1c",
+  "block": 2,
+  "git_sha": "c621f7c5bcbee0647b6ced3d466142714cb04cac",
+  "git_dirty": false,
+  "nets": {
+    "v2_1c": {
+      "path": "runs/v2_1c_champion/model.pt",
+      "sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693"
+    },
+    "v2_0c": {
+      "path": "runs/v2_0c_champion/model.pt",
+      "sha256": "d25558ae22e5b2ebfaf0aee9f6885363afda5a9d1d8bf4d34bb86ef91a6629ec"
+    }
+  },
+  "workers": 8,
+  "max_turns": 500,
+  "chunks": 40,
+  "results": {
+    "d2_vs_d1": {
+      "wins": 12079,
+      "draws": 0,
+      "n_games": 20000,
+      "score": 12079.0,
+      "win_rate": 0.60395,
+      "ci": [
+        0.5971525495837688,
+        0.610707526120167
+      ],
+      "a": "v2_1c_champion d2",
+      "b": "v2_1c_champion d1",
+      "depth_a": 2,
+      "depth_b": 1,
+      "pairs_planned": 10000,
+      "chunks_done": 40,
+      "chunks_planned": 40,
+      "seeds": "5002000+c, c in 0..39",
+      "stopped_at_budget": false,
+      "wall_clock_s": 936.0
+    },
+    "sib_d1": {
+      "wins": 10582,
+      "draws": 0,
+      "n_games": 20000,
+      "score": 10582.0,
+      "win_rate": 0.5291,
+      "ci": [
+        0.5221773005616931,
+        0.5360115229398416
+      ],
+      "a": "v2_1c_champion d1",
+      "b": "v2_0c_champion d1",
+      "depth_a": 1,
+      "depth_b": 1,
+      "pairs_planned": 10000,
+      "chunks_done": 40,
+      "chunks_planned": 40,
+      "seeds": "5002100+c, c in 0..39",
+      "stopped_at_budget": false,
+      "wall_clock_s": 165.2
+    },
+    "sib_d2": {
+      "wins": 10330,
+      "draws": 0,
+      "n_games": 20000,
+      "score": 10330.0,
+      "win_rate": 0.5165,
+      "ci": [
+        0.509571750737683,
+        0.5234219120724655
+      ],
+      "a": "v2_1c_champion d2",
+      "b": "v2_0c_champion d2",
+      "depth_a": 2,
+      "depth_b": 2,
+      "pairs_planned": 10000,
+      "chunks_done": 40,
+      "chunks_planned": 40,
+      "seeds": "5002100+c, c in 0..39",
+      "stopped_at_budget": false,
+      "wall_clock_s": 1732.9
+    },
+    "d3_vs_d2": {
+      "wins": 2339,
+      "draws": 0,
+      "n_games": 4000,
+      "score": 2339.0,
+      "win_rate": 0.58475,
+      "ci": [
+        0.5694051301643558,
+        0.5999322441980398
+      ],
+      "a": "v2_1c_champion d3",
+      "b": "v2_1c_champion d2",
+      "depth_a": 3,
+      "depth_b": 2,
+      "pairs_planned": 2000,
+      "chunks_done": 40,
+      "chunks_planned": 40,
+      "seeds": "5002200+c, c in 0..39",
+      "stopped_at_budget": false,
+      "wall_clock_s": 3372.1
+    }
+  },
+  "skipped": {},
+  "started": "2026-11-16T08:28:36+00:00",
+  "timing": {
+    "per_depth": {
+      "1": {
+        "n": 500,
+        "mean_ms": 0.26944848567654844,
+        "median_ms": 0.289833995338995,
+        "p90_ms": 0.36329199792817235,
+        "p99_ms": 0.4004170041298494,
+        "max_ms": 0.487375000375323
+      },
+      "2": {
+        "n": 500,
+        "mean_ms": 2.8650328940420877,
+        "median_ms": 2.687917003640905,
+        "p90_ms": 5.883167003048584,
+        "p99_ms": 6.274542000028305,
+        "max_ms": 6.443666999984998
+      },
+      "3": {
+        "n": 500,
+        "mean_ms": 50.70238097773108,
+        "median_ms": 38.40562499681255,
+        "p90_ms": 132.32837499526795,
+        "p99_ms": 145.34283399552805,
+        "max_ms": 161.20758299075533
+      },
+      "4": {
+        "n": 500,
+        "mean_ms": 993.1690146822657,
+        "median_ms": 656.4178330008872,
+        "p90_ms": 3077.242084000318,
+        "p99_ms": 3342.1305410010973,
+        "max_ms": 3397.448916992289
+      }
+    },
+    "positions": 500,
+    "sampled_every": 3,
+    "mean_legal_moves": 2.746,
+    "forced_share": 0.19,
+    "seeds": "5002900+i, i<10",
+    "wall_clock_s": 526.0,
+    "note": "one process, one BLAS thread, search() per decision incl. forced moves"
+  },
+  "finished": "2026-11-16T10:20:49+00:00"
+}

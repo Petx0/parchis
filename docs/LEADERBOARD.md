@@ -40,6 +40,52 @@ In this board the same pairs read 50.6 / 50.6 / 51.4 / 51.9, consistent within �
 **Bottom line:** the 2-player champion is real but its lead over the next tier is small, about
 0.7–2.5pp per game (≈5–17 Elo). Ranks 3–7 are statistically tied with each other.
 
+## Play-time search depth (PILA-6)
+
+The ranking above compares nets at search depth 1. This section measures how much deeper expectimax
+search (`parchis.az.search`) adds to the champion's net, and what it costs per move. It is not a
+promotion: under `docs/EVAL_PROTOCOL.md` §1, a stronger agent built from the same net by searching
+deeper is a different time budget, not a new champion.
+
+Every match below uses duplicate pairs, Wilson 95% CIs and the 500-turn limit, played on 8 workers
+with one BLAS thread each. All matches used seed block 2 (registry kind `study`, seeds
+5002000–5002999), at git `c621f7c`. Raw results are in
+`runs/depth_study_v2_1c/eval/depth_study_b2.json`; the run record is `runs/depth_study_v2_1c/meta.json`.
+No game hit the turn limit, so there were no draws.
+
+| Match | Win rate | Wilson 95% CI | ≈ Elo | Games | Seeds |
+|---|---|---|---|---|---|
+| V2.1c depth 2 vs V2.1c depth 1 | 60.39% | [59.72, 61.07] | +73 [+68, +78] | 20,000 | 5002000+c, c<40 |
+| V2.1c depth 3 vs V2.1c depth 2 | 58.48% | [56.94, 59.99] | +59 [+49, +70] | 4,000 | 5002200+c, c<40 |
+| V2.1c vs V2.0c, both depth 1 | 52.91% | [52.22, 53.60] | +20 [+15, +25] | 20,000 | 5002100+c, c<40 |
+| V2.1c vs V2.0c, both depth 2 (same deals) | 51.65% | [50.96, 52.34] | +11 [+7, +16] | 20,000 | 5002100+c, c<40 |
+
+Time per decision for V2.1c was measured in one process with one BLAS thread. The positions were
+500 decisions taken from depth-1 self-play, one in every three (seeds 5002900+i). On average a
+decision had 2.75 legal moves, and 19% of decisions were forced (a single legal move):
+
+| Depth | Mean ms | Median | p90 | Max | Strength vs depth 1 (chained) |
+|---|---|---|---|---|---|
+| 1 | 0.27 | 0.29 | 0.36 | 0.49 | 0 |
+| 2 | 2.9 | 2.7 | 5.9 | 6.4 | +73 Elo |
+| 3 | 51 | 38 | 132 | 161 | ≈ +132 Elo |
+| 4 | 993 | 656 | 3,077 | 3,397 | not played |
+
+The "chained" column adds the two depth matches together. It is an estimate: Elo is not exactly
+transitive here.
+
+What the results show:
+
+- **Search is worth far more than any net change so far.** Depth 2 adds about 10pp per game over
+  depth 1, and depth 3 adds another 8.5pp over depth 2. The best net improvement in the lineage was
+  about 2.5pp.
+- **V2.1c's lead over V2.0c shrinks with search but is still there.** It falls from +2.9pp at
+  depth 1 to +1.7pp at depth 2, a drop of 1.3pp [0.3, 2.2]. That CI treats the two matches as
+  independent, which is conservative because they used the same deals.
+- **Recommended play-time depth: 3** (about 50 ms per decision on average, 161 ms at most).
+  Depth 2 is the cheap option at 3 ms. Depth 4 costs about 1 s per decision on average and up to
+  3.4 s, and its strength was not measured.
+
 ## Protocol
 
 - **Format:** 2 players, max 500 turns. Every agent is the net plus depth-1 expectimax search
@@ -172,9 +218,11 @@ and `runs/v2_1a_champion/round04_candidate.pt` are mid-run candidates, not endpo
    not one-dimensional. The bootstrap Elo CIs assume the model is correct and are therefore up to
    ~1.4× too narrow. Pairwise Wilson CIs and the 20k-game head-to-heads do not depend on the model,
    which is why the champion claim rests on them.
-5. **One search depth only.** Everything is ranked at depth 1. M9 in `docs/V2_PLAN.md` showed depth
-   2 is worth about +7pp for the same net, so "strongest agent" at a larger time budget means
-   V2.1c at depth ≥2. That is a different axis from checkpoint choice and is not ranked here.
+5. **One search depth only in the ranking.** The round robin ranks checkpoints at depth 1.
+   PILA-6 measured the depth axis on V2.1c: depth 2 beats depth 1 by 60.4%, and depth 3 beats
+   depth 2 by 58.5% (see "Play-time search depth"). The strongest agent this repo can field is
+   therefore V2.1c at depth 3. Checkpoint rankings at depth 2 may be compressed: V2.1c's lead over
+   V2.0c falls from +2.9pp at depth 1 to +1.7pp at depth 2.
 6. **Selection effect.** V2.1c was picked as the best of several runs (V2_PLAN §10.11), so some of
    its 0.7–2.5pp lead over its siblings is selection. Checkpoint-to-checkpoint spread around the
    recipe's level is about ±1.5pp. Treat V2.1c as "the recipe's best draw", not as a better recipe

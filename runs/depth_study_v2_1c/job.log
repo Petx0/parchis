@@ -1,0 +1,14 @@
+depth study  block 2  git c621f7c5b
+  d2_vs_d1: v2_1c_champion d2 vs v2_1c_champion d1, 10000 pairs, seeds 5002000+c, c<40
+  sib_d1: v2_1c_champion d1 vs v2_0c_champion d1, 10000 pairs, seeds 5002100+c, c<40
+  sib_d2: v2_1c_champion d2 vs v2_0c_champion d2, 10000 pairs, seeds 5002100+c, c<40
+  d3_vs_d2: v2_1c_champion d3 vs v2_1c_champion d2, 2000 pairs, seeds 5002200+c, c<40
+d2_vs_d1: v2_1c_champion d2 vs v2_1c_champion d1  60.39% [59.72, 61.07]  n=20000 draws=0  936s
+sib_d1: v2_1c_champion d1 vs v2_0c_champion d1  52.91% [52.22, 53.60]  n=20000 draws=0  165s
+sib_d2: v2_1c_champion d2 vs v2_0c_champion d2  51.65% [50.96, 52.34]  n=20000 draws=0  1733s
+d3_vs_d2: v2_1c_champion d3 vs v2_1c_champion d2  58.48% [56.94, 59.99]  n=4000 draws=0  3372s
+timing d1: mean 0.27 ms  median 0.29  p90 0.36  max 0.5  (n=500)
+timing d2: mean 2.87 ms  median 2.69  p90 5.88  max 6.4  (n=500)
+timing d3: mean 50.70 ms  median 38.41  p90 132.33  max 161.2  (n=500)
+timing d4: mean 993.17 ms  median 656.42  p90 3077.24  max 3397.4  (n=500)
+record runs/depth_study_v2_1c/eval/depth_study_b2.json

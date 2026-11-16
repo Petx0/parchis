@@ -1,0 +1,17 @@
+candidate /Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-8-90460817d860/workdir/parchis/runs/soups_2026-11-16/s1/model.pt sha256 3a86d3cf99b1  champion v2_1c  depth 1  block 4 (seeds 5004000..)  git eb1c8bbee DIRTY
+run record: complete
+
+| Match | Win rate | Wilson 95% CI | Games | Draws | Seeds | Depth |
+|---|---|---|---|---|---|---|
+| **candidate vs champion v2_1c** (decisive) | 52.79% | [52.09, 53.48] | 20,000 | 0 | 5004000..5004007 | 1 |
+| candidate vs tuned heuristic | 74.00% | [72.03, 75.88] | 2,000 | 0 | 5004100..5004107 | 1 |
+| champion v2_1c vs tuned heuristic (guard reference) | 71.85% | [69.84, 73.78] | 2,000 | 0 | 5004100..5004107 | 1 |
+| candidate vs random | 97.10% | [96.27, 97.75] | 2,000 | 0 | 5004200..5004207 | 1 |
+| candidate vs previous champion v2_0b (context) | 54.70% | [52.51, 56.87] | 2,000 | 0 | 5004300..5004307 | 1 |
+
+- [x] decisive: Wilson 95% lower bound vs champion > 50%: 52.09% (threshold 50.00%)
+- [x] guard: vs heuristic >= champion vs heuristic - 3pp (same seeds): +2.15pp (threshold -3.00pp)
+- [x] guard: vs random >= 95%: 97.10% (threshold 95.00%)
+- draw share 0.000% (max 0.1%)
+
+VERDICT: PASS   selection: best-of-4   block 4   wall-clock 216s   record runs/soups_2026-11-16/s1/eval/protocol_b4.json

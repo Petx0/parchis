@@ -196,6 +196,135 @@
       "draws": 0,
       "wall_clock_s": 35.8,
       "note": "screening only (ranks the harvest nets); not a verdict"
+    },
+    {
+      "kind": "protocol",
+      "checkpoint": "runs/pila5_harvest_s1/soups/h4/model.pt",
+      "checkpoint_sha256": "d7b2b08552b5c210e0cfbf325ec90f03688d7dca6c2b82de0429c27f80285bea",
+      "opponent": "runs/soups_2026-11-16/s1/model.pt",
+      "opponent_name": "soup_s1",
+      "opponent_sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d",
+      "win_rate": 0.50835,
+      "ci": [
+        0.5014205088437043,
+        0.5152762841541588
+      ],
+      "n_games": 20000,
+      "seeds": "5005000+c, c<8",
+      "depth": 1,
+      "source": "runs/pila5_harvest_s1/soups/h4/eval/protocol_b5.json",
+      "tag": "b5:decisive",
+      "recorded": "2026-11-16T17:27:39+00:00",
+      "draws": 0,
+      "block": 5,
+      "protocol": "docs/EVAL_PROTOCOL.md v1",
+      "selection": "best-of-5",
+      "verdict": "FAIL",
+      "checks": [
+        {
+          "name": "decisive: Wilson 95% lower bound vs champion > 50%",
+          "value": 0.5014205088437043,
+          "threshold": 0.5,
+          "unit": "%",
+          "ok": true
+        },
+        {
+          "name": "guard: vs heuristic >= champion vs heuristic - 3pp (same seeds)",
+          "value": -0.03499999999999992,
+          "threshold": -0.03,
+          "unit": "pp",
+          "ok": false
+        },
+        {
+          "name": "guard: vs random >= 95%",
+          "value": 0.9825,
+          "threshold": 0.95,
+          "unit": "%",
+          "ok": true
+        }
+      ],
+      "guard_reference": {
+        "wins": 1545,
+        "draws": 0,
+        "n_games": 2000,
+        "score": 1545.0,
+        "win_rate": 0.7725,
+        "ci": [
+          0.753615089127177,
+          0.79034012010454
+        ]
+      },
+      "confirmation_of": null,
+      "issue": "PILA-5"
+    },
+    {
+      "kind": "protocol",
+      "checkpoint": "runs/pila5_harvest_s1/soups/h4/model.pt",
+      "checkpoint_sha256": "d7b2b08552b5c210e0cfbf325ec90f03688d7dca6c2b82de0429c27f80285bea",
+      "opponent": "heuristic_tuned",
+      "opponent_name": "heuristic_tuned",
+      "opponent_sha256": null,
+      "win_rate": 0.7375,
+      "ci": [
+        0.7177746294224202,
+        0.7563147731189848
+      ],
+      "n_games": 2000,
+      "seeds": "5005100+c, c<8",
+      "depth": 1,
+      "source": "runs/pila5_harvest_s1/soups/h4/eval/protocol_b5.json",
+      "tag": "b5:heuristic",
+      "recorded": "2026-11-16T17:27:39+00:00",
+      "draws": 0,
+      "block": 5,
+      "protocol": "docs/EVAL_PROTOCOL.md v1",
+      "selection": "best-of-5"
+    },
+    {
+      "kind": "protocol",
+      "checkpoint": "runs/pila5_harvest_s1/soups/h4/model.pt",
+      "checkpoint_sha256": "d7b2b08552b5c210e0cfbf325ec90f03688d7dca6c2b82de0429c27f80285bea",
+      "opponent": "random",
+      "opponent_name": "random",
+      "opponent_sha256": null,
+      "win_rate": 0.9825,
+      "ci": [
+        0.975759802333172,
+        0.9873902470404188
+      ],
+      "n_games": 2000,
+      "seeds": "5005200+c, c<8",
+      "depth": 1,
+      "source": "runs/pila5_harvest_s1/soups/h4/eval/protocol_b5.json",
+      "tag": "b5:random",
+      "recorded": "2026-11-16T17:27:39+00:00",
+      "draws": 0,
+      "block": 5,
+      "protocol": "docs/EVAL_PROTOCOL.md v1",
+      "selection": "best-of-5"
+    },
+    {
+      "kind": "protocol",
+      "checkpoint": "runs/pila5_harvest_s1/soups/h4/model.pt",
+      "checkpoint_sha256": "d7b2b08552b5c210e0cfbf325ec90f03688d7dca6c2b82de0429c27f80285bea",
+      "opponent": "runs/v2_1c_champion/model.pt",
+      "opponent_name": "v2_1c",
+      "opponent_sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+      "win_rate": 0.544,
+      "ci": [
+        0.5221083682982768,
+        0.565722931540973
+      ],
+      "n_games": 2000,
+      "seeds": "5005300+c, c<8",
+      "depth": 1,
+      "source": "runs/pila5_harvest_s1/soups/h4/eval/protocol_b5.json",
+      "tag": "b5:previous",
+      "recorded": "2026-11-16T17:27:39+00:00",
+      "draws": 0,
+      "block": 5,
+      "protocol": "docs/EVAL_PROTOCOL.md v1",
+      "selection": "best-of-5"
     }
   ],
   "sessions": [

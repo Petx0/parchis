@@ -1,0 +1,662 @@
+{
+  "schema": "parchis.run/1",
+  "run_id": "puzzles_2026-11-16",
+  "title": "Puzzle run: PILA-5 harvest nets (h4, c20) and S1 vs V2.1c and round-23, depths 1-5",
+  "kind": "evaluation",
+  "issue": "PILA-9",
+  "status": "finished",
+  "created": "2026-11-16",
+  "finished": "2026-11-17",
+  "git": {
+    "sha": "13cd24f9f4b37ecb8209c9609b35d43cb295605b",
+    "dirty": true,
+    "branch": "agent/engineer/pila-5-harvest-results",
+    "source": "run from 13cd24f with only scripts/v2/puzzle_report.py changed (net/CSV arguments and merge mode, committed with this record); search/encoding/net code unchanged"
+  },
+  "script": "scripts/v2/puzzle_report.py",
+  "command": [
+    "python3 scripts/v2/puzzle_report.py runs/puzzles_2026-11-16/parts/my_<net>.json 5 <net>=<run_dir>",
+    "python3 scripts/v2/puzzle_report.py runs/puzzles_2026-11-16/parts/tac_<net>.json 5 <net>=<run_dir> parchis/evaluation/puzzles/tactical_puzzles.csv",
+    "python3 scripts/v2/puzzle_report.py merge runs/puzzles_2026-11-16/report.json parts/my_*.json (same for report_tactical.json)"
+  ],
+  "config": {
+    "csv": [
+      "parchis/evaluation/puzzles/my_puzzles.csv",
+      "parchis/evaluation/puzzles/tactical_puzzles.csv"
+    ],
+    "depths": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "agent": "checkpoint:<run_dir>:depth=N (exhaustive expectimax, parchis/az/search.py)",
+    "soup_and_candidate_loading": "S1, h4 and c20 were loaded through shim run dirs (symlinked model.pt + config.json with num_players=2, hidden_sizes=[256,256]) because soup config.json files carry no net shape; same shape as V2.1c"
+  },
+  "init": null,
+  "seeds": {
+    "policy": "n/a: search is deterministic (exhaustive expectimax over all dice); verified by re-running V2.1c and round-23 and reproducing runs/puzzles_2026-11-03/report.json exactly (identical choices, max |value diff| = 0)"
+  },
+  "checkpoints": [
+    {
+      "name": "v2_1c",
+      "label": "V2.1c (previous champion)",
+      "path": "runs/v2_1c_champion/model.pt",
+      "sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693"
+    },
+    {
+      "name": "round23",
+      "label": "round-23 champion (2026-08-29 puzzle baseline)",
+      "path": "runs/selfplay_2p_v1_champion/model.pt",
+      "sha256": "fc33d73fe0ed81d37567187df75ae1a646efbab299ecf9e0554e02c985657c3c"
+    },
+    {
+      "name": "s1",
+      "label": "S1 (current champion, PILA-8)",
+      "path": "runs/soups_2026-11-16/s1/model.pt",
+      "sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d"
+    },
+    {
+      "name": "h4",
+      "label": "h4 (best PILA-5 harvest soup, SWA-20 c01..c20)",
+      "path": "runs/pila5_harvest_s1/soups/h4/model.pt",
+      "sha256": "d7b2b08552b5c210e0cfbf325ec90f03688d7dca6c2b82de0429c27f80285bea"
+    },
+    {
+      "name": "c20",
+      "label": "c20 (PILA-5 harvest endpoint; tensors equal runs/pila5_harvest_s1/model.pt)",
+      "path": "runs/pila5_harvest_s1/candidates/c20.pt",
+      "sha256": "279401384dd5ab19b58d38fad83eb884ea7b4025b5db24072787ccab4410c282"
+    }
+  ],
+  "training": {},
+  "selection": "h4 = top of PILA-5 soup screening vs S1 (best-of-5, not protocol-confirmed); c20 = harvest endpoint, the only candidate with a measured strength (PILA-5 handoff). No selection on puzzle results.",
+  "evals": [],
+  "sessions": [
+    {
+      "started": "2026-11-16T17:30:57Z",
+      "finished": "2026-11-16T17:37:28Z",
+      "what": "S1, h4, c20 on my_puzzles d1-5"
+    },
+    {
+      "started": "2026-11-17T16:43:50Z",
+      "finished": "2026-11-17T16:48:31Z",
+      "what": "V2.1c, round-23 reproduction on my_puzzles d1-5; tactical_puzzles for all 5 nets d1-5"
+    }
+  ],
+  "notes": "Per-puzzle choices and every legal move's value in report.json (my_puzzles, 10) and report_tactical.json (2). Not a match result; win rate under docs/EVAL_PROTOCOL.md stays the ranking metric. 10 puzzles: a signal, not a strength ranking.",
+  "doc": "runs/puzzles_2026-11-16/SUMMARY.md",
+  "evals_summary": {
+    "source": "runs/puzzles_2026-11-16/report.json",
+    "nets": [
+      "v2_1c",
+      "round23",
+      "s1",
+      "h4",
+      "c20"
+    ],
+    "my_puzzles": {
+      "v2_1c": {
+        "d1": {
+          "solved": 4,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.0006
+        },
+        "d2": {
+          "solved": 4,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.0026
+        },
+        "d3": {
+          "solved": 7,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "4",
+            "5",
+            "14",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.0366
+        },
+        "d4": {
+          "solved": 6,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "4",
+            "5",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.6063
+        },
+        "d5": {
+          "solved": 6,
+          "of": 10,
+          "solved_ids": [
+            "3",
+            "4",
+            "5",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 12.1812
+        }
+      },
+      "round23": {
+        "d1": {
+          "solved": 3,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "19"
+          ],
+          "mean_seconds": 0.0007
+        },
+        "d2": {
+          "solved": 5,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "14",
+            "16",
+            "19"
+          ],
+          "mean_seconds": 0.0025
+        },
+        "d3": {
+          "solved": 6,
+          "of": 10,
+          "solved_ids": [
+            "3",
+            "14",
+            "16",
+            "17",
+            "18",
+            "19"
+          ],
+          "mean_seconds": 0.0368
+        },
+        "d4": {
+          "solved": 4,
+          "of": 10,
+          "solved_ids": [
+            "3",
+            "5",
+            "14",
+            "16"
+          ],
+          "mean_seconds": 0.6073
+        },
+        "d5": {
+          "solved": 6,
+          "of": 10,
+          "solved_ids": [
+            "3",
+            "5",
+            "14",
+            "16",
+            "17",
+            "19"
+          ],
+          "mean_seconds": 12.2818
+        }
+      },
+      "s1": {
+        "d1": {
+          "solved": 4,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "16",
+            "18"
+          ],
+          "mean_seconds": 0.0005
+        },
+        "d2": {
+          "solved": 7,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "5",
+            "14",
+            "17",
+            "18",
+            "19"
+          ],
+          "mean_seconds": 0.0025
+        },
+        "d3": {
+          "solved": 7,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "5",
+            "14",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.0365
+        },
+        "d4": {
+          "solved": 8,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "4",
+            "5",
+            "14",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.6044
+        },
+        "d5": {
+          "solved": 6,
+          "of": 10,
+          "solved_ids": [
+            "3",
+            "4",
+            "5",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 12.1824
+        }
+      },
+      "h4": {
+        "d1": {
+          "solved": 5,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.0006
+        },
+        "d2": {
+          "solved": 5,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "14",
+            "17",
+            "19"
+          ],
+          "mean_seconds": 0.0027
+        },
+        "d3": {
+          "solved": 7,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "5",
+            "14",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.0362
+        },
+        "d4": {
+          "solved": 7,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "5",
+            "14",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.6049
+        },
+        "d5": {
+          "solved": 6,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "5",
+            "14",
+            "16",
+            "17"
+          ],
+          "mean_seconds": 12.1843
+        }
+      },
+      "c20": {
+        "d1": {
+          "solved": 6,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "5",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.0005
+        },
+        "d2": {
+          "solved": 4,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "5",
+            "17"
+          ],
+          "mean_seconds": 0.0027
+        },
+        "d3": {
+          "solved": 6,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "5",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.0369
+        },
+        "d4": {
+          "solved": 6,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "5",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 0.6111
+        },
+        "d5": {
+          "solved": 7,
+          "of": 10,
+          "solved_ids": [
+            "1",
+            "3",
+            "5",
+            "14",
+            "16",
+            "17",
+            "18"
+          ],
+          "mean_seconds": 12.3217
+        }
+      }
+    },
+    "tactical_puzzles": {
+      "v2_1c": {
+        "d1": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0004
+        },
+        "d2": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0014
+        },
+        "d3": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0092
+        },
+        "d4": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.1068
+        },
+        "d5": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 1.3023
+        }
+      },
+      "round23": {
+        "d1": {
+          "solved": 1,
+          "of": 2,
+          "solved_ids": [
+            "p001"
+          ],
+          "mean_seconds": 0.0006
+        },
+        "d2": {
+          "solved": 1,
+          "of": 2,
+          "solved_ids": [
+            "p001"
+          ],
+          "mean_seconds": 0.0011
+        },
+        "d3": {
+          "solved": 1,
+          "of": 2,
+          "solved_ids": [
+            "p001"
+          ],
+          "mean_seconds": 0.0087
+        },
+        "d4": {
+          "solved": 1,
+          "of": 2,
+          "solved_ids": [
+            "p001"
+          ],
+          "mean_seconds": 0.1026
+        },
+        "d5": {
+          "solved": 1,
+          "of": 2,
+          "solved_ids": [
+            "p001"
+          ],
+          "mean_seconds": 1.3087
+        }
+      },
+      "s1": {
+        "d1": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0004
+        },
+        "d2": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0012
+        },
+        "d3": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0087
+        },
+        "d4": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.1045
+        },
+        "d5": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 1.3094
+        }
+      },
+      "h4": {
+        "d1": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0006
+        },
+        "d2": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0012
+        },
+        "d3": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0097
+        },
+        "d4": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.1046
+        },
+        "d5": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 1.2998
+        }
+      },
+      "c20": {
+        "d1": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0004
+        },
+        "d2": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0012
+        },
+        "d3": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.0087
+        },
+        "d4": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 0.1034
+        },
+        "d5": {
+          "solved": 2,
+          "of": 2,
+          "solved_ids": [
+            "p001",
+            "p002"
+          ],
+          "mean_seconds": 1.3003
+        }
+      }
+    },
+    "reproduces": "runs/puzzles_2026-11-03/report.json (v2_1c, round23: exact)"
+  }
+}

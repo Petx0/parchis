@@ -2,7 +2,11 @@
 net of the last puzzle run (round-23 champion, docs/AZ_DESIGN.md "Puzzle accuracy vs. search depth",
 2026-08-29), at depths 1-5.
 
-Usage: puzzle_report.py <out.json> [max_depth=5]
+Usage: puzzle_report.py <out.json> [max_depth=5] [name=run_dir,...] [csv]
+       puzzle_report.py merge <out.json> <part.json> [<part.json> ...]
+
+The optional third argument replaces the default nets (e.g. a single net per invocation, so each part
+fits a short foreground job); `merge` joins per-net parts of the same CSV into one report.
 """
 import json
 import sys
@@ -19,9 +23,28 @@ from parchis.evaluation.puzzles.runner import decide_with_breakdown
 NETS = {"v2_1c": "runs/v2_1c_champion", "round23": "runs/selfplay_2p_v1_champion"}
 CSV = REPO / "parchis/evaluation/puzzles/my_puzzles.csv"
 
+def merge(out, parts):
+    reports = [json.loads(Path(p).read_text()) for p in parts]
+    base = reports[0]
+    for r in reports[1:]:
+        assert r["csv"] == base["csv"], "parts come from different CSVs"
+        base["nets"].update(r["nets"])
+        for pa, pb in zip(base["puzzles"], r["puzzles"]):
+            assert pa["puzzle_id"] == pb["puzzle_id"]
+            pa["results"].update(pb["results"])
+    Path(out).write_text(json.dumps(base, indent=1))
+
+
 if __name__ == "__main__":
+    if sys.argv[1] == "merge":
+        merge(sys.argv[2], sys.argv[3:])
+        sys.exit(0)
     out = Path(sys.argv[1])
     max_depth = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+    if len(sys.argv) > 3 and sys.argv[3]:
+        NETS = dict(item.split("=", 1) for item in sys.argv[3].split(","))
+    if len(sys.argv) > 4:
+        CSV = (REPO / sys.argv[4]).resolve()
     puzzles = load_puzzles(str(CSV))
     report = {"csv": str(CSV.relative_to(REPO)), "nets": NETS, "puzzles": []}
     for case in puzzles:

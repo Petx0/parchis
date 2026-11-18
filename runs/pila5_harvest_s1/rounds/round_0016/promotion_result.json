@@ -1,0 +1,18 @@
+{
+  "win_rate_a": 0.51,
+  "win_rate_a_ci": [
+    0.4411858767845865,
+    0.5784372166878683
+  ],
+  "wins_a": 102,
+  "n_games": 200,
+  "pair_record": {
+    "a_better": 21,
+    "split": 60,
+    "b_better": 19
+  },
+  "promoted": true,
+  "generation_depth": 1,
+  "eval_depth": 1,
+  "gate_enabled": false
+}

@@ -1,0 +1,99 @@
+{
+  "issue": "PILA-5",
+  "opponent": "runs/soups_2026-11-16/s1/model.pt",
+  "depth": 1,
+  "pairs": 2000,
+  "seeds": [
+    21000000,
+    21000007
+  ],
+  "results": {
+    "h1": {
+      "wins": 2014,
+      "draws": 0,
+      "n_games": 4000,
+      "win_rate": 0.5035,
+      "ci": [
+        0.4880095802348625,
+        0.5189837036621094
+      ],
+      "seeds": "21000000+c, c<8 (same deals for every net)",
+      "depth": 1,
+      "pairs": 2000,
+      "wall_clock_s": 35.9,
+      "opponent": "runs/soups_2026-11-16/s1/model.pt"
+    },
+    "h2": {
+      "wins": 2021,
+      "draws": 0,
+      "n_games": 4000,
+      "win_rate": 0.50525,
+      "ci": [
+        0.4897583750757614,
+        0.5207315507696967
+      ],
+      "seeds": "21000000+c, c<8 (same deals for every net)",
+      "depth": 1,
+      "pairs": 2000,
+      "wall_clock_s": 35.5,
+      "opponent": "runs/soups_2026-11-16/s1/model.pt"
+    },
+    "h3": {
+      "wins": 2043,
+      "draws": 0,
+      "n_games": 4000,
+      "win_rate": 0.51075,
+      "ci": [
+        0.4952558217014822,
+        0.5262235502677893
+      ],
+      "seeds": "21000000+c, c<8 (same deals for every net)",
+      "depth": 1,
+      "pairs": 2000,
+      "wall_clock_s": 35.7,
+      "opponent": "runs/soups_2026-11-16/s1/model.pt"
+    },
+    "h4": {
+      "wins": 2108,
+      "draws": 0,
+      "n_games": 4000,
+      "win_rate": 0.527,
+      "ci": [
+        0.5115092297121852,
+        0.542438960350171
+      ],
+      "seeds": "21000000+c, c<8 (same deals for every net)",
+      "depth": 1,
+      "pairs": 2000,
+      "wall_clock_s": 35.8,
+      "opponent": "runs/soups_2026-11-16/s1/model.pt"
+    },
+    "c20": {
+      "wins": 1831,
+      "draws": 0,
+      "n_games": 4000,
+      "win_rate": 0.45775,
+      "ci": [
+        0.44235843359590304,
+        0.4732226393620768
+      ],
+      "seeds": "21000000+c, c<8 (same deals for every net)",
+      "depth": 1,
+      "pairs": 2000,
+      "wall_clock_s": 36.6,
+      "opponent": "runs/soups_2026-11-16/s1/model.pt"
+    }
+  },
+  "dropped_by_health": [],
+  "ranking": [
+    "h4",
+    "h3",
+    "h2",
+    "h1",
+    "c20"
+  ],
+  "winner": "h4",
+  "killed": false,
+  "kill_criterion": "every soup below 50% vs S1 -> stop after screening, record the null",
+  "note": "ranking only; the winner is best-of-5 and needs the protocol (--selection best-of-5) + confirmation; c20 vs S1 is the \u00a710.11 endpoint replicate"
+}

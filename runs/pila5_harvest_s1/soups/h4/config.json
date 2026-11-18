@@ -1,0 +1,136 @@
+{
+  "name": "h4",
+  "method": "weight average (model soup)",
+  "weighting": "uniform",
+  "ingredients": [
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c01.pt",
+      "sha256": "cea8a6cba1826b550b3388c93cd9a99538fa10d44c9390b0068a913a1b53217f",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c02.pt",
+      "sha256": "74b9e924bba92aa884dbe704f13359f606bc9fc732a2d1f9db8bf919506653e0",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c03.pt",
+      "sha256": "7af29e092290b0ad65453fdc53b4d3bed94a57f6d7707b9c10721a86298db547",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c04.pt",
+      "sha256": "c6b1ae05600cbfcda28f3cbc5d96b78c299582c16d7c55da25ec3316a34298c4",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c05.pt",
+      "sha256": "0448dbbdd668d8c029aa6033e7dd3a23236373376a6792719519649ec1da9a50",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c06.pt",
+      "sha256": "b4ee8ba078d24074a5ed100517aac319401155d6c4f792a9560caba1c8846db4",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c07.pt",
+      "sha256": "e018300902962f2dfa71cf6ebf2c40a0859fdd78918d1785308d4ba92ef189fb",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c08.pt",
+      "sha256": "36ed47f0944702b957aad8a955833adbcbbe5ffb239bd4ea2b626eb270e8d760",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c09.pt",
+      "sha256": "12ecd6f65226a0b537f877a4e3449200891bbe786a5e86bd38136cac326c1726",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c10.pt",
+      "sha256": "7d2fb00fd8cbf15e4e9399bcd3a2e4ebb145aacf93d809ca0e3c97a4d2858a2d",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c11.pt",
+      "sha256": "8c73a6d15f0df8ea541048a5c9ea44567e9391dc36848971f3e03e68b7876d31",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c12.pt",
+      "sha256": "45e2c3f030d832710863134eb5d5dfc44d8858c164d52d547bd8e199de8a8496",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c13.pt",
+      "sha256": "ea4ab6603f89625611b38e2051a8f22bb1faeeef2a7cfbce08597b9f009f6da3",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c14.pt",
+      "sha256": "f3f77b36a4f8f166b0e6aeae8a58a63adb5139d9bc317ec242dc01219e55e5df",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c15.pt",
+      "sha256": "cbc925428a4ca224bf906e123fdefb8f98dae8d4a0a6b8b8e15958a7f33e0457",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c16.pt",
+      "sha256": "fa59d20b63c14c753bd807ce273b5e4933efb6ea16b06c23b04dd8189e287bfa",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c17.pt",
+      "sha256": "6a0bcd3981d083128f00467215099e18504f34d2bf998609508cfc6248dcfaa2",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c18.pt",
+      "sha256": "0c514ad03cc6918a2c112c43ef39088fe33ece76e992a59c3a47756da5b95e59",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c19.pt",
+      "sha256": "58f56dec6651afdd219585d762f07dc86cecfe8ec77046c20391e88b03b08aee",
+      "weight": 0.05
+    },
+    {
+      "path": "runs/pila5_harvest_s1/candidates/c20.pt",
+      "sha256": "279401384dd5ab19b58d38fad83eb884ea7b4025b5db24072787ccab4410c282",
+      "weight": 0.05
+    }
+  ],
+  "output": {
+    "path": "runs/pila5_harvest_s1/soups/h4/model.pt",
+    "sha256": "d7b2b08552b5c210e0cfbf325ec90f03688d7dca6c2b82de0429c27f80285bea"
+  },
+  "created": "2026-11-16T16:52:00+00:00",
+  "issue": "PILA-5",
+  "ingredient_names": [
+    "c01",
+    "c02",
+    "c03",
+    "c04",
+    "c05",
+    "c06",
+    "c07",
+    "c08",
+    "c09",
+    "c10",
+    "c11",
+    "c12",
+    "c13",
+    "c14",
+    "c15",
+    "c16",
+    "c17",
+    "c18",
+    "c19",
+    "c20"
+  ],
+  "what": "SWA-20: avg(c01..c20)"
+}

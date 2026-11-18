@@ -1,0 +1,162 @@
+{
+  "schema": "parchis.run/1",
+  "run_id": "pila5_harvest_s1/soups/h2",
+  "title": "PILA-5 harvest soup H2 = SWA-10: avg(c11..c20)",
+  "kind": "training",
+  "issue": "PILA-5",
+  "status": "finished",
+  "created": "2026-11-16T16:56:07+00:00",
+  "finished": "2026-11-16T16:56:07+00:00",
+  "git": {
+    "sha": "5ba911a73461ad51bda5f5d8b5d8caaf65fe3e45",
+    "dirty": false,
+    "branch": "agent/engineer/pila-5-harvest",
+    "source": "recorded"
+  },
+  "script": "scripts/v2/run_harvest.py",
+  "command": "scripts/v2/run_harvest.py --base 20000000",
+  "config": {
+    "method": "weight average (model soup) of the harvest trajectory, no gradient steps",
+    "ingredients": [
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c11.pt",
+        "sha256": "8c73a6d15f0df8ea541048a5c9ea44567e9391dc36848971f3e03e68b7876d31",
+        "weight": 0.1
+      },
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c12.pt",
+        "sha256": "45e2c3f030d832710863134eb5d5dfc44d8858c164d52d547bd8e199de8a8496",
+        "weight": 0.1
+      },
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c13.pt",
+        "sha256": "ea4ab6603f89625611b38e2051a8f22bb1faeeef2a7cfbce08597b9f009f6da3",
+        "weight": 0.1
+      },
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c14.pt",
+        "sha256": "f3f77b36a4f8f166b0e6aeae8a58a63adb5139d9bc317ec242dc01219e55e5df",
+        "weight": 0.1
+      },
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c15.pt",
+        "sha256": "cbc925428a4ca224bf906e123fdefb8f98dae8d4a0a6b8b8e15958a7f33e0457",
+        "weight": 0.1
+      },
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c16.pt",
+        "sha256": "fa59d20b63c14c753bd807ce273b5e4933efb6ea16b06c23b04dd8189e287bfa",
+        "weight": 0.1
+      },
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c17.pt",
+        "sha256": "6a0bcd3981d083128f00467215099e18504f34d2bf998609508cfc6248dcfaa2",
+        "weight": 0.1
+      },
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c18.pt",
+        "sha256": "0c514ad03cc6918a2c112c43ef39088fe33ece76e992a59c3a47756da5b95e59",
+        "weight": 0.1
+      },
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c19.pt",
+        "sha256": "58f56dec6651afdd219585d762f07dc86cecfe8ec77046c20391e88b03b08aee",
+        "weight": 0.1
+      },
+      {
+        "path": "runs/pila5_harvest_s1/candidates/c20.pt",
+        "sha256": "279401384dd5ab19b58d38fad83eb884ea7b4025b5db24072787ccab4410c282",
+        "weight": 0.1
+      }
+    ],
+    "weights": null,
+    "what": "SWA-10: avg(c11..c20)",
+    "generation_seed": 20000000,
+    "train_seed": 20000000,
+    "promotion_seed": 20000000,
+    "seed_use": "health-check shards base+500000+i; screening deals base+1000000+c; the trajectory itself was trained on this base (parent run)"
+  },
+  "init": {
+    "note": "weight average of the ingredients in config.ingredients",
+    "path": null,
+    "sha256": null,
+    "run_id": "pila5_harvest_s1"
+  },
+  "seeds": {
+    "values": {
+      "generation_seed": 20000000,
+      "train_seed": 20000000,
+      "promotion_seed": 20000000
+    },
+    "base_n": 2,
+    "policy": "ok",
+    "registered_to": [
+      "pila5_harvest_s1"
+    ],
+    "derivation": "generation = generation_seed + round*1000 + shard; promotion = promotion_seed + round; train = train_seed"
+  },
+  "checkpoints": [
+    {
+      "role": "final",
+      "path": "runs/pila5_harvest_s1/soups/h2/model.pt",
+      "sha256": "0dd9c4d578416c86307af1566c90fc0a7cb7790720ec151bc564ca8064afbdf4",
+      "label": "h2",
+      "primary": true
+    }
+  ],
+  "training": {
+    "rounds_completed": 0,
+    "selfplay_games": 0,
+    "wall_clock_s": 247.0,
+    "note": "no training: weights averaged; trained trajectory in ../../ (pila5_harvest_s1)"
+  },
+  "selection": {
+    "method": "not selected",
+    "rank": 3,
+    "of": 5,
+    "source": "runs/pila5_harvest_s1/screening.json",
+    "reason": null
+  },
+  "evals": [
+    {
+      "kind": "h2h",
+      "checkpoint": "runs/pila5_harvest_s1/soups/h2/model.pt",
+      "checkpoint_sha256": "0dd9c4d578416c86307af1566c90fc0a7cb7790720ec151bc564ca8064afbdf4",
+      "opponent": "runs/soups_2026-11-16/s1/model.pt",
+      "opponent_name": "soups_2026-11-16/s1",
+      "opponent_sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d",
+      "win_rate": 0.50525,
+      "ci": [
+        0.4897583750757614,
+        0.5207315507696967
+      ],
+      "n_games": 4000,
+      "seeds": "21000000+c, c<8 (same deals for every net)",
+      "depth": 1,
+      "source": "runs/pila5_harvest_s1/screening.json",
+      "tag": "pila5_screening",
+      "recorded": "2026-11-16T16:56:07+00:00",
+      "draws": 0,
+      "wall_clock_s": 35.5,
+      "note": "screening only (ranks the harvest nets); not a verdict"
+    }
+  ],
+  "sessions": [
+    {
+      "started": "2026-11-16T16:56:07+00:00",
+      "git_sha": "5ba911a73461ad51bda5f5d8b5d8caaf65fe3e45",
+      "git_dirty": false,
+      "command": "scripts/v2/run_harvest.py --base 20000000"
+    }
+  ],
+  "notes": "Soup of the pila5_harvest_s1 trajectory; see ../../harvest.json.",
+  "health_check": {
+    "value_loss": 0.5827682515719107,
+    "worst_ingredient": 0.5852931814909748,
+    "best_ingredient": 0.5829616197673739,
+    "margin": 0.01,
+    "keep": true,
+    "delta_vs_worst": -0.002524929919064056,
+    "delta_vs_best": -0.00019336819546322825
+  }
+}

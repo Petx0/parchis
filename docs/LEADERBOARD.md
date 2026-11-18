@@ -74,6 +74,22 @@ on fresh seed blocks; the champion pointer is `runs/champions.json`. First proto
 block 1): V2.1d scores 48.93% [48.24, 49.62] against V2.1c over 20,000 games, seeds 5001000+c,
 verdict FAIL (`runs/v2_1d_champion/eval/protocol_b1.json`), which replicates the row above on new deals.
 
+Block 5 (PILA-5, 2026-11-16): soup **h4** = SWA-20 of a 20-round V2.1c-recipe continuation from S1
+(`runs/pila5_harvest_s1/soups/h4/model.pt`, sha256 `d7b2b08552b5`), best of 5 screened soups, against
+champion S1. Verdict **FAIL** on the heuristic guard; S1 stays champion. Record:
+`runs/pila5_harvest_s1/soups/h4/eval/protocol_b5.json`. No confirmation run (a FAIL is final, §4.5).
+
+| Match | Win rate | Wilson 95% CI | Games | Seeds | Depth |
+|---|---|---|---|---|---|
+| **h4 vs S1 (decisive)** | **50.83%** | **[50.14, 51.53]** | 20,000 | 5005000+c, c<8 | 1 |
+| h4 vs tuned heuristic | 73.75% | [71.78, 75.63] | 2,000 | 5005100+c | 1 |
+| S1 vs tuned heuristic (same deals) | 77.25% | [75.36, 79.03] | 2,000 | 5005100+c | 1 |
+| h4 vs random | 98.25% | [97.58, 98.74] | 2,000 | 5005200+c | 1 |
+| h4 vs V2.1c (context) | 54.40% | [52.21, 56.57] | 2,000 | 5005300+c | 1 |
+
+Checks: decisive lower bound 50.14% (> 50%, pass); heuristic Δ −3.50pp (needs ≥ −3pp, **fail**);
+random 98.25% (≥ 95%, pass); no draws.
+
 The 20k-game matches were run before this board, under the same protocol on a different seed range.
 In this board the same pairs read 50.6 / 50.6 / 51.4 / 51.9, consistent within ±2.2pp.
 

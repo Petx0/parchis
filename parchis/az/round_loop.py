@@ -345,12 +345,14 @@ def run_round(round_num, champion_state, meta, promoted_history, recent_history,
             'win_rate_a': result['win_rate_a'], 'win_rate_a_ci': [lower, upper],
             'wins_a': result['wins_a'], 'n_games': result['n_games'],
             'pair_record': result['pair_record'], 'promoted': promoted,
+            'gate_confirmed': gate_confirmed,
             'generation_depth': depth, 'eval_depth': eval_depth,
             'gate_enabled': cfg.gate_enabled,
         }, f, indent=2)
     print(f"round {round_num}: win_rate_a={result['win_rate_a']:.4f} CI=[{lower:.4f}, {upper:.4f}] "
           f"generation_depth={depth} eval_depth={eval_depth} -> "
-          f"{'PROMOTED' if promoted else 'not promoted'}", flush=True)
+          f"{'PROMOTED' if gate_confirmed else 'adopted (gate off, not gate-confirmed)' if promoted else 'not promoted'}",
+          flush=True)
 
     # --- 5. Update champion / promoted history / escalation state ---
     new_meta = dict(meta)

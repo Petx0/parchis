@@ -1,0 +1,568 @@
+{
+  "schema": "parchis.run/1",
+  "run_id": "pila5_harvest_s1",
+  "title": "PILA-5 harvest: 20 rounds of the V2.1c recipe (window 3) from soup S1, every candidate kept",
+  "kind": "training",
+  "issue": "PILA-5",
+  "status": "finished",
+  "created": "2026-11-16T15:15:16+00:00",
+  "finished": "2026-11-16T16:52:00+00:00",
+  "git": {
+    "sha": "5ba911a73461ad51bda5f5d8b5d8caaf65fe3e45",
+    "dirty": false,
+    "branch": "agent/engineer/pila-5-harvest",
+    "source": "recorded"
+  },
+  "script": "scripts/v2/run_harvest.py",
+  "command": "scripts/v2/run_harvest.py --base 20000000",
+  "config": {
+    "run_name": "pila5_harvest_s1",
+    "num_players": 2,
+    "n_games_per_round": 6000,
+    "games_per_shard": 750,
+    "max_turns": 500,
+    "base_depth": 1,
+    "lam": 0.5,
+    "tau_target": 0.015,
+    "tau_start": 0.03,
+    "tau_end": 0.005,
+    "anneal_plies": 15,
+    "dirichlet_alpha": 1.0,
+    "dirichlet_epsilon": 0.0,
+    "generation_seed": 20000000,
+    "replay_window_rounds": 3,
+    "hidden_sizes": [
+      256,
+      256
+    ],
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "batch_size": 4096,
+    "warm_start_max_epochs": 5,
+    "warm_start_patience": 2,
+    "value_loss_weight": 2.0,
+    "val_frac": 0.1,
+    "train_seed": 20000000,
+    "promotion_n_pairs": 100,
+    "promotion_seed": 20000000,
+    "escalate_after_failures": 3,
+    "escalation_depth": 2,
+    "enable_escalation": false,
+    "value_target_mode": "root_value",
+    "rollout_target_fraction": 0.05,
+    "rollout_n": 24,
+    "deep_fraction": 0.25,
+    "deep_depth": 2,
+    "aux_loss_weight": 0.2,
+    "gate_enabled": false,
+    "pool_random_anchor": false,
+    "pool_heuristic_fraction": 0.06666666666666667,
+    "afterstate_rows": true,
+    "generation_workers": 8,
+    "deep_targets": true
+  },
+  "init": {
+    "path": "runs/soups_2026-11-16/s1/model.pt",
+    "sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d",
+    "run_id": "soups_2026-11-16/s1"
+  },
+  "seeds": {
+    "values": {
+      "generation_seed": 20000000,
+      "train_seed": 20000000,
+      "promotion_seed": 20000000
+    },
+    "base_n": 2,
+    "policy": "ok",
+    "registered_to": [
+      "pila5_harvest_s1"
+    ],
+    "derivation": "generation = generation_seed + round*1000 + shard; promotion = promotion_seed + round; train = train_seed"
+  },
+  "checkpoints": [
+    {
+      "role": "final",
+      "path": "runs/pila5_harvest_s1/model.pt",
+      "sha256": "af7f7c9593f2c5024592b0ad6ca12109595f0aad23100e3c665ff7cd357f2a11",
+      "primary": true,
+      "round": 19,
+      "source": "~/parchis_scratch/pila5_harvest/pila5_harvest_s1/champion.pt"
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c01.pt",
+      "sha256": "cea8a6cba1826b550b3388c93cd9a99538fa10d44c9390b0068a913a1b53217f",
+      "label": "c01",
+      "primary": false,
+      "round": 0
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c02.pt",
+      "sha256": "74b9e924bba92aa884dbe704f13359f606bc9fc732a2d1f9db8bf919506653e0",
+      "label": "c02",
+      "primary": false,
+      "round": 1
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c03.pt",
+      "sha256": "7af29e092290b0ad65453fdc53b4d3bed94a57f6d7707b9c10721a86298db547",
+      "label": "c03",
+      "primary": false,
+      "round": 2
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c04.pt",
+      "sha256": "c6b1ae05600cbfcda28f3cbc5d96b78c299582c16d7c55da25ec3316a34298c4",
+      "label": "c04",
+      "primary": false,
+      "round": 3
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c05.pt",
+      "sha256": "0448dbbdd668d8c029aa6033e7dd3a23236373376a6792719519649ec1da9a50",
+      "label": "c05",
+      "primary": false,
+      "round": 4
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c06.pt",
+      "sha256": "b4ee8ba078d24074a5ed100517aac319401155d6c4f792a9560caba1c8846db4",
+      "label": "c06",
+      "primary": false,
+      "round": 5
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c07.pt",
+      "sha256": "e018300902962f2dfa71cf6ebf2c40a0859fdd78918d1785308d4ba92ef189fb",
+      "label": "c07",
+      "primary": false,
+      "round": 6
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c08.pt",
+      "sha256": "36ed47f0944702b957aad8a955833adbcbbe5ffb239bd4ea2b626eb270e8d760",
+      "label": "c08",
+      "primary": false,
+      "round": 7
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c09.pt",
+      "sha256": "12ecd6f65226a0b537f877a4e3449200891bbe786a5e86bd38136cac326c1726",
+      "label": "c09",
+      "primary": false,
+      "round": 8
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c10.pt",
+      "sha256": "7d2fb00fd8cbf15e4e9399bcd3a2e4ebb145aacf93d809ca0e3c97a4d2858a2d",
+      "label": "c10",
+      "primary": false,
+      "round": 9
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c11.pt",
+      "sha256": "8c73a6d15f0df8ea541048a5c9ea44567e9391dc36848971f3e03e68b7876d31",
+      "label": "c11",
+      "primary": false,
+      "round": 10
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c12.pt",
+      "sha256": "45e2c3f030d832710863134eb5d5dfc44d8858c164d52d547bd8e199de8a8496",
+      "label": "c12",
+      "primary": false,
+      "round": 11
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c13.pt",
+      "sha256": "ea4ab6603f89625611b38e2051a8f22bb1faeeef2a7cfbce08597b9f009f6da3",
+      "label": "c13",
+      "primary": false,
+      "round": 12
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c14.pt",
+      "sha256": "f3f77b36a4f8f166b0e6aeae8a58a63adb5139d9bc317ec242dc01219e55e5df",
+      "label": "c14",
+      "primary": false,
+      "round": 13
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c15.pt",
+      "sha256": "cbc925428a4ca224bf906e123fdefb8f98dae8d4a0a6b8b8e15958a7f33e0457",
+      "label": "c15",
+      "primary": false,
+      "round": 14
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c16.pt",
+      "sha256": "fa59d20b63c14c753bd807ce273b5e4933efb6ea16b06c23b04dd8189e287bfa",
+      "label": "c16",
+      "primary": false,
+      "round": 15
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c17.pt",
+      "sha256": "6a0bcd3981d083128f00467215099e18504f34d2bf998609508cfc6248dcfaa2",
+      "label": "c17",
+      "primary": false,
+      "round": 16
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c18.pt",
+      "sha256": "0c514ad03cc6918a2c112c43ef39088fe33ece76e992a59c3a47756da5b95e59",
+      "label": "c18",
+      "primary": false,
+      "round": 17
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c19.pt",
+      "sha256": "58f56dec6651afdd219585d762f07dc86cecfe8ec77046c20391e88b03b08aee",
+      "label": "c19",
+      "primary": false,
+      "round": 18
+    },
+    {
+      "role": "candidate",
+      "path": "runs/pila5_harvest_s1/candidates/c20.pt",
+      "sha256": "279401384dd5ab19b58d38fad83eb884ea7b4025b5db24072787ccab4410c282",
+      "label": "c20",
+      "primary": false,
+      "round": 19
+    }
+  ],
+  "training": {
+    "rounds": [
+      {
+        "round": 0,
+        "seconds": 229.0,
+        "promoted": true,
+        "gate_win_rate": 0.52,
+        "gate_ci": [
+          0.4510378507281424,
+          0.588208336216767
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20000000,
+        "promotion_seed": 20000000
+      },
+      {
+        "round": 1,
+        "seconds": 258.9,
+        "promoted": true,
+        "gate_win_rate": 0.46,
+        "gate_ci": [
+          0.3923305179997147,
+          0.5291771081104667
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20001000,
+        "promotion_seed": 20000001
+      },
+      {
+        "round": 2,
+        "seconds": 276.6,
+        "promoted": true,
+        "gate_win_rate": 0.48,
+        "gate_ci": [
+          0.411791663783233,
+          0.5489621492718577
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20002000,
+        "promotion_seed": 20000002
+      },
+      {
+        "round": 3,
+        "seconds": 309.2,
+        "promoted": true,
+        "gate_win_rate": 0.505,
+        "gate_ci": [
+          0.4362700003352748,
+          0.5735415464009526
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20003000,
+        "promotion_seed": 20000003
+      },
+      {
+        "round": 4,
+        "seconds": 309.4,
+        "promoted": true,
+        "gate_win_rate": 0.485,
+        "gate_ci": [
+          0.41667385171877513,
+          0.5538915080725427
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20004000,
+        "promotion_seed": 20000004
+      },
+      {
+        "round": 5,
+        "seconds": 307.1,
+        "promoted": true,
+        "gate_win_rate": 0.52,
+        "gate_ci": [
+          0.4510378507281424,
+          0.588208336216767
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20005000,
+        "promotion_seed": 20000005
+      },
+      {
+        "round": 6,
+        "seconds": 266.7,
+        "promoted": true,
+        "gate_win_rate": 0.515,
+        "gate_ci": [
+          0.44610849192745716,
+          0.5833261482812248
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20006000,
+        "promotion_seed": 20000006
+      },
+      {
+        "round": 7,
+        "seconds": 270.9,
+        "promoted": true,
+        "gate_win_rate": 0.44,
+        "gate_ci": [
+          0.37297819251185865,
+          0.5092832466534134
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20007000,
+        "promotion_seed": 20000007
+      },
+      {
+        "round": 8,
+        "seconds": 311.8,
+        "promoted": true,
+        "gate_win_rate": 0.48,
+        "gate_ci": [
+          0.411791663783233,
+          0.5489621492718577
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20008000,
+        "promotion_seed": 20000008
+      },
+      {
+        "round": 9,
+        "seconds": 271.1,
+        "promoted": true,
+        "gate_win_rate": 0.495,
+        "gate_ci": [
+          0.4264584535990475,
+          0.5637299996647251
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20009000,
+        "promotion_seed": 20000009
+      },
+      {
+        "round": 10,
+        "seconds": 291.4,
+        "promoted": true,
+        "gate_win_rate": 0.47,
+        "gate_ci": [
+          0.40204754873265425,
+          0.5390831708499817
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20010000,
+        "promotion_seed": 20000010
+      },
+      {
+        "round": 11,
+        "seconds": 298.3,
+        "promoted": true,
+        "gate_win_rate": 0.43,
+        "gate_ci": [
+          0.36334322333434416,
+          0.4992951223584731
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20011000,
+        "promotion_seed": 20000011
+      },
+      {
+        "round": 12,
+        "seconds": 322.5,
+        "promoted": true,
+        "gate_win_rate": 0.475,
+        "gate_ci": [
+          0.4069162264657108,
+          0.5440260398531525
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20012000,
+        "promotion_seed": 20000012
+      },
+      {
+        "round": 13,
+        "seconds": 281.0,
+        "promoted": true,
+        "gate_win_rate": 0.525,
+        "gate_ci": [
+          0.4559739601468475,
+          0.5930837735342892
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20013000,
+        "promotion_seed": 20000013
+      },
+      {
+        "round": 14,
+        "seconds": 324.0,
+        "promoted": true,
+        "gate_win_rate": 0.505,
+        "gate_ci": [
+          0.4362700003352748,
+          0.5735415464009526
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20014000,
+        "promotion_seed": 20000014
+      },
+      {
+        "round": 15,
+        "seconds": 327.8,
+        "promoted": true,
+        "gate_win_rate": 0.51,
+        "gate_ci": [
+          0.4411858767845865,
+          0.5784372166878683
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20015000,
+        "promotion_seed": 20000015
+      },
+      {
+        "round": 16,
+        "seconds": 267.6,
+        "promoted": true,
+        "gate_win_rate": 0.51,
+        "gate_ci": [
+          0.4411858767845865,
+          0.5784372166878683
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20016000,
+        "promotion_seed": 20000016
+      },
+      {
+        "round": 17,
+        "seconds": 301.8,
+        "promoted": true,
+        "gate_win_rate": 0.5,
+        "gate_ci": [
+          0.43136085960389187,
+          0.5686391403961082
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20017000,
+        "promotion_seed": 20000017
+      },
+      {
+        "round": 18,
+        "seconds": 305.3,
+        "promoted": true,
+        "gate_win_rate": 0.505,
+        "gate_ci": [
+          0.4362700003352748,
+          0.5735415464009526
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20018000,
+        "promotion_seed": 20000018
+      },
+      {
+        "round": 19,
+        "seconds": 273.1,
+        "promoted": true,
+        "gate_win_rate": 0.46,
+        "gate_ci": [
+          0.3923305179997147,
+          0.5291771081104667
+        ],
+        "gate_games": 200,
+        "generation_seed_first": 20019000,
+        "promotion_seed": 20000019
+      }
+    ],
+    "rounds_completed": 20,
+    "promotions": 20,
+    "selfplay_games": 120000,
+    "wall_clock_s": 5803.5,
+    "wall_clock_note": "sum of round times (generation + training + gate), excludes ladders",
+    "rounds_dir": "rounds/"
+  },
+  "selection": {
+    "method": "not selected",
+    "rank": 5,
+    "of": 5,
+    "source": "runs/pila5_harvest_s1/screening.json",
+    "reason": null,
+    "endpoint": "model.pt is the champion after the last round (ungated; same tensors as c20: True)"
+  },
+  "evals": [
+    {
+      "kind": "h2h",
+      "checkpoint": "runs/pila5_harvest_s1/model.pt",
+      "checkpoint_sha256": "af7f7c9593f2c5024592b0ad6ca12109595f0aad23100e3c665ff7cd357f2a11",
+      "opponent": "runs/soups_2026-11-16/s1/model.pt",
+      "opponent_name": "soups_2026-11-16/s1",
+      "opponent_sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d",
+      "win_rate": 0.45775,
+      "ci": [
+        0.44235843359590304,
+        0.4732226393620768
+      ],
+      "n_games": 4000,
+      "seeds": "21000000+c, c<8 (same deals for every net)",
+      "depth": 1,
+      "source": "runs/pila5_harvest_s1/screening.json",
+      "tag": "pila5_screening",
+      "recorded": "2026-11-16T16:56:07+00:00",
+      "draws": 0,
+      "wall_clock_s": 36.6,
+      "note": "screening only (ranks the harvest nets); not a verdict"
+    }
+  ],
+  "sessions": [
+    {
+      "started": "2026-11-16T15:15:16+00:00",
+      "git_sha": "5ba911a73461ad51bda5f5d8b5d8caaf65fe3e45",
+      "git_dirty": false,
+      "command": "scripts/v2/run_harvest.py --base 20000000",
+      "pid": 73659
+    }
+  ],
+  "notes": "Candidates in candidates/, soups of the trajectory in soups/; harvest.json summarises the post phase.",
+  "curated": {
+    "at": "2026-11-16T16:52:00+00:00",
+    "source_dir": "~/parchis_scratch/pila5_harvest/pila5_harvest_s1"
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "protocol": "docs/EVAL_PROTOCOL.md v1",
+  "run_id": "pila5_harvest_s1/soups/h4",
+  "issue": "PILA-5",
+  "candidate": {
+    "path": "runs/pila5_harvest_s1/soups/h4/model.pt",
+    "sha256": "d7b2b08552b5c210e0cfbf325ec90f03688d7dca6c2b82de0429c27f80285bea"
+  },
+  "champion": {
+    "name": "soup_s1",
+    "path": "runs/soups_2026-11-16/s1/model.pt",
+    "sha256": "3a86d3cf99b1977131b9e6822d0629e410fbec086bb8b624214192368746300d",
+    "depth": 1,
+    "since": "2026-11-16",
+    "evidence": "PILA-8, protocol v1, best-of-4 confirmed: 53.38% [52.69, 54.07] vs V2.1c (block 3, PROVISIONAL) and 52.79% [52.09, 53.48] vs V2.1c (block 4, PASS), 20,000 games each, depth 1 (runs/soups_2026-11-16/s1/eval/protocol_b{3,4}.json)"
+  },
+  "previous": {
+    "name": "v2_1c",
+    "path": "runs/v2_1c_champion/model.pt",
+    "sha256": "30c1234fb42dfc85e98b706713b6d43bbc7cdfb006623306ca168cdee64bb693",
+    "depth": 1
+  },
+  "depth": 1,
+  "num_players": 2,
+  "max_turns": 500,
+  "workers": 8,
+  "block": 5,
+  "seeds": {
+    "decisive": "5005000+c, c<8",
+    "heuristic": "5005100+c, c<8",
+    "champion_heuristic": "5005100+c, c<8",
+    "random": "5005200+c, c<8",
+    "previous": "5005300+c, c<8"
+  },
+  "pairs": {
+    "decisive": 10000,
+    "heuristic": 1000,
+    "champion_heuristic": 1000,
+    "random": 1000,
+    "previous": 1000
+  },
+  "specs": {
+    "decisive": [
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-5-ab5afcd11318/workdir/parchis/runs/pila5_harvest_s1/soups/h4/model.pt",
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-5-ab5afcd11318/workdir/parchis/runs/soups_2026-11-16/s1/model.pt"
+    ],
+    "heuristic": [
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-5-ab5afcd11318/workdir/parchis/runs/pila5_harvest_s1/soups/h4/model.pt",
+      "heuristic_tuned"
+    ],
+    "champion_heuristic": [
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-5-ab5afcd11318/workdir/parchis/runs/soups_2026-11-16/s1/model.pt",
+      "heuristic_tuned"
+    ],
+    "random": [
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-5-ab5afcd11318/workdir/parchis/runs/pila5_harvest_s1/soups/h4/model.pt",
+      "random"
+    ],
+    "previous": [
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-5-ab5afcd11318/workdir/parchis/runs/pila5_harvest_s1/soups/h4/model.pt",
+      "/Users/nachorodriguezsolis/multica_workspaces_desktop-api.multica.ai/pilarina-a4ab95a049fa/pila-5-ab5afcd11318/workdir/parchis/runs/v2_1c_champion/model.pt"
+    ]
+  },
+  "results": {
+    "decisive": {
+      "wins": 10167,
+      "draws": 0,
+      "n_games": 20000,
+      "score": 10167.0,
+      "win_rate": 0.50835,
+      "ci": [
+        0.5014205088437043,
+        0.5152762841541588
+      ]
+    },
+    "heuristic": {
+      "wins": 1475,
+      "draws": 0,
+      "n_games": 2000,
+      "score": 1475.0,
+      "win_rate": 0.7375,
+      "ci": [
+        0.7177746294224202,
+        0.7563147731189848
+      ]
+    },
+    "champion_heuristic": {
+      "wins": 1545,
+      "draws": 0,
+      "n_games": 2000,
+      "score": 1545.0,
+      "win_rate": 0.7725,
+      "ci": [
+        0.753615089127177,
+        0.79034012010454
+      ]
+    },
+    "random": {
+      "wins": 1965,
+      "draws": 0,
+      "n_games": 2000,
+      "score": 1965.0,
+      "win_rate": 0.9825,
+      "ci": [
+        0.975759802333172,
+        0.9873902470404188
+      ]
+    },
+    "previous": {
+      "wins": 1088,
+      "draws": 0,
+      "n_games": 2000,
+      "score": 1088.0,
+      "win_rate": 0.544,
+      "ci": [
+        0.5221083682982768,
+        0.565722931540973
+      ]
+    }
+  },
+  "verdict": {
+    "verdict": "FAIL",
+    "checks": [
+      {
+        "name": "decisive: Wilson 95% lower bound vs champion > 50%",
+        "value": 0.5014205088437043,
+        "threshold": 0.5,
+        "unit": "%",
+        "ok": true
+      },
+      {
+        "name": "guard: vs heuristic >= champion vs heuristic - 3pp (same seeds)",
+        "value": -0.03499999999999992,
+        "threshold": -0.03,
+        "unit": "pp",
+        "ok": false
+      },
+      {
+        "name": "guard: vs random >= 95%",
+        "value": 0.9825,
+        "threshold": 0.95,
+        "unit": "%",
+        "ok": true
+      }
+    ],
+    "draw_share": 0.0
+  },
+  "selection": "best-of-5",
+  "confirmation_of": null,
+  "git_sha": "13cd24f9f4b37ecb8209c9609b35d43cb295605b",
+  "git_dirty": false,
+  "wall_clock_s": 215.1,
+  "finished": "2026-11-16T17:27:39+00:00"
+}
